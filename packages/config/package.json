@@ -1,0 +1,49 @@
+{
+  "name": "@node-env-resolver/config",
+  "version": "0.0.1",
+  "description": "Shared TypeScript and ESLint configurations for node-env-resolver monorepo",
+  "type": "module",
+  "exports": {
+    "./typescript": "./tsconfig.json",
+    "./typescript/nextjs": "./tsconfig.nextjs.json",
+    "./typescript/node": "./tsconfig.node.json",
+    "./eslint": "./eslint.config.js",
+    "./eslint/nextjs": "./eslint.nextjs.config.js"
+  },
+  "files": [
+    "tsconfig*.json",
+    "eslint*.config.js"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "typescript": "^5.5.0"
+  },
+  "peerDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/node": {
+      "optional": true
+    },
+    "typescript": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "typescript",
+    "eslint",
+    "config",
+    "monorepo"
+  ],
+  "license": "MIT",
+  "author": "Jagvinder Singh Reehal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jagreehal/node-env-resolver"
+  }
+}

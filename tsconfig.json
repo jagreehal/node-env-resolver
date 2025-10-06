@@ -1,0 +1,26 @@
+{
+  "extends": "./packages/config/tsconfig.node.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "verbatimModuleSyntax": true
+  },
+  "include": [],
+  "references": [
+    { "path": "./packages/node-env-resolver" },
+    { "path": "./packages/node-env-resolver-aws" },
+    { "path": "./packages/nextjs-resolver" },
+    { "path": "./packages/cli" }
+  ]
+}
+
+

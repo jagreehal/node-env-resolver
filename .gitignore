@@ -1,0 +1,10 @@
+.DS_Store
+node_modules
+dist
+.changeset
+.env
+cdk.out/
+.turbo/
+coverage
+examples/**/node_modules
+examples/**/.next

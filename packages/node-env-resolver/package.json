@@ -1,0 +1,110 @@
+{
+  "name": "node-env-resolver",
+  "version": "0.0.1",
+  "description": "Type-safe environment variable resolver with async resolvers - lightweight, tree-shakeable, no dependencies",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./builder": {
+      "import": "./dist/builder.js",
+      "types": "./dist/builder.d.ts"
+    },
+    "./zod": {
+      "import": "./dist/zod.js",
+      "types": "./dist/zod.d.ts"
+    },
+    "./standard-schema": {
+      "import": "./dist/standard-schema.js",
+      "types": "./dist/standard-schema.d.ts"
+    },
+    "./web": {
+      "import": "./dist/web.js",
+      "types": "./dist/web.d.ts"
+    },
+    "./resolvers": {
+      "import": "./dist/resolvers.js",
+      "types": "./dist/resolvers.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils.js",
+      "types": "./dist/utils.d.ts"
+    },
+    "./validators": {
+      "import": "./dist/validators.js",
+      "types": "./dist/validators.d.ts"
+    },
+    "./audit": {
+      "import": "./dist/audit.js",
+      "types": "./dist/audit.d.ts"
+    },
+    "./resolver": {
+      "import": "./dist/resolver.js",
+      "types": "./dist/resolver.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "NODE_ENV=production tsup && tsc --emitDeclarationOnly",
+    "build:dev": "tsup",
+    "build:dts": "tsc --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "prepublishOnly": "pnpm build && pnpm typecheck"
+  },
+  "keywords": [
+    "environment",
+    "env",
+    "config",
+    "typescript",
+    "aws-secrets",
+    "aws-ssm",
+    "vault",
+    "doppler",
+    "type-safe",
+    "tree-shaking",
+    "lambda",
+    "serverless"
+  ],
+  "author": {
+    "name": "Jagvinder Singh Reehal",
+    "email": "jag@jagreehal.com",
+    "url": "https://jagreehal.com"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/node": "^24.6.2",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@standard-schema/spec": "^1.0.0"
+  }
+}

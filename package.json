@@ -1,0 +1,31 @@
+{
+  "name": "node-env-resolver",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "clean": "turbo run clean",
+    "dev": "dotenv -- turbo run dev --no-cache --parallel --continue",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --fix",
+    "lint:exports": "eslint --ext .ts,.js packages/*/src/index.ts packages/*/src/index.js",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "example:basic": "pnpm --filter simple-example dev",
+    "example:express": "pnpm --filter express-app-example dev",
+    "example:lambda": "pnpm --filter aws-lambda-example dev",
+    "release": "turbo run build lint && changeset publish"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.8"
+  },
+  "packageManager": "pnpm@10.17.1",
+  "dependencies": {
+    "@changesets/cli": "^2.29.7"
+  }
+}

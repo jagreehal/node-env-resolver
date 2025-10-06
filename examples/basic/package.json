@@ -1,0 +1,27 @@
+{
+  "name": "simple-example",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
+    "dev": "vitest --watch"
+   
+  },
+  "dependencies": {
+    "@node-env-resolver/aws": "workspace:*",
+    "node-env-resolver": "workspace:*",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "@vitest/ui": "^2.1.8",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8",
+    "vitest-mock-extended": "^3.1.0"
+  }
+}

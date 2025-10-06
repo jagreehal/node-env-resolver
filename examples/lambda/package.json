@@ -1,0 +1,21 @@
+{
+  "name": "aws-lambda-example",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "package": "npm run build && zip -r function.zip dist/ node_modules/",
+    "dev": "tsx src/handler.ts"
+  },
+  "dependencies": {
+    "node-env-resolver": "workspace:*",
+    "@node-env-resolver/aws": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.153",
+    "@types/node": "^24.6.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

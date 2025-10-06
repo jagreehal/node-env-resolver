@@ -1,0 +1,80 @@
+{
+  "name": "@node-env-resolver/nextjs",
+  "version": "0.0.1",
+  "description": "Zero-config Next.js integration for node-env-resolver with client/server split and App Router support",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client.js",
+      "types": "./dist/client.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    },
+    "./config": {
+      "import": "./dist/config.js",
+      "types": "./dist/config.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "env.config.template.mjs"
+  ],
+  "scripts": {
+    "build": "NODE_ENV=production tsup",
+    "build:dev": "tsup",
+    "build:dts": "tsc --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "dev": "tsup --watch",
+    "prepublishOnly": "pnpm build && pnpm typecheck"
+  },
+  "keywords": [
+    "nextjs",
+    "next",
+    "environment",
+    "env",
+    "config",
+    "typescript",
+    "app-router",
+    "client-server",
+    "type-safe",
+    "zero-config"
+  ],
+  "author": {
+    "name": "Jagvinder Singh Reehal",
+    "email": "jag@jagreehal.com",
+    "url": "https://jagreehal.com"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "next": "^13.0.0 || ^14.0.0 || ^15.0.0"
+  },
+  "dependencies": {
+    "node-env-resolver": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "eslint": "^9.36.0",
+    "prettier": "^3.6.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

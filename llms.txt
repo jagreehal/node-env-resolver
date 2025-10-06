@@ -1,0 +1,313 @@
+# llms.txt — Agent Guide for `node-env-resolver`
+
+**Purpose:** Teach coding agents how to resolve environment variables with types, validation, and multiple sources (resolvers) using `node-env-resolver`.
+
+## TL;DR
+
+* Use `resolve({...})` for the simple case (reads **process.env** only).
+* Use `resolve.with([provider, schema], … [, options])` when you need **multiple resolvers** (e.g. dotenv + AWS Secrets).
+* Merge rule is **left → right**, **last tuple wins** on key conflicts.
+* In production, `.env` files are **not** read unless you explicitly include `dotenv()`.
+
+---
+
+## Primary APIs
+
+### 1) Single-provider (default: process.env)
+
+```ts
+import { resolve } from 'node-env-resolver';
+
+const config = await resolve({
+  PORT: 3000,
+  DATABASE_URL: 'url',
+  DEBUG: false,
+  API_KEY: 'string?'
+});
+
+// Types:
+// PORT: number
+// DATABASE_URL: string (validated URL string)
+// DEBUG: boolean
+// API_KEY: string | undefined
+```
+
+### 2) Multi-provider (tuple syntax)
+
+```ts
+import { resolve, processEnv, dotenv } from 'node-env-resolver';
+
+const config = await resolve.with(
+  [dotenv({ path: '.env', expand: true }), {
+    DATABASE_URL: 'url',
+    DEBUG: false
+  }],
+  [processEnv(), {
+    PORT: 3000,
+    NODE_ENV: ['development', 'production'] as const
+  }]
+);
+```
+
+**Order rule:** Later tuples override earlier ones for overlapping keys.
+
+### 3) Variadic vs array form
+
+```ts
+const resolvers = [
+  [processEnv(), { PORT: 3000 }],
+  [dotenv(),     { DATABASE_URL: 'url' }],
+] as const;
+
+await resolve.with(...resolvers);     // preferred
+// If supported in your version:
+// await resolve.with(resolvers);
+```
+
+### 4) Options (optional last argument to `.with`)
+
+```ts
+await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [dotenv(),     { DATABASE_URL: 'url' }],
+  {
+    strict: true,
+    interpolate: false,
+    policies: {
+      enforceAllowedSources: {
+        DATABASE_URL: ['aws-secrets']
+      }
+    },
+    // extend/resolvers: low-level hooks; prefer tuples for clarity
+  }
+);
+```
+
+---
+
+## Provider Model
+
+A **provider** returns a map of string values. It can be an object or a factory.
+
+```ts
+export interface Provider {
+  name: string;
+  load(): Promise<Record<string, string>>;
+  loadSync?(): Record<string, string>;
+}
+
+// Object provider (no options)
+const databaseProvider: Provider = {
+  name: 'database-config',
+  async load() { return { FEATURE_FLAGS: '{"experiments":true}' }; }
+};
+
+// Factory provider (with options)
+function awsSecretsProvider(opts: { region: string }): Provider {
+  return {
+    name: `aws-secrets(${opts.region})`,
+    async load() { /* fetch secrets */ return { DATABASE_URL: 'postgres://...' }; }
+  };
+}
+```
+
+**Wrappers** (decorators) return new resolvers:
+
+```ts
+import { cached, retry, TTL } from 'node-env-resolver';
+
+const stableAws = cached(
+  retry(awsSecretsProvider({ region: 'us-east-1' }), { attempts: 3 }),
+  { ttl: TTL.minutes5, staleWhileRevalidate: true }
+);
+```
+
+---
+
+## Schema DSL (Standard Schema–style)
+
+Shorthand:
+
+* `'string'` / `'string?'` (optional)
+* `'number'`, `'boolean'`
+* `'url'` → **validated string** URL (not a URL object)
+* `'email'`
+* `'port'` or `'port:3000'` (default)
+* `'json'` → parsed JSON (**typed as `unknown`**; narrow manually)
+* `'string:/^abc/'` (regex pattern)
+
+Literals & enums:
+
+```ts
+PORT: 3000,                           // number default
+DEBUG: false,                         // boolean default
+NODE_ENV: ['development','production'] as const  // enum union
+```
+
+Advanced object form:
+
+```ts
+API_KEY: {
+  type: 'string',
+  optional: true,
+  pattern: '^sk_[a-zA-Z0-9]+$',
+  description: 'Secret key'
+}
+```
+
+---
+
+## Behavior & Policies
+
+* **Default source**: `resolve({...})` reads **process.env only** (consistent across dev/staging/prod).
+* **Dotenv**: Add `dotenv()` explicitly when you want `.env` files (usually development).
+* **Merging**: Tuples merge **left → right**; later resolvers overwrite earlier ones on the same key.
+* **Security defaults**:
+
+  * Production-safe by default (dotenv not used unless included).
+  * Optional audit logging (`getAuditLog()`).
+  * Optional **source enforcement** via `policies.enforceAllowedSources`.
+
+---
+
+## Error Handling
+
+Typical failures:
+
+* Missing required variable
+* Invalid type/format (url/email/number/port)
+* Enum mismatch
+* Regex/pattern mismatch
+
+Example:
+
+```
+❌ Environment validation failed:
+  - Missing required environment variable: DATABASE_URL
+  - PORT: Invalid port number (1-65535)
+  - NODE_ENV: must be one of: development, production
+  - API_KEY: does not match pattern: ^sk_[a-zA-Z0-9]+$
+```
+
+**Recommendation for agents:** When validation fails, propose the minimal fix:
+
+* Add missing variable(s) to the correct source.
+* Adjust schema (e.g., make optional) only if the product spec allows it.
+
+---
+
+## Do / Don’t (for Agents)
+
+**Do**
+
+* Prefer `resolve({...})` if only `process.env` is needed.
+* Use `resolve.with([provider, schema], …)` for multiple sources; keep **one source per key** if possible.
+* Preserve tuple literal types with `as const` when storing tuples.
+* Document provider **order** explicitly in code reviews and PRs.
+
+**Don’t**
+
+* Don’t use object mapping like `{ provider: { …schema } }` — use tuples.
+* Don’t silently add dotenv in production.
+* Don’t mix overlapping keys across resolvers unless there’s an explicit override reason.
+
+---
+
+## Common Recipes
+
+### 1) Strict prod, dotenv in dev
+
+```ts
+const config = await resolve.with(
+  [dotenv(),     { DATABASE_URL: 'url', DEBUG: false }],
+  [processEnv(), { PORT: 3000, NODE_ENV: ['development','production'] as const }],
+  {
+    strict: true,
+    policies: {
+      enforceAllowedSources: {
+        DATABASE_URL: ['aws-secrets'], // require secret to come from aws
+      },
+    },
+  }
+);
+```
+
+### 2) AWS Secrets + cache + retry
+
+```ts
+const config = await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [cached(retry(awsSecretsProvider({ region: 'us-east-1' }), { attempts: 3 }), { ttl: TTL.minutes15 }), {
+    DATABASE_URL: 'url',
+    API_KEY: 'string'
+  }]
+);
+```
+
+### 3) JSON flags (narrow after parse)
+
+```ts
+const { FEATURE_FLAGS } = await resolve({
+  FEATURE_FLAGS: 'json'
+});
+const flags = FEATURE_FLAGS as { newUI?: boolean };
+```
+
+---
+
+## Minimal Signature Cheatsheet
+
+```ts
+// Primary
+resolve(schema: Schema): Promise<TypedConfig>
+
+// Multi-provider
+resolve.with(
+  ...pairs: readonly [Provider, Schema][],
+  options?: ResolveOptions
+): Promise<MergedTypedConfig>
+
+// Resolvers
+interface Provider {
+  name: string;
+  load(): Promise<Record<string,string>>;
+  loadSync?(): Record<string,string>;
+}
+
+// Options (subset)
+interface ResolveOptions {
+  interpolate?: boolean;
+  strict?: boolean;
+  policies?: {
+    enforceAllowedSources?: Record<string, string[]>; // key → allowed provider names
+    // other policy knobs…
+  };
+  // resolvers/extend (low-level) exist but prefer tuples.
+}
+```
+
+---
+
+## Test Hints (for Agents)
+
+* Unit tests: verify types with `// @ts-expect-error` for invalid shapes.
+* Integration: simulate provider order & conflicts; assert **last-wins**.
+* Security: ensure `.env` is ignored unless `dotenv()` present; assert source enforcement errors.
+* JSON schema: ensure `'json'` parses and is typed `unknown`.
+
+---
+
+## Migration Tips (from t3-env or Zod)
+
+* Replace `z.enum([...])` with `['a','b'] as const`.
+* Replace `.default(3000)` with literal `3000`.
+* Replace `runtimeEnv: process.env` with `resolve({...})`.
+* For multi-source needs, move to `resolve.with([provider, schema], …)`.
+
+---
+
+**Contact:** If you’re an agent proposing changes, prefer PRs that:
+
+* Keep one source per key where possible.
+* Include error messages that mention **which provider** a value came from.
+* Preserve tuple order and `as const` annotations.
