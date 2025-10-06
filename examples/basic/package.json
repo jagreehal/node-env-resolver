@@ -14,14 +14,14 @@
   "dependencies": {
     "@node-env-resolver/aws": "workspace:*",
     "node-env-resolver": "workspace:*",
-    "zod": "^4.1.11"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/node": "^24.6.2",
-    "@vitest/ui": "^2.1.8",
+    "@types/node": "^24.7.0",
+    "@vitest/ui": "^3.2.4",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^2.1.8",
+    "vitest": "^3.2.4",
     "vitest-mock-extended": "^3.1.0"
   }
 }

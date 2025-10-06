@@ -13,8 +13,8 @@
     "@node-env-resolver/aws": "workspace:*"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.153",
-    "@types/node": "^24.6.2",
+    "@types/aws-lambda": "^8.10.155",
+    "@types/node": "^24.7.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }

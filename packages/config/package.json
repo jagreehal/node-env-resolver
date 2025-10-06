@@ -15,12 +15,12 @@
     "eslint*.config.js"
   ],
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0",
-    "eslint-plugin-import": "^2.29.0",
-    "typescript": "^5.5.0"
+    "@types/node": "^24.7.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "eslint": "^9.37.0",
+    "eslint-plugin-import": "^2.32.0",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@types/node": "^22.0.0",
