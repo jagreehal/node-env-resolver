@@ -1,5 +1,5 @@
 {
-  "name": "@node-env-resolver/aws",
+  "name": "node-env-resolver-aws",
   "version": "1.0.0",
   "description": "AWS resolvers for node-env-resolver (Secrets Manager, SSM Parameter Store)",
   "type": "module",

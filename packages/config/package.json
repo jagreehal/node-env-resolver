@@ -1,5 +1,5 @@
 {
-  "name": "@node-env-resolver/config",
+  "name": "node-env-resolver-config",
   "version": "2.0.0",
   "description": "Shared TypeScript and ESLint configurations for node-env-resolver monorepo",
   "type": "module",

@@ -1,5 +1,5 @@
 {
-  "name": "@node-env-resolver/nextjs",
+  "name": "node-env-resolver-nextjs",
   "version": "2.0.0",
   "description": "Zero-config Next.js integration for node-env-resolver with client/server split and App Router support",
   "type": "module",
