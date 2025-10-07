@@ -33,12 +33,12 @@ importers:
 
   examples/basic:
     dependencies:
-      '@node-env-resolver/aws':
-        specifier: workspace:*
-        version: link:../../packages/node-env-resolver-aws
       node-env-resolver:
         specifier: workspace:*
         version: link:../../packages/node-env-resolver
+      node-env-resolver-aws:
+        specifier: workspace:*
+        version: link:../../packages/node-env-resolver-aws
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -79,15 +79,15 @@ importers:
 
   examples/express:
     dependencies:
-      '@node-env-resolver/aws':
-        specifier: workspace:*
-        version: link:../../packages/node-env-resolver-aws
       express:
         specifier: ^5.1.0
         version: 5.1.0
       node-env-resolver:
         specifier: workspace:*
         version: link:../../packages/node-env-resolver
+      node-env-resolver-aws:
+        specifier: workspace:*
+        version: link:../../packages/node-env-resolver-aws
     devDependencies:
       '@eslint/js':
         specifier: ^9.37.0
@@ -119,12 +119,12 @@ importers:
 
   examples/lambda:
     dependencies:
-      '@node-env-resolver/aws':
-        specifier: workspace:*
-        version: link:../../packages/node-env-resolver-aws
       node-env-resolver:
         specifier: workspace:*
         version: link:../../packages/node-env-resolver
+      node-env-resolver-aws:
+        specifier: workspace:*
+        version: link:../../packages/node-env-resolver-aws
     devDependencies:
       '@eslint/js':
         specifier: ^9.37.0
@@ -156,12 +156,12 @@ importers:
 
   examples/nextjs-app:
     dependencies:
-      '@node-env-resolver/nextjs':
-        specifier: workspace:*
-        version: link:../../packages/nextjs-resolver
       next:
         specifier: 15.5.4
         version: 15.5.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      node-env-resolver-nextjs:
+        specifier: workspace:*
+        version: link:../../packages/nextjs-resolver
       react:
         specifier: ^19
         version: 19.1.1

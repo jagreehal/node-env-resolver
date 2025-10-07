@@ -2,8 +2,8 @@
  * Environment configuration for CLI tools
  * 
  * This file is automatically discovered by `ner check` and `ner codegen`
- * Run: `npx @node-env-resolver/cli check` to validate your environment
- * Run: `npx @node-env-resolver/cli codegen` to generate types and .env.example
+ * Run: `npx node-env-resolver/cli check` to validate your environment
+ * Run: `npx node-env-resolver/cli codegen` to generate types and .env.example
  */
 
 export const schema = {

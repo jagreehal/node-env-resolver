@@ -3,7 +3,7 @@ import { resolve } from './index';
 // Mock the globalThis.window for browser detection
 const originalGlobalThis = globalThis;
 
-describe('@node-env-resolver/nextjs', () => {
+describe('node-env-resolver/nextjs', () => {
   beforeEach(() => {
     // Reset process.env
     delete process.env.NEXT_PUBLIC_APP_URL;

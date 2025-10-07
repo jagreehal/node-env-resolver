@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "node-env-resolver": "workspace:*",
-    "@node-env-resolver/aws": "workspace:*",
+    "node-env-resolver-aws": "workspace:*",
     "express": "^5.1.0"
   },
   "devDependencies": {

@@ -116,7 +116,7 @@ Load configuration from different sources:
 
 ```ts
 import { resolve, processEnv, dotenv } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve.with(
   [processEnv(), {
@@ -136,7 +136,7 @@ Automatic client/server environment variable splitting:
 
 ```ts
 // env.mjs
-import { resolveNextEnv } from '@node-env-resolver/nextjs';
+import { resolveNextEnv } from 'node-env-resolver-nextjs';
 
 export const env = resolveNextEnv({
   server: {
@@ -153,8 +153,8 @@ export const env = resolveNextEnv({
 ## Packages
 
 - **`node-env-resolver`** - Core package with zero dependencies
-- **`@node-env-resolver/aws`** - AWS Secrets Manager & SSM integration
-- **`@node-env-resolver/nextjs`** - Next.js client/server split
+- **`node-env-resolver/aws`** - AWS Secrets Manager & SSM integration
+- **`node-env-resolver/nextjs`** - Next.js client/server split
 
 ## Documentation
 

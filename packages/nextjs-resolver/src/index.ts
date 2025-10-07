@@ -1,5 +1,5 @@
 /**
- * @node-env-resolver/nextjs
+ * node-env-resolver/nextjs
  * Zero-config Next.js integration with automatic client/server split
  *
  * IMPORTANT: Next.js config files must be synchronous.
@@ -53,7 +53,7 @@ export interface NextjsOptions extends Omit<ResolveOptions, 'resolvers'> {
  * @example
  * ```typescript
  * // env.ts
- * import { resolve } from '@node-env-resolver/nextjs';
+ * import { resolve } from 'node-env-resolver/nextjs';
  *
  * export const env = resolve({
  *   server: {

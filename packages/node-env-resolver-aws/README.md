@@ -1,20 +1,20 @@
-# @node-env-resolver/aws
+# node-env-resolver/aws
 
 AWS integration for node-env-resolver with Secrets Manager and SSM Parameter Store support.
 
-[![npm version](https://img.shields.io/npm/v/@node-env-resolver/aws)](https://www.npmjs.com/package/@node-env-resolver/aws)
+[![npm version](https://img.shields.io/npm/v/node-env-resolver/aws)](https://www.npmjs.com/package/node-env-resolver/aws)
 
 ## Install
 
 ```bash
-npm install @node-env-resolver/aws
+npm install node-env-resolver/aws
 ```
 
 ## Quick start
 
 ```ts
 import { resolve } from 'node-env-resolver';
-import { awsSecrets, awsSsm } from '@node-env-resolver/aws';
+import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve({
   DATABASE_URL: 'url',
@@ -39,7 +39,7 @@ const config = await resolve({
 Load JSON secrets from Secrets Manager:
 
 ```ts
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve({
   DATABASE_URL: 'url',
@@ -66,7 +66,7 @@ awsSecrets({
 Load parameters from Parameter Store:
 
 ```ts
-import { awsSsm } from '@node-env-resolver/aws';
+import { awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve({
   API_ENDPOINT: 'url',
@@ -94,7 +94,7 @@ Add TTL caching to reduce AWS API calls:
 
 ```ts
 import { resolve, cached, TTL } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve({
   DATABASE_URL: 'url'
@@ -180,7 +180,7 @@ interface AwsSsmOptions {
 
 ```ts
 import { resolve } from 'node-env-resolver';
-import { awsSecrets, awsSsm } from '@node-env-resolver/aws';
+import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve({
   NODE_ENV: ['development', 'production'] as const,
@@ -199,7 +199,7 @@ const config = await resolve({
 
 ```ts
 import { resolve } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve({
   API_ENDPOINT: 'url',
@@ -219,7 +219,7 @@ export const handler = async (event) => {
 
 ```ts
 import { resolve } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const isProduction = process.env.NODE_ENV === 'production';
 

@@ -4,7 +4,7 @@
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { resolve, processEnv } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 // Define environment once at module level for reuse across invocations
 const envPromise = resolve.with(

@@ -5,7 +5,7 @@
  * This template includes common patterns for SaaS applications.
  */
 
-import { resolveNextEnv } from '@node-env-resolver/nextjs';
+import { resolveNextEnv } from 'node-env-resolver/nextjs';
 
 export const env = await resolveNextEnv({
   /**

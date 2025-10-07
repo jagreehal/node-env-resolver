@@ -1,13 +1,13 @@
-# @node-env-resolver/nextjs
+# node-env-resolver/nextjs
 
 Next.js integration with automatic client/server environment variable splitting.
 
-[![npm version](https://img.shields.io/npm/v/@node-env-resolver/nextjs)](https://www.npmjs.com/package/@node-env-resolver/nextjs)
+[![npm version](https://img.shields.io/npm/v/node-env-resolver/nextjs)](https://www.npmjs.com/package/node-env-resolver/nextjs)
 
 ## Install
 
 ```bash
-npm install @node-env-resolver/nextjs
+npm install node-env-resolver/nextjs
 ```
 
 ## Quick start
@@ -15,7 +15,7 @@ npm install @node-env-resolver/nextjs
 Create `env.mjs` in your project root:
 
 ```javascript
-import { resolveNextEnv } from '@node-env-resolver/nextjs';
+import { resolveNextEnv } from 'node-env-resolver-nextjs';
 
 export const env = resolveNextEnv({
   server: {
@@ -143,8 +143,8 @@ export const env = resolveNextEnv({
 Add cloud resolvers or other sources:
 
 ```javascript
-import { resolveNextEnv } from '@node-env-resolver/nextjs';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { resolveNextEnv } from 'node-env-resolver-nextjs';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 export const env = resolveNextEnv({
   server: {
@@ -190,7 +190,7 @@ export const env = resolveNextEnv({
 ## Example: SaaS app
 
 ```javascript
-import { resolveNextEnv } from '@node-env-resolver/nextjs';
+import { resolveNextEnv } from 'node-env-resolver-nextjs';
 
 export const env = resolveNextEnv({
   server: {

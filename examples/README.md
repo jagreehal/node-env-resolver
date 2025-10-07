@@ -101,7 +101,7 @@ const config = await resolve({
 ### With Cloud Resolvers
 ```typescript
 import { resolve } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 import { cached, TTL } from 'node-env-resolver';
 
 const config = await resolve({
@@ -159,7 +159,7 @@ cached(provider, {
 ### AWS-Optimized Caching
 ```typescript
 import { cached, awsCache } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 cached(awsSecrets({ secretId: 'myapp/secrets' }), awsCache({
   ttl: TTL.minute5,

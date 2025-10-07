@@ -6,9 +6,9 @@
 
 - 5c05090: Initial release version 1.0.0
   - node-env-resolver: Core environment variable resolver with async resolvers
-  - @node-env-resolver/nextjs: Zero-config Next.js integration with client/server split
-  - @node-env-resolver/aws: AWS resolvers for Secrets Manager and SSM Parameter Store
-  - @node-env-resolver/config: Shared TypeScript and ESLint configurations
+  - node-env-resolver/nextjs: Zero-config Next.js integration with client/server split
+  - node-env-resolver/aws: AWS resolvers for Secrets Manager and SSM Parameter Store
+  - node-env-resolver/config: Shared TypeScript and ESLint configurations
 
 All notable changes to this project will be documented in this file.
 

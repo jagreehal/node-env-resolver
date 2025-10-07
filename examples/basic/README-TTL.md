@@ -16,7 +16,7 @@ The `node-env-resolver` package includes powerful TTL caching capabilities that 
 
 ```typescript
 import { resolve, cached } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve({
   DATABASE_PASSWORD: 'string',
@@ -35,7 +35,7 @@ const config = await resolve({
 
 ```typescript
 import { resolve, cached, TTL } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve({
   API_KEY: 'string',
@@ -77,7 +77,7 @@ For AWS services, use the `awsCache` helper for optimal settings:
 
 ```typescript
 import { resolve, cached, awsCache } from 'node-env-resolver';
-import { awsSecrets, awsSsm } from '@node-env-resolver/aws';
+import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve({
   DATABASE_PASSWORD: 'string',
@@ -111,7 +111,7 @@ Different types of secrets can have different cache strategies:
 
 ```typescript
 import { resolve, cached, TTL } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve({
   // Fast-changing data (user tokens, temporary keys)

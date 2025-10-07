@@ -13,7 +13,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@node-env-resolver/aws": "workspace:*",
+    "node-env-resolver-aws": "workspace:*",
     "node-env-resolver": "workspace:*",
     "zod": "^4.1.12"
   },

@@ -1,4 +1,4 @@
-import { resolve } from '@node-env-resolver/nextjs';
+import { resolve } from 'node-env-resolver-nextjs';
 
 // For Next.js applications, we define server and client variables separately
 export const env = resolve({
