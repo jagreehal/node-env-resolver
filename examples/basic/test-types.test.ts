@@ -54,13 +54,6 @@ describe('Type Inference Test', () => {
   });
 
   it('should handle different enum values', async () => {
-    const schema = z.object({
-      NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-      PORT: z.number().default(3000),
-      DATABASE_URL: z.string().url(),
-      DEBUG: z.boolean().optional(),
-    });
-
     const validEnvironments = ['development', 'production', 'test'];
     
     for (const envValue of validEnvironments) {

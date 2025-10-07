@@ -2,8 +2,8 @@
  * AWS Secrets - Full Object Syntax Tests
  * Using detailed schema definitions with AWS resolvers
  */
-import { describe, it, expect, vi } from 'vitest';
-import { resolve, dotenv, cached, TTL, type EnvDefinition } from 'node-env-resolver';
+import { describe, it, expect } from 'vitest';
+import { resolve, cached, TTL } from 'node-env-resolver';
 import type { Resolver } from 'node-env-resolver';
 
 // Mock resolvers for testing

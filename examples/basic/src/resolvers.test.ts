@@ -2,7 +2,7 @@
  * Advanced Resolvers Example Tests
  * Demonstrates async usage with AWS Secrets and caching
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { resolve, processEnv, cached } from 'node-env-resolver';
 import type { Resolver } from 'node-env-resolver';
 

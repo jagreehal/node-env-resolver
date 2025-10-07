@@ -2,10 +2,9 @@
  * Standard Schema Integration Tests
  * Demonstrates interoperability with other validation libraries
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   resolve,
-  dotenv,
   cached,
   TTL,
   awsCache,
