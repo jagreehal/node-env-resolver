@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0
+
+### Major Changes
+
+- 5a4165e: Publish remaining packages to npm
+  - @node-env-resolver/nextjs: Zero-config Next.js integration
+  - @node-env-resolver/aws: AWS resolvers for Secrets Manager and SSM
+  - @node-env-resolver/config: Shared TypeScript and ESLint configurations
+
 ## 1.0.0
 
 ### Major Changes
