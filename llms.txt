@@ -85,25 +85,25 @@ await resolve.with(
 
 ---
 
-## Provider Model
+## Resolver Model
 
 A **provider** returns a map of string values. It can be an object or a factory.
 
 ```ts
-export interface Provider {
+export interface Resolver {
   name: string;
   load(): Promise<Record<string, string>>;
   loadSync?(): Record<string, string>;
 }
 
 // Object provider (no options)
-const databaseProvider: Provider = {
+const databaseProvider: Resolver = {
   name: 'database-config',
   async load() { return { FEATURE_FLAGS: '{"experiments":true}' }; }
 };
 
 // Factory provider (with options)
-function awsSecretsProvider(opts: { region: string }): Provider {
+function awsSecretsProvider(opts: { region: string }): Resolver {
   return {
     name: `aws-secrets(${opts.region})`,
     async load() { /* fetch secrets */ return { DATABASE_URL: 'postgres://...' }; }
@@ -263,12 +263,12 @@ resolve(schema: Schema): Promise<TypedConfig>
 
 // Multi-provider
 resolve.with(
-  ...pairs: readonly [Provider, Schema][],
+  ...pairs: readonly [Resolver, Schema][],
   options?: ResolveOptions
 ): Promise<MergedTypedConfig>
 
 // Resolvers
-interface Provider {
+interface Resolver {
   name: string;
   load(): Promise<Record<string,string>>;
   loadSync?(): Record<string,string>;

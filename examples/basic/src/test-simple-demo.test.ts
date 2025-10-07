@@ -2,9 +2,9 @@
  * Simple Demo Tests
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, type Provider } from 'node-env-resolver';
+import { resolve, processEnv, type Resolver } from 'node-env-resolver';
 
-function createDatabaseConfigResolver(values: Record<string, string>): Provider {
+function createDatabaseConfigResolver(values: Record<string, string>): Resolver {
   return {
     name: 'database-config',
     async load() {

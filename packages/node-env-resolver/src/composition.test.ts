@@ -1,5 +1,5 @@
 /**
- * TDD Tests for Provider Composition API
+ * TDD Tests for Resolver Composition API
  *
  * Tests the new env().from().resolve() API for explicit provider composition
  */
@@ -20,7 +20,7 @@ function createCustomResolver(values: Record<string, string>): Resolver {
   };
 }
 
-describe('Provider Composition - Type Safety', () => {
+describe('Resolver Composition - Type Safety', () => {
   it('should infer types from single env() call', async () => {
     // Set env vars for type test
     process.env.FOO = 'bar';
@@ -133,7 +133,7 @@ describe('Provider Composition - Type Safety', () => {
   });
 });
 
-describe('Provider Composition - Runtime Behavior', () => {
+describe('Resolver Composition - Runtime Behavior', () => {
   it('should resolve from local provider only', async () => {
     // Set test env vars
     process.env.FOO = 'bar';
@@ -247,7 +247,7 @@ describe('Provider Composition - Runtime Behavior', () => {
   });
 });
 
-describe('Provider Composition - Sync API', () => {
+describe('Resolver Composition - Sync API', () => {
   it('should work synchronously with envSync()', () => {
     process.env.FOO = 'bar';
     process.env.BAR = '3000';
@@ -310,7 +310,7 @@ describe('Provider Composition - Sync API', () => {
   });
 });
 
-describe('Provider Composition - Edge Cases', () => {
+describe('Resolver Composition - Edge Cases', () => {
   it('should handle empty custom provider schema', async () => {
     process.env.FOO = 'bar';
 

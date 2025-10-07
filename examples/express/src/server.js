@@ -80,7 +80,7 @@ app.post('/api/payment', async (req, res) => {
     });
 });
 // Error handling
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
     console.error('❌ Unhandled error:', err);
     res.status(500).json({
         error: isProduction ? 'Internal server error' : err.message,

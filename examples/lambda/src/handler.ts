@@ -34,7 +34,7 @@ const envPromise = resolve.with(
 );
 
 export const handler = async (
-  event: APIGatewayProxyEvent
+  _event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {
     // Environment is resolved once and cached
@@ -95,7 +95,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     queryStringParameters: null,
     body: null,
     isBase64Encoded: false,
-  } as any;
+  } as APIGatewayProxyEvent;
   
   handler(testEvent).then(result => {
     console.log('Test result:', JSON.stringify(result, null, 2));

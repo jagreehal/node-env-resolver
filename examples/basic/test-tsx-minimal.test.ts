@@ -29,13 +29,16 @@ describe('TSX Minimal Test', () => {
     const testCases = [3000, 8080, 4000, 5000];
 
     for (const port of testCases) {
+      // Set the environment variable to override the default
+      process.env.PORT = port.toString();
+      
       const config = env({
-        PORT: port
+        PORT: 9999 // This will be overridden by the env var
       });
 
       const result = await config.resolve();
-      // Note: Builder API might use default values instead of passed values
-      expect(result.PORT).toBe(3000); // Currently always returns default
+      // Builder API uses env var when available, default when not
+      expect(result.PORT).toBe(port);
     }
   });
 
@@ -50,20 +53,21 @@ describe('TSX Minimal Test', () => {
   });
 
   it('should handle multiple environment variables', async () => {
-    // Set NODE_ENV explicitly for this test
+    // Set environment variables explicitly for this test
     process.env.NODE_ENV = 'development';
+    process.env.DEBUG = 'false'; // Override the .env file value
     
     const config = env({
       PORT: 3000,
       NODE_ENV: ['development', 'production', 'test'] as const,
-      DEBUG: false
+      DEBUG: true // This will be overridden by the env var
     });
 
     const result = await config.resolve();
     
-    expect(result.PORT).toBe(3000);
+    expect(result.PORT).toBe(3000); // From .env file
     expect(result.NODE_ENV).toBe('development');
-    expect(result.DEBUG).toBe(true); // Builder API might use different default behavior
+    expect(result.DEBUG).toBe(false); // From the env var we set
   });
 
   it('should handle string environment variables', async () => {

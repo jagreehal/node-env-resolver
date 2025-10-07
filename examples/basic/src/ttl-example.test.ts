@@ -2,19 +2,23 @@
  * TTL Caching Examples Tests
  * Demonstrates various TTL caching configurations
  */
-import { describe, it, expect, vi } from 'vitest';
-import { resolve, dotenv, cached, TTL, awsCache } from 'node-env-resolver';
-import type { Provider } from 'node-env-resolver';
+import { describe, it, expect } from 'vitest';
+import { resolve, cached, TTL, awsCache } from 'node-env-resolver';
+import type { Resolver } from 'node-env-resolver';
 
 // Mock resolvers for testing
-const mockSecretsProvider = (secrets: Record<string, string>): Provider => ({
+const mockSecretsProvider = (secrets: Record<string, string>): Resolver => ({
   name: 'mock-secrets',
-  async load() { return secrets; },
+  async load() {
+    return secrets;
+  },
 });
 
-const mockSsmProvider = (params: Record<string, string>): Provider => ({
+const mockSsmProvider = (params: Record<string, string>): Resolver => ({
   name: 'mock-ssm',
-  async load() { return params; },
+  async load() {
+    return params;
+  },
 });
 
 describe('TTL Caching Examples', () => {

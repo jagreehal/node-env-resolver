@@ -8,8 +8,9 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest --watch",
     "test:ui": "vitest --ui",
-    "dev": "vitest --watch"
-   
+    "dev": "vitest --watch",
+    "lint": "eslint . --ext .ts,.js",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@node-env-resolver/aws": "workspace:*",
@@ -22,6 +23,11 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4",
-    "vitest-mock-extended": "^3.1.0"
+    "vitest-mock-extended": "^3.1.0",
+    "eslint": "^9.37.0",
+    "@eslint/js": "^9.37.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "globals": "^16.4.0"
   }
 }

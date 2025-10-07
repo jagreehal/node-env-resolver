@@ -1,21 +1,21 @@
 /**
- * Provider Composition Demo Tests
+ * Resolver Composition Demo Tests
  *
  * Shows how to explicitly compose environment variables from multiple resolvers
  * using the new resolve.with() tuple API
  */
 import { describe, it, expect, vi } from 'vitest';
 import { resolve, processEnv } from 'node-env-resolver';
-import type { Provider } from 'node-env-resolver';
+import type { Resolver } from 'node-env-resolver';
 
 // ============================================================================
-// Custom Provider Examples
+// Custom Resolver Examples
 // ============================================================================
 
 /**
  * Example: Custom resolver that fetches config from an API or external source
  */
-async function createAPIConfigResolver(): Promise<Provider> {
+async function createAPIConfigResolver(): Promise<Resolver> {
   return {
     name: 'api-config-service',
     async load() {
@@ -33,7 +33,7 @@ async function createAPIConfigResolver(): Promise<Provider> {
 /**
  * Example: Custom resolver from a database
  */
-function createDatabaseConfigResolver(values: Record<string, string>): Provider {
+function createDatabaseConfigResolver(values: Record<string, string>): Resolver {
   return {
     name: 'database-config',
     async load() {
@@ -46,8 +46,8 @@ function createDatabaseConfigResolver(values: Record<string, string>): Provider 
   };
 }
 
-describe('Provider Composition Demo', () => {
-  describe('Demo 1: Simple Local + Custom Provider', () => {
+describe('Resolver Composition Demo', () => {
+  describe('Demo 1: Simple Local + Custom Resolver', () => {
     it('should resolve configuration from multiple resolvers', async () => {
       // Set NODE_ENV explicitly for this test
       process.env.NODE_ENV = 'development';
@@ -177,7 +177,7 @@ describe('Provider Composition Demo', () => {
 
       const apiConfig = await createAPIConfigResolver();
 
-      const secretsResolver: Provider = {
+      const secretsResolver: Resolver = {
         name: 'secrets-manager',
         async load() {
           return {
@@ -225,7 +225,7 @@ describe('Provider Composition Demo', () => {
 
       const apiConfig = await createAPIConfigResolver();
 
-      const secretsResolver: Provider = {
+      const secretsResolver: Resolver = {
         name: 'secrets-manager',
         async load() {
           return {
@@ -361,7 +361,7 @@ describe('Provider Composition Demo', () => {
     });
   });
 
-  describe('Custom Provider Examples', () => {
+  describe('Custom Resolver Examples', () => {
     it('should work with API config resolver', async () => {
       const apiResolver = await createAPIConfigResolver();
 
@@ -437,7 +437,7 @@ describe('Provider Composition Demo', () => {
       const errorProvider = {
         name: 'error-provider',
         async load() {
-          throw new Error('Provider failed to load');
+          throw new Error('Resolver failed to load');
         }
       };
 
@@ -448,7 +448,7 @@ describe('Provider Composition Demo', () => {
         [errorProvider, {
           TEST_VAR: 'string'
         }]
-      )).rejects.toThrow('Provider failed to load');
+      )).rejects.toThrow('Resolver failed to load');
     });
 
     it('should handle missing required variables', async () => {
@@ -474,14 +474,14 @@ describe('Provider Composition Demo', () => {
         'Clear override semantics (last-wins, array order)',
         'Perfect TypeScript inference with tuple types',
         'Self-documenting code - no chaining needed',
-        'Provider config is visible: awsSecrets({ region: "..." })'
+        'Resolver config is visible: awsSecrets({ region: "..." })'
       ];
 
       expect(benefits).toContain('Explicit provider-to-variable pairing with tuples');
       expect(benefits).toContain('Clear override semantics (last-wins, array order)');
       expect(benefits).toContain('Perfect TypeScript inference with tuple types');
       expect(benefits).toContain('Self-documenting code - no chaining needed');
-      expect(benefits).toContain('Provider config is visible: awsSecrets({ region: "..." })');
+      expect(benefits).toContain('Resolver config is visible: awsSecrets({ region: "..." })');
     });
 
     it('should demonstrate the difference from traditional approach', () => {

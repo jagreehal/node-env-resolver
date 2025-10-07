@@ -7,6 +7,7 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "next lint",
+    "type-check": "tsc --noEmit",
     "env:check": "ner check",
     "env:codegen": "ner codegen"
   },

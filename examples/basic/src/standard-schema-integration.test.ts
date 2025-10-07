@@ -13,10 +13,10 @@ import {
   schemaToStandardSchema,
   validateWithStandardSchema,
 } from 'node-env-resolver';
-import type { Provider } from 'node-env-resolver';
+import type { Resolver } from 'node-env-resolver';
 
 // Mock AWS Secrets Manager for testing
-const mockAwsSecretsProvider = (secrets: Record<string, string>): Provider => ({
+const mockAwsSecretsProvider = (secrets: Record<string, string>): Resolver => ({
   name: 'mock-aws-secrets',
   async load() {
     return secrets;

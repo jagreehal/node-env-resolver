@@ -2,7 +2,7 @@
  * Test Demo
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, type Provider } from 'node-env-resolver';
+import { resolve, processEnv, type Resolver } from 'node-env-resolver';
 
 describe('Test Demo', () => {
   it('should import successfully', () => {
@@ -153,6 +153,7 @@ describe('Test Demo', () => {
 
   it('should handle complex configuration', async () => {
     // Set environment variables
+    process.env.NODE_ENV = 'development';
     process.env.API_URL = 'https://api.example.com';
     process.env.DATABASE_URL = 'postgres://localhost:5432/mydb';
     

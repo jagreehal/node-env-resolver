@@ -4,15 +4,15 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { resolve, dotenv, cached, awsCache, processEnv } from 'node-env-resolver';
-import type { Provider } from 'node-env-resolver';
+import type { Resolver } from 'node-env-resolver';
 
 // Mock resolvers for testing
-const mockDotenvProvider = (env: Record<string, string>): Provider => ({
+const mockDotenvProvider = (env: Record<string, string>): Resolver => ({
   name: 'mock-dotenv',
   async load() { return env; },
 });
 
-const mockAwsSecretsProvider = (secrets: Record<string, string>): Provider => ({
+const mockAwsSecretsProvider = (secrets: Record<string, string>): Resolver => ({
   name: 'mock-aws-secrets',
   async load() { return secrets; },
 });

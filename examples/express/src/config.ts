@@ -2,7 +2,7 @@
  * Centralized configuration using node-env-resolver
  * Perfect for Express.js applications with multiple deployment environments
  */
-import { resolve, processEnv } from 'node-env-resolver';
+import { resolve } from 'node-env-resolver';
 
 export const config = await resolve({
   // Application

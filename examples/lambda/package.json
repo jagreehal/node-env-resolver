@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "package": "npm run build && zip -r function.zip dist/ node_modules/",
-    "dev": "tsx src/handler.ts"
+    "dev": "tsx src/handler.ts",
+    "lint": "eslint . --ext .ts,.js",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "node-env-resolver": "workspace:*",
@@ -16,6 +18,11 @@
     "@types/aws-lambda": "^8.10.155",
     "@types/node": "^24.7.0",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "eslint": "^9.37.0",
+    "@eslint/js": "^9.37.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "globals": "^16.4.0"
   }
 }

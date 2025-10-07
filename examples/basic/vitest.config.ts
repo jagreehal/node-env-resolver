@@ -4,6 +4,13 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['./test-setup.ts'],
+    environmentOptions: {
+      // Configure environment behavior
+      node: {
+        // This helps with environment variable isolation
+      }
+    },
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}', '*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
     coverage: {
       provider: 'v8',

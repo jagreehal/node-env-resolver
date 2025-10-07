@@ -4,10 +4,10 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { resolve, processEnv, cached } from 'node-env-resolver';
-import type { Provider } from 'node-env-resolver';
+import type { Resolver } from 'node-env-resolver';
 
 // Mock AWS Secrets Manager for testing
-const mockAwsSecretsProvider = (secrets: Record<string, string>): Provider => ({
+const mockAwsSecretsProvider = (secrets: Record<string, string>): Resolver => ({
   name: 'mock-aws-secrets',
   async load() {
     return secrets;
@@ -58,17 +58,17 @@ describe('Advanced Resolvers Example', () => {
   });
 
   it('should handle provider errors gracefully', async () => {
-    const failingProvider: Provider = {
+    const failingProvider: Resolver = {
       name: 'failing-provider',
       async load() {
-        throw new Error('Provider failed to load');
+        throw new Error('Resolver failed to load');
       },
     };
 
     await expect(resolve.with(
       [processEnv(), { TEST_VAR: 'string' }],
       [failingProvider, { TEST_VAR: 'string' }]
-    )).rejects.toThrow('Provider failed to load');
+    )).rejects.toThrow('Resolver failed to load');
   });
 
   it('should demonstrate caching with different TTL values', async () => {
