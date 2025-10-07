@@ -4,7 +4,6 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveEnvSplit } from 'node-env-resolver/web';
-import { z } from 'zod';
 
 // Mock process.env for testing
 const originalEnv = process.env;

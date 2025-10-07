@@ -2,7 +2,7 @@
  * Test Demo
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, type Resolver } from 'node-env-resolver';
+import { resolve, processEnv } from 'node-env-resolver';
 
 describe('Test Demo', () => {
   it('should import successfully', () => {

@@ -2,8 +2,8 @@
  * AWS Secrets - Mixed Syntax Tests
  * Combining shorthand and full object syntax for flexibility
  */
-import { describe, it, expect, vi } from 'vitest';
-import { resolve, dotenv, cached, awsCache, processEnv } from 'node-env-resolver';
+import { describe, it, expect } from 'vitest';
+import { resolve, cached, awsCache, processEnv } from 'node-env-resolver';
 import type { Resolver } from 'node-env-resolver';
 
 // Mock resolvers for testing

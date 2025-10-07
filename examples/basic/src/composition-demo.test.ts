@@ -257,8 +257,7 @@ describe('Resolver Composition Demo', () => {
       );
 
       // Perfect type inference for all variables
-      type ConfigType = typeof config;
-      // ConfigType should be:
+      // Type should be:
       // {
       //   PORT: number;
       //   NODE_ENV: 'development' | 'production';
@@ -452,13 +451,6 @@ describe('Resolver Composition Demo', () => {
     });
 
     it('should handle missing required variables', async () => {
-      const emptyProvider = {
-        name: 'empty-provider',
-        async load() {
-          return {};
-        }
-      };
-
       await expect(resolve.with(
         [processEnv(), {
           REQUIRED_VAR: 'string'

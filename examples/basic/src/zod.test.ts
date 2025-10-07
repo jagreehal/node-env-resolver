@@ -5,7 +5,7 @@
  * using the Standard Schema specification.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { resolve, processEnv } from 'node-env-resolver';
+import { processEnv } from 'node-env-resolver';
 import { resolveEnvWithZod } from 'node-env-resolver/zod';
 import { z } from 'zod';
 
