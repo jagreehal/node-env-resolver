@@ -103,7 +103,7 @@ describe('Comparison: node-env-resolver vs t3-env', () => {
 
   it('should handle complex validation rules', async () => {
     const mockSecrets = {
-      API_KEY: 'sk_test_fake_api_key_for_testing_only',
+      API_KEY: 'sk_test_1234567890abcdef1234567890abcdef1234567890abcdef',
       EMAIL: 'admin@example.com',
       MAX_UPLOAD_SIZE: '50000000',
     };
@@ -131,7 +131,7 @@ describe('Comparison: node-env-resolver vs t3-env', () => {
       strict: true,
     });
 
-    expect(config.API_KEY).toBe('sk_test_fake_api_key_for_testing_only');
+    expect(config.API_KEY).toBe('sk_test_1234567890abcdef1234567890abcdef1234567890abcdef');
     expect(config.EMAIL).toBe('admin@example.com');
     expect(config.MAX_UPLOAD_SIZE).toBe(50000000);
   });

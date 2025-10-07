@@ -96,7 +96,7 @@ describe('AWS Secrets - Full Object Syntax', () => {
       DATABASE_PASSWORD: 'production-db-password-123',
       JWT_SECRET: 'jwt-secret-for-production-app-very-long-key',
       ENCRYPTION_KEY: 'encryption-key-for-sensitive-data',
-      STRIPE_SECRET_KEY: 'sk_test_fake_stripe_key_for_testing_only',
+      STRIPE_SECRET_KEY: 'sk_test_1234567890abcdef1234567890abcdef',
     };
 
     const config = await resolve({
@@ -124,6 +124,6 @@ describe('AWS Secrets - Full Object Syntax', () => {
     expect(config.DATABASE_PASSWORD).toBe('production-db-password-123');
     expect(config.JWT_SECRET).toBe('jwt-secret-for-production-app-very-long-key');
     expect(config.ENCRYPTION_KEY).toBe('encryption-key-for-sensitive-data');
-    expect(config.STRIPE_SECRET_KEY).toBe('sk_test_fake_stripe_key_for_testing_only');
+    expect(config.STRIPE_SECRET_KEY).toBe('sk_test_1234567890abcdef1234567890abcdef');
   });
 });
