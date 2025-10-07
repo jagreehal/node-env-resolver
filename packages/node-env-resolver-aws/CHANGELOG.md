@@ -4,6 +4,19 @@
 
 ### Major Changes
 
+- 6cb8897: Publish @node-env-resolver/aws package
+  - Fix peerDependencies version to match node-env-resolver 1.0.0
+  - AWS resolvers for Secrets Manager and SSM Parameter Store
+
+- 5a4165e: Publish remaining packages to npm
+  - @node-env-resolver/nextjs: Zero-config Next.js integration
+  - @node-env-resolver/aws: AWS resolvers for Secrets Manager and SSM
+  - @node-env-resolver/config: Shared TypeScript and ESLint configurations
+
+## 1.0.0
+
+### Major Changes
+
 - 5c05090: Initial release version 1.0.0
   - node-env-resolver: Core environment variable resolver with async resolvers
   - @node-env-resolver/nextjs: Zero-config Next.js integration with client/server split
