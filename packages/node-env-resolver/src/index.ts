@@ -56,7 +56,7 @@ export {
   type StandardSchemaEnvDefinition,
   type StandardSchemaEnvSchema 
 } from './standard-schema';
-// Cloud resolvers are available as separate packages, e.g. @node-env-resolver/aws
+// Cloud resolvers are available as separate packages, e.g. node-env-resolver/aws
 
 // Helper to build default resolvers (just processEnv)
 function buildDefaultResolvers(): Resolver[] {

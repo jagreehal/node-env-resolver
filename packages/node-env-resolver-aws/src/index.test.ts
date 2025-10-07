@@ -19,7 +19,7 @@ vi.mock('@aws-sdk/client-ssm', () => ({
   GetParameterCommand: vi.fn().mockImplementation((input) => ({ input })),
 }));
 
-describe('@node-env-resolver/aws', () => {
+describe('node-env-resolver/aws', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSecretsManagerSend.mockReset();

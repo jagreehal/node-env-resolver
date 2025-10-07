@@ -3,7 +3,7 @@
  * Perfect for Express.js applications with multiple deployment environments
  */
 import { resolve, cached } from 'node-env-resolver';
-import { awsSsm } from '@node-env-resolver/aws';
+import { awsSsm } from 'node-env-resolver-aws';
 export const config = await resolve({
     // Application
     NODE_ENV: {

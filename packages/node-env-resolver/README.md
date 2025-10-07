@@ -235,7 +235,7 @@ app.listen(config.PORT, () => {
 
 ```ts
 import { resolve } from 'node-env-resolver';
-import { awsSecrets } from '@node-env-resolver/aws';
+import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve({
   API_ENDPOINT: 'url',

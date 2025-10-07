@@ -1,6 +1,6 @@
 # Next.js + Node Env Resolver Example
 
-This example demonstrates the full power of `@node-env-resolver/nextjs` with **true automatic client/server split**:
+This example demonstrates the full power of `node-env-resolver/nextjs` with **true automatic client/server split**:
 
 - 🚀 **Automatic client/server split** - No manual process.env access needed
 - 🔒 **Runtime protection** - Server variables throw helpful errors in client components
@@ -51,12 +51,12 @@ npm run dev
 
 1. **Install the package:**
 ```bash
-npm install @node-env-resolver/nextjs
+npm install node-env-resolver/nextjs
 ```
 
 2. **Create `env.ts` (synchronous):**
 ```typescript
-import { resolveNextEnv } from '@node-env-resolver/nextjs';
+import { resolveNextEnv } from 'node-env-resolver-nextjs';
 
 export const env = resolveNextEnv({
   server: {
@@ -169,7 +169,7 @@ If you're migrating from other environment variable libraries:
 ```diff
 - import { createEnv } from "@t3-oss/env-nextjs";
 - import { z } from "zod";
-+ import { resolveNextEnv } from "@node-env-resolver/nextjs";
++ import { resolveNextEnv } from "node-env-resolver-nextjs";
 
 - export const env = createEnv({
 + export const env = resolveNextEnv({
