@@ -18,8 +18,7 @@
   "references": [
     { "path": "./packages/node-env-resolver" },
     { "path": "./packages/node-env-resolver-aws" },
-    { "path": "./packages/nextjs-resolver" },
-    { "path": "./packages/cli" }
+    { "path": "./packages/nextjs-resolver" }
   ]
 }
 

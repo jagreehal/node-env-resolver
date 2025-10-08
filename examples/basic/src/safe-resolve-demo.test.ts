@@ -3,22 +3,22 @@
  * Demonstrates the new safeResolve and safeResolveSync functions
  */
 import { describe, it, expect } from 'vitest';
-import { safeResolve, safeResolveSync, processEnv } from 'node-env-resolver';
+import { safeResolve, processEnv } from 'node-env-resolver';
 
 describe('Safe Resolve Demo', () => {
-  it('should demonstrate safeResolve vs resolve behavior', async () => {
+  it('should demonstrate safeResolve vs resolve behavior', () => {
     // Set up environment
     process.env.PORT = '3000';
     process.env.NODE_ENV = 'production';
 
     // ❌ This would throw an error if validation fails
-    // const config = await resolve({
+    // const config = resolve({
     //   PORT: 'number',
     //   MISSING_VAR: 'string', // This would cause an error
     // });
 
     // ✅ This returns a result object instead of throwing
-    const safeResult = await safeResolve({
+    const safeResult = safeResolve({
       PORT: 'number',
       MISSING_VAR: 'string', // This fails validation
     });
@@ -27,7 +27,7 @@ describe('Safe Resolve Demo', () => {
     expect(safeResult.success).toBe(false);
 
     // ✅ This works when validation passes
-    const successResult = await safeResolve({
+    const successResult = safeResolve({
       PORT: 'number',
       NODE_ENV: ['development', 'production', 'test'] as const,
     });
@@ -44,11 +44,11 @@ describe('Safe Resolve Demo', () => {
     delete process.env.NODE_ENV;
   });
 
-  it('should demonstrate safeResolveSync', () => {
+  it('should demonstrate safeResolve', () => {
     process.env.PORT = '8080';
 
-    // ✅ Works with sync resolvers
-    const result = safeResolveSync({
+    // ✅ Works with resolvers
+    const result = safeResolve({
       PORT: 'number',
       DEBUG: false, // boolean with default
     });

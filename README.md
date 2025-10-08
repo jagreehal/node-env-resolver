@@ -1,13 +1,11 @@
 # node-env-resolver
 
-Type-safe environment variable handling for Node.js applications.
+Type-safe environment variable resolution for Node.js applications.
 
 [![npm version](https://img.shields.io/npm/v/node-env-resolver)](https://www.npmjs.com/package/node-env-resolver)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-## What is this?
-
-A simple way to load and validate environment variables with full TypeScript support. It works with any Node.js application and has zero runtime dependencies.
+Load and validate environment variables with full TypeScript inference. Works with any Node.js application, from Express to Lambda.
 
 ## Install
 
@@ -15,87 +13,77 @@ A simple way to load and validate environment variables with full TypeScript sup
 npm install node-env-resolver
 ```
 
-## Quick example
+## Quick start (uses process.env)
 
 ```ts
 import { resolve } from 'node-env-resolver';
 
-const config = await resolve({
+const config = resolve({
   PORT: 3000,
-  DATABASE_URL: 'url',
+  DATABASE_URL: 'postgres',
   DEBUG: false,
   API_KEY: 'string?'
 });
 
-// TypeScript knows the types
+// config is fully typed
 config.PORT;         // number
-config.DATABASE_URL; // URL object
+config.DATABASE_URL; // verified postgres connection string
 config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
 
-## Core features
-
-**Simple syntax** - Use shorthand like `'url'`, `3000`, or `['dev', 'prod']` for common cases.
-
-**Custom validators** - Write your own validation functions when you need more control.
-
-**Works anywhere** - Express, Next.js, Lambda, or any Node.js application.
-
-**Zero dependencies** - The core package has no runtime dependencies.
-
-**Standard Schema compliant** - Works with Zod v4, Valibot, and other validation libraries if you need them.
-
-## Built-in validators
-
-The library includes validators for common use cases:
-
-- **Basic types**: `string`, `number`, `boolean`, `json`
-- **Network**: `url`, `http`, `https`, `port`
-- **Databases**: `postgres`, `mysql`, `mongodb`, `redis`
-- **Other**: `email`
-
-All validators automatically handle type coercion from environment variable strings.
-
-## Examples
-
-### Basic usage
+## Quick start (async)
 
 ```ts
 import { resolve } from 'node-env-resolver';
 
-const config = await resolve({
+const config = await resolve.with([asyncEnvProvider(),{
   PORT: 3000,
-  NODE_ENV: ['development', 'production'] as const,
   DATABASE_URL: 'postgres',
-  DEBUG: false
-});
+  DEBUG: false,
+  API_KEY: 'string?'
+}]);
+
+// config is fully typed
+config.PORT;         // number
+config.DATABASE_URL; // verified postgres connection string
+config.DEBUG;        // boolean
+config.API_KEY;      // string | undefined
 ```
+
+## Features
+
+- Zero runtime dependencies
+- Full TypeScript type inference
+- Built-in validators (url, email, port, postgres, redis, etc.)
+- Custom validation functions
+- Standard Schema support (Zod, Valibot)
+- Multiple source composition (process.env, .env, AWS Secrets Manager, etc.)
+- Safe error handling (Zod-like pattern)
+
+## Common patterns
 
 ### Optional values
 
 ```ts
-const config = await resolve({
-  API_KEY: 'string?',      // Optional
-  REDIS_URL: 'url?',       // Optional
-  PORT: 3000               // Required (has default)
+const config = resolve({
+  API_KEY: 'string?',  // Optional
+  PORT: 3000           // Has default
 });
 ```
 
 ### Enums
 
 ```ts
-const config = await resolve({
+const config = resolve({
   NODE_ENV: ['development', 'production', 'test'] as const
 });
-
-// TypeScript knows: 'development' | 'production' | 'test'
 ```
 
 ### Custom validators
 
 ```ts
-const portValidator = (value: string): number => {
+const isValidPort = (value: string): number => {
   const port = parseInt(value, 10);
   if (isNaN(port) || port < 1 || port > 65535) {
     throw new Error('Port must be between 1 and 65535');
@@ -103,97 +91,71 @@ const portValidator = (value: string): number => {
   return port;
 };
 
-const config = await resolve({
-  CUSTOM_PORT: portValidator,
-  DATABASE_URL: 'postgres',
-  DEBUG: false
+const config = resolve({
+  CUSTOM_PORT: isValidPort
 });
 ```
 
 ### Multiple sources
 
-Load configuration from different sources:
-
 ```ts
 import { resolve, processEnv, dotenv } from 'node-env-resolver';
-import { awsSecrets } from 'node-env-resolver-aws';
+import { resolveSecrets, awsSecrets } from 'node-env-resolver-aws';
 
+// Single source
+const config = await resolveSecrets({
+  secretId: 'myapp/secrets'
+}, {
+  DATABASE_URL: 'url',
+  API_KEY: 'string'
+});
+
+// Multiple sources (later overrides earlier)
 const config = await resolve.with(
-  [processEnv(), {
-    PORT: 3000,
-    NODE_ENV: ['development', 'production'] as const,
-  }],
-  [awsSecrets({ secretId: 'myapp/secrets' }), {
-    DATABASE_URL: 'postgres',
-    API_KEY: 'string',
-  }]
+  [processEnv(), { PORT: 3000 }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }]
+);
+
+// Control merge behaviour
+const config = await resolve.with(
+  [dotenv(), { DATABASE_URL: 'url' }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }],
+  { priority: 'first' }  // dotenv takes precedence
 );
 ```
 
-### Safe resolve (Zod-like pattern)
-
-Like Zod's `safeParse()`, use `safeResolve()` to get a result object instead of throwing:
+### Safe error handling
 
 ```ts
 import { safeResolve } from 'node-env-resolver';
 
-const result = await safeResolve({
+const result = safeResolve({
   PORT: 'number',
-  DATABASE_URL: 'postgres',
-  API_KEY: 'string',
+  DATABASE_URL: 'postgres'
 });
 
 if (result.success) {
-  console.log('Config loaded:', result.data);
-  // result.data.PORT is fully typed
+  // Use result.data
 } else {
-  console.error('Validation failed:', result.error);
-  // Handle error gracefully
+  console.error(result.error);
+  process.exit(1);
 }
-```
-
-**Available functions:**
-- `resolve()` - Throws on error (like Zod's `parse()`)
-- `safeResolve()` - Returns result object (like Zod's `safeParse()`)
-- `resolveSync()` - Sync version that throws
-- `safeResolveSync()` - Sync version that returns result object
-
-All functions support `.with()` for multiple sources.
-
-### Next.js
-
-Automatic client/server environment variable splitting:
-
-```ts
-// env.mjs
-import { resolveNextEnv } from 'node-env-resolver-nextjs';
-
-export const env = resolveNextEnv({
-  server: {
-    DATABASE_URL: 'url',
-    API_SECRET: 'string',
-  },
-  client: {
-    NEXT_PUBLIC_APP_URL: 'url',
-    NEXT_PUBLIC_GA_ID: 'string?',
-  }
-});
 ```
 
 ## Packages
 
-- **`node-env-resolver`** - Core package with zero dependencies
-- **`node-env-resolver/aws`** - AWS Secrets Manager & SSM integration
-- **`node-env-resolver/nextjs`** - Next.js client/server split
+| Package | Description |
+|---------|-------------|
+| [`node-env-resolver`](./packages/node-env-resolver) | Core package (zero dependencies) |
+| [`node-env-resolver-aws`](./packages/node-env-resolver-aws) | AWS Secrets Manager and SSM Parameter Store |
+| [`node-env-resolver/nextjs`](./packages/nextjs-resolver) | Next.js client/server split |
 
 ## Documentation
 
-See the individual package READMEs for detailed documentation:
+**[Core package documentation](./packages/node-env-resolver/README.md)** has complete API reference, advanced features, Zod integration, caching strategies, and framework-specific examples.
 
-- [Core package](./packages/node-env-resolver/README.md)
-- [AWS integration](./packages/node-env-resolver-aws/README.md)
-- [Next.js integration](./packages/nextjs-resolver/README.md)
+**[AWS package documentation](./packages/node-env-resolver-aws/README.md)** covers Secrets Manager, SSM Parameter Store, credential configuration, and caching best practices.
 
-## License
+## Licence
 
-MIT © [Jagvinder Singh Reehal](https://jagreehal.com)
+MIT

@@ -1,14 +1,14 @@
 # Next.js + Node Env Resolver Example
 
-This example demonstrates the full power of `node-env-resolver/nextjs` with **true automatic client/server split**:
+This example demonstrates `node-env-resolver-nextjs` with automatic client/server environment variable splitting.
 
-- 🚀 **Automatic client/server split** - No manual process.env access needed
-- 🔒 **Runtime protection** - Server variables throw helpful errors in client components
-- 🎯 **Type-safe** environment variable access with perfect inference
-- 🛡️ **Production security** policies built-in
-- ⚡ **Zero configuration** - Just works with Next.js out of the box
-- 🎨 **Elegant syntax** - Shorthand like 'url?', 'port:3000', ['dev', 'prod']
-- 🔧 **Custom validators** - Infinite flexibility with your own validation functions
+## Overview
+
+- Automatic client/server split with runtime protection
+- Type-safe environment variable access
+- Production security policies
+- Works with Next.js 13+ App Router
+- Custom validators support
 
 ## Features Demonstrated
 
@@ -18,36 +18,21 @@ This example demonstrates the full power of `node-env-resolver/nextjs` with **tr
 - Runtime validation of all variables
 
 ### 2. Client Components  
-- Only access to `NEXT_PUBLIC_` prefixed variables
-- Runtime protection prevents server variable access
-- Helpful error messages in development
+- Access to `NEXT_PUBLIC_` prefixed variables only
+- Runtime protection against server variable access
+- Error messages in development
 
 ### 3. Security Policies
-- Server secrets cannot be sourced from `.env` files in production
-- Client variables are automatically exposed to the browser
-- Type-safe access prevents runtime errors
+- Server secrets blocked from `.env` files in production
+- Client variables exposed to browser
+- Type-safe access
 
 ### 4. Custom Validators
-- Create custom validation functions for any specific use case
-- Mix custom validators with built-in validators seamlessly
-- Full TypeScript inference for custom validator return types
+- Custom validation functions
+- Mix with built-in validators
+- TypeScript inference for return types
 
 ## Quick Start
-
-### Option 1: Use the CLI (Recommended)
-
-```bash
-# In any Next.js project
-npx node-env-resolver init nextjs
-
-# Install dependencies
-npm install
-
-# Start development
-npm run dev
-```
-
-### Option 2: Manual Setup
 
 1. **Install the package:**
 ```bash
@@ -56,9 +41,9 @@ npm install node-env-resolver/nextjs
 
 2. **Create `env.ts` (synchronous):**
 ```typescript
-import { resolveNextEnv } from 'node-env-resolver-nextjs';
+import { resolve } from 'node-env-resolver-nextjs';
 
-export const env = resolveNextEnv({
+export const env = resolve({
   server: {
     DATABASE_URL: 'url',        // Required URL (validated)
     API_SECRET: 'string',       // Required secret string
@@ -88,17 +73,17 @@ NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
 // Server Component or API Route
 import { env } from './env';
 
-console.log(env.server.DATABASE_URL); // ✅ Works, type: URL
-console.log(env.server.PORT);         // ✅ Works, type: number
-console.log(env.client.NEXT_PUBLIC_APP_URL); // ✅ Works, type: URL
+console.log(env.server.DATABASE_URL); // string (URL)
+console.log(env.server.PORT);         // number
+console.log(env.client.NEXT_PUBLIC_APP_URL); // string (URL)
 
 // Client Component
 'use client';
 import { env } from './env';
 
-console.log(env.server.DATABASE_URL); // ❌ Runtime error with helpful message
-console.log(env.client.NEXT_PUBLIC_APP_URL); // ✅ Works, type: URL
-console.log(env.client.NEXT_PUBLIC_ENABLE_ANALYTICS); // ✅ Works, type: boolean
+console.log(env.server.DATABASE_URL); // Runtime error
+console.log(env.client.NEXT_PUBLIC_APP_URL); // string (URL)
+console.log(env.client.NEXT_PUBLIC_ENABLE_ANALYTICS); // boolean
 ```
 
 ## Environment Variables
@@ -141,26 +126,26 @@ Visit http://localhost:3000 to see the example in action.
 
 ## Security Demo
 
-The example includes a security demonstration:
+The example demonstrates runtime protection:
 
-1. **Server Component** (`app/page.tsx`) - Can access both server and client variables
-2. **Client Component** (`app/client-component.tsx`) - Shows runtime protection in action
+1. **Server Component** (`app/page.tsx`) - Accesses both server and client variables
+2. **Client Component** (`app/client-component.tsx`) - Demonstrates runtime protection
 
-Try clicking the "Try to access SERVER variable" button to see the security protection working!
+Click the "Try to access SERVER variable" button to see the protection mechanism.
 
 ## Production Deployment
 
 ### Vercel
 
-1. Set your environment variables in the Vercel dashboard
+1. Set environment variables in the Vercel dashboard
 2. Ensure server secrets use Vercel's environment variables (not `.env` files)
-3. Deploy - the security policies will ensure production safety
+3. Deploy with configured security policies
 
 ### Other Platforms
 
-1. Set environment variables in your platform's dashboard
+1. Set environment variables in platform dashboard
 2. Remove `.env` files from production builds
-3. The library automatically prevents `.env` secrets in production
+3. `.env` secrets are automatically blocked in production
 
 ## Migration Guide
 
@@ -169,10 +154,10 @@ If you're migrating from other environment variable libraries:
 ```diff
 - import { createEnv } from "@t3-oss/env-nextjs";
 - import { z } from "zod";
-+ import { resolveNextEnv } from "node-env-resolver-nextjs";
++ import { resolve } from "node-env-resolver-nextjs";
 
 - export const env = createEnv({
-+ export const env = resolveNextEnv({
++ export const env = resolve({
   server: {
 -   DATABASE_URL: z.string().url(),
 -   NODE_ENV: z.enum(["development", "production"]),
@@ -194,20 +179,16 @@ If you're migrating from other environment variable libraries:
 });
 ```
 
-**Key features:**
-- ✅ **Lightweight bundle** - ~8.8KB gzipped with zero dependencies
-- ✅ **Zero dependencies** - No runtime dependencies
-- ✅ **Built-in validators** - 15 types including connection strings (postgres, mysql, mongodb, redis) - no Zod needed
-- ✅ **Synchronous** - No async/await required
-- ✅ **Elegant syntax** - 'url', 3000 instead of verbose schemas
-- ✅ **No manual mapping** - No `runtimeEnv` boilerplate
-- ✅ **Runtime protection** - Server variables blocked in client
-- ✅ **Type coercion** - Automatic string→number, string→boolean, string→JSON
-- ✅ **AWS integration** - Built-in cloud provider support
-- ✅ **Standard Schema** - Works with any validation library (optional)
+**Key differences:**
+- Zero runtime dependencies
+- Built-in validators for common types (url, postgres, mysql, mongodb, redis)
+- Shorthand syntax
+- No manual `runtimeEnv` mapping required
+- Runtime protection for server variables
+- Automatic type coercion
+- Standard Schema support
 
 ## Learn More
 
-- [Node Env Resolver Docs](../../README.md)
-- [Next.js Integration Docs](../../packages/nextjs/README.md)
-- [CLI Tools](../../packages/cli/README.md)
+- [Node Env Resolver Documentation](../../README.md)
+- [Next.js Integration Documentation](../../packages/nextjs-resolver/README.md)

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { awsSecrets, awsSsm } from './index';
+import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index';
 const mockSecretsManagerSend = vi.fn();
 const mockSsmSend = vi.fn();
+const mockResolveWith = vi.fn();
+const mockSafeResolveWith = vi.fn();
 
 // Mock AWS SDK clients
 vi.mock('@aws-sdk/client-secrets-manager', () => ({
@@ -19,11 +21,23 @@ vi.mock('@aws-sdk/client-ssm', () => ({
   GetParameterCommand: vi.fn().mockImplementation((input) => ({ input })),
 }));
 
+// Mock node-env-resolver
+vi.mock('node-env-resolver', () => ({
+  resolve: {
+    with: mockResolveWith,
+  },
+  safeResolve: {
+    with: mockSafeResolveWith,
+  },
+}));
+
 describe('node-env-resolver/aws', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSecretsManagerSend.mockReset();
     mockSsmSend.mockReset();
+    mockResolveWith.mockReset();
+    mockSafeResolveWith.mockReset();
   });
 
   describe('awsSecrets', () => {
@@ -118,11 +132,193 @@ describe('node-env-resolver/aws', () => {
     it('should handle missing parameters', async () => {
       mockSsmSend.mockRejectedValueOnce(new Error('Parameter not found'));
 
-      const provider = awsSsm({ 
+      const provider = awsSsm({
         path: '/app/MISSING_PARAM'
       });
-      
+
       await expect(provider.load()).rejects.toThrow('Parameter not found');
+    });
+  });
+
+  describe('resolveSsm', () => {
+    it('should resolve SSM parameters directly', async () => {
+      const expectedConfig = {
+        API_ENDPOINT: 'https://api.example.com',
+        TIMEOUT: 30
+      };
+
+      mockResolveWith.mockResolvedValueOnce(expectedConfig);
+
+      const result = await resolveSsm({
+        path: '/myapp/config'
+      }, {
+        API_ENDPOINT: 'url',
+        TIMEOUT: 30
+      });
+
+      expect(result).toEqual(expectedConfig);
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
+          { API_ENDPOINT: 'url', TIMEOUT: 30 }
+        ]
+      );
+    });
+
+    it('should pass additional resolve options', async () => {
+      mockResolveWith.mockResolvedValueOnce({ API_ENDPOINT: 'https://api.example.com' });
+
+      await resolveSsm({
+        path: '/myapp/config',
+        region: 'us-west-2'
+      }, {
+        API_ENDPOINT: 'url'
+      }, {
+        strict: false
+      });
+
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
+          { API_ENDPOINT: 'url' }
+        ],
+        { strict: false }
+      );
+    });
+  });
+
+  describe('safeResolveSsm', () => {
+    it('should return success result on successful resolution', async () => {
+      const expectedConfig = {
+        API_ENDPOINT: 'https://api.example.com',
+        TIMEOUT: 30
+      };
+
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: true,
+        data: expectedConfig
+      });
+
+      const result = await safeResolveSsm({
+        path: '/myapp/config'
+      }, {
+        API_ENDPOINT: 'url',
+        TIMEOUT: 30
+      });
+
+      expect(result).toEqual({
+        success: true,
+        data: expectedConfig
+      });
+    });
+
+    it('should return error result on failure', async () => {
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: false,
+        error: 'AWS SSM: Access denied'
+      });
+
+      const result = await safeResolveSsm({
+        path: '/myapp/config'
+      }, {
+        API_ENDPOINT: 'url'
+      });
+
+      expect(result).toEqual({
+        success: false,
+        error: 'AWS SSM: Access denied'
+      });
+    });
+  });
+
+  describe('resolveSecrets', () => {
+    it('should resolve secrets directly', async () => {
+      const expectedConfig = {
+        DATABASE_URL: 'postgres://localhost:5432/app',
+        API_KEY: 'secret-key-123'
+      };
+
+      mockResolveWith.mockResolvedValueOnce(expectedConfig);
+
+      const result = await resolveSecrets({
+        secretId: 'myapp/secrets'
+      }, {
+        DATABASE_URL: 'url',
+        API_KEY: 'string'
+      });
+
+      expect(result).toEqual(expectedConfig);
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
+          { DATABASE_URL: 'url', API_KEY: 'string' }
+        ]
+      );
+    });
+
+    it('should pass additional resolve options', async () => {
+      mockResolveWith.mockResolvedValueOnce({ DATABASE_URL: 'postgres://localhost:5432/app' });
+
+      await resolveSecrets({
+        secretId: 'myapp/secrets',
+        region: 'eu-west-1'
+      }, {
+        DATABASE_URL: 'url'
+      }, {
+        strict: false
+      });
+
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
+          { DATABASE_URL: 'url' }
+        ],
+        { strict: false }
+      );
+    });
+  });
+
+  describe('safeResolveSecrets', () => {
+    it('should return success result on successful resolution', async () => {
+      const expectedConfig = {
+        DATABASE_URL: 'postgres://localhost:5432/app',
+        API_KEY: 'secret-key-123'
+      };
+
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: true,
+        data: expectedConfig
+      });
+
+      const result = await safeResolveSecrets({
+        secretId: 'myapp/secrets'
+      }, {
+        DATABASE_URL: 'url',
+        API_KEY: 'string'
+      });
+
+      expect(result).toEqual({
+        success: true,
+        data: expectedConfig
+      });
+    });
+
+    it('should return error result on failure', async () => {
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: false,
+        error: 'AWS Secrets Manager: Secret not found'
+      });
+
+      const result = await safeResolveSecrets({
+        secretId: 'myapp/secrets'
+      }, {
+        DATABASE_URL: 'url'
+      });
+
+      expect(result).toEqual({
+        success: false,
+        error: 'AWS Secrets Manager: Secret not found'
+      });
     });
   });
 });

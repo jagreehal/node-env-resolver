@@ -1,4 +1,4 @@
-# node-env-resolver/nextjs
+# node-env-resolver-nextjs
 
 Next.js integration with automatic client/server environment variable splitting.
 
@@ -7,7 +7,7 @@ Next.js integration with automatic client/server environment variable splitting.
 ## Install
 
 ```bash
-npm install node-env-resolver/nextjs
+npm install node-env-resolver-nextjs
 ```
 
 ## Quick start
@@ -15,9 +15,9 @@ npm install node-env-resolver/nextjs
 Create `env.mjs` in your project root:
 
 ```javascript
-import { resolveNextEnv } from 'node-env-resolver-nextjs';
+import { resolve } from 'node-env-resolver-nextjs';
 
-export const env = resolveNextEnv({
+export const env = resolve({
   server: {
     DATABASE_URL: 'url',
     RESEND_API_KEY: 'string',
@@ -127,7 +127,7 @@ NEXT_PUBLIC_GA_ID=GA-123456
 Use the same shorthand syntax as the core package:
 
 ```javascript
-export const env = resolveNextEnv({
+export const env = resolve({
   server: {
     PORT: 3000,
     DATABASE_URL: 'url',
@@ -170,7 +170,7 @@ This protection works in both development and production.
 ## Options
 
 ```javascript
-export const env = resolveNextEnv({
+export const env = resolve({
   server: { /* ... */ },
   client: { /* ... */ }
 }, {
@@ -185,10 +185,10 @@ export const env = resolveNextEnv({
 Add cloud resolvers or other sources:
 
 ```javascript
-import { resolveNextEnv } from 'node-env-resolver-nextjs';
+import { resolve } from 'node-env-resolver-nextjs';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-export const env = resolveNextEnv({
+export const env = resolve({
   server: {
     DATABASE_URL: 'url',
     API_KEY: 'string',
@@ -208,7 +208,7 @@ export const env = resolveNextEnv({
 In production, `.env` files are automatically ignored. Production platforms (Vercel, AWS) inject variables via `process.env`.
 
 ```javascript
-export const env = resolveNextEnv({
+export const env = resolve({
   server: {
     DATABASE_URL: 'url',
     API_SECRET: 'string',
@@ -232,9 +232,9 @@ export const env = resolveNextEnv({
 ## Example: SaaS app
 
 ```javascript
-import { resolveNextEnv } from 'node-env-resolver-nextjs';
+import { resolve } from 'node-env-resolver-nextjs';
 
-export const env = resolveNextEnv({
+export const env = resolve({
   server: {
     DATABASE_URL: 'url',
     NEXTAUTH_SECRET: 'string',

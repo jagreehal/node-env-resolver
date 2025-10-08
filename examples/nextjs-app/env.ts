@@ -4,7 +4,7 @@ import { resolve } from 'node-env-resolver-nextjs';
 export const env = resolve({
   server: {
     // Database - using shorthand syntax
-    DATABASE_URL: 'url?',
+    DATABASE_URL: 'postgres?',
 
     // Authentication
     NEXTAUTH_SECRET: 'string?',

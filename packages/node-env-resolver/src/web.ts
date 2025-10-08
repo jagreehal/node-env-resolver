@@ -89,11 +89,9 @@ export async function resolveClientEnv<
     }
   }
 
-  // Use the main resolve function which handles shorthand syntax properly
-  const result = await resolve(clientSchema as SimpleEnvSchema, {
-    resolvers,
-    strict
-  });
+  // Use resolve.with() to handle multiple resolvers
+  const tuples = resolvers.map(resolver => [resolver, clientSchema as SimpleEnvSchema] as const);
+  const result = await resolve.with(...tuples, { strict });
 
   return result as InferClientSchema<TSchema, TPrefix>;
 }
@@ -140,19 +138,13 @@ export async function resolveEnvSplit<
     );
   }
 
-  // Create server environment (full access) using new resolve API
-  const server = await resolve(schema.server, {
-    resolvers,
-    policies,
-    interpolate,
-    strict
-  });
+  // Create server environment (full access) using resolve.with()
+  const serverTuples = resolvers.map(resolver => [resolver, schema.server] as const);
+  const server = await resolve.with(...serverTuples, { policies, interpolate, strict });
 
   // Create client environment (filtered)
-  const client = await resolve(schema.client, {
-    resolvers,
-    strict
-  });
+  const clientTuples = resolvers.map(resolver => [resolver, schema.client] as const);
+  const client = await resolve.with(...clientTuples, { strict });
 
   return { server, client } as {
     server: InferSimpleSchema<TServerSchema>;

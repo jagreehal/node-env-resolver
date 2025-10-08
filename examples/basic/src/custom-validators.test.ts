@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolve, resolveSync } from 'node-env-resolver';
+import { resolve } from 'node-env-resolver';
 import { processEnv } from 'node-env-resolver';
 
 // Helper to create mock provider
@@ -36,17 +36,19 @@ describe('Custom Validator Functions', () => {
         return value.toUpperCase();
       };
 
-      const config = await resolve({
+      const schema = {
         CUSTOM_PORT: positiveNumber,
         CUSTOM_NAME: uppercaseString,
         REGULAR_URL: 'url'  // Mix with built-in validators
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           CUSTOM_PORT: '8080',
           CUSTOM_NAME: 'hello',
           REGULAR_URL: 'https://example.com'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.CUSTOM_PORT).toBe(8080);
       expect(config.CUSTOM_NAME).toBe('HELLO');
@@ -65,13 +67,15 @@ describe('Custom Validator Functions', () => {
         };
       };
 
-      const config = await resolve({
+      const schema = {
         USER_DATA: customValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           USER_DATA: '123:john'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.USER_DATA).toEqual({ id: 123, name: 'john' });
       expect(typeof config.USER_DATA.id).toBe('number');
@@ -90,35 +94,37 @@ describe('Custom Validator Functions', () => {
         return parsed;
       };
 
-      await expect(resolve({
+      const schema = {
         SCORE: strictNumber
-      }, {
-        resolvers: [mockProvider({
-          SCORE: '150'  // Invalid: too high
-        })]
-      })).rejects.toThrow('Number must be between 0 and 100');
+      };
 
-      await expect(resolve({
-        SCORE: strictNumber
-      }, {
-        resolvers: [mockProvider({
+      await expect(resolve.with(
+        [mockProvider({
+          SCORE: '150'  // Invalid: too high
+        }), schema]
+      )).rejects.toThrow('Number must be between 0 and 100');
+
+      await expect(resolve.with(
+        [mockProvider({
           SCORE: 'invalid'  // Invalid: not a number
-        })]
-      })).rejects.toThrow('Invalid number format');
+        }), schema]
+      )).rejects.toThrow('Invalid number format');
     });
 
-    it('should work with synchronous resolve', () => {
+    it('should work with synchronous resolve', async () => {
       const customValidator = (value: string): boolean => {
         return value.toLowerCase() === 'true';
       };
 
-      const config = resolveSync({
+      const schema = {
         ENABLED: customValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           ENABLED: 'true'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.ENABLED).toBe(true);
     });
@@ -144,13 +150,15 @@ describe('Custom Validator Functions', () => {
         }
       };
 
-      const config = await resolve({
+      const schema = {
         APP_CONFIG: configValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           APP_CONFIG: '{"host": "localhost", "port": 5432, "ssl": true}'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.APP_CONFIG).toEqual({ host: 'localhost', port: 5432, ssl: true });
     });
@@ -167,13 +175,15 @@ describe('Custom Validator Functions', () => {
         return tags;
       };
 
-      const config = await resolve({
+      const schema = {
         TAGS: tagsValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           TAGS: 'react,typescript,node,api'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.TAGS).toEqual(['react', 'typescript', 'node', 'api']);
     });
@@ -187,13 +197,15 @@ describe('Custom Validator Functions', () => {
         return env as 'development' | 'staging' | 'production';
       };
 
-      const config = await resolve({
+      const schema = {
         ENVIRONMENT: environmentValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           ENVIRONMENT: 'PRODUCTION'  // Should be transformed to lowercase
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.ENVIRONMENT).toBe('production');
     });
@@ -217,13 +229,15 @@ describe('Custom Validator Functions', () => {
         return { key, type, expires };
       };
 
-      const config = await resolve({
+      const schema = {
         API_KEY: apiKeyValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           API_KEY: 'sk_1234567890abcdef1234567890abcdef'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.API_KEY.type).toBe('private');
       expect(config.API_KEY.key).toBe('1234567890abcdef1234567890abcdef');
@@ -258,12 +272,14 @@ describe('Custom Validator Functions', () => {
       // Set environment variable
       process.env.CUSTOM_PORT = '8080';
 
-      const config = await resolve({
+      const schema = {
         CUSTOM_PORT: portValidator,
         NODE_ENV: 'string'
-      }, {
-        resolvers: [processEnv()]
-      });
+      };
+
+      const config = await resolve.with(
+        [processEnv(), schema]
+      );
 
       expect(config.CUSTOM_PORT).toBe(8080);
       expect(config.NODE_ENV).toBe('test'); // Vitest sets NODE_ENV=test
@@ -288,16 +304,18 @@ describe('Custom Validator Functions', () => {
         }
       };
 
-      const config = await resolve({
+      const schema = {
         APP_CONFIG: configValidator,
         PORT: 3000,  // Mix with default values
         DATABASE_URL: 'url'  // Mix with built-in validators
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           APP_CONFIG: '{"theme": "dark", "size": "16"}',
           DATABASE_URL: 'postgres://localhost:5432/mydb'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.APP_CONFIG).toEqual({ theme: 'dark', size: 16 });
       expect(config.PORT).toBe(3000);
@@ -315,13 +333,15 @@ describe('Custom Validator Functions', () => {
         return value.toLowerCase();
       };
 
-      await expect(resolve({
+      const schema = {
         EMAIL: emailValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      await expect(resolve.with(
+        [mockProvider({
           EMAIL: 'invalid-email'
-        })]
-      })).rejects.toThrow('"invalid-email" is not a valid email address');
+        }), schema]
+      )).rejects.toThrow('"invalid-email" is not a valid email address');
     });
 
     it('should handle multiple validation errors', async () => {
@@ -339,15 +359,17 @@ describe('Custom Validator Functions', () => {
         return num;
       };
 
-      await expect(resolve({
+      const schema = {
         VALUE1: strictValidator,
         VALUE2: strictValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      await expect(resolve.with(
+        [mockProvider({
           VALUE1: 'invalid',
           VALUE2: '2000'
-        })]
-      })).rejects.toThrow('Must be a number');
+        }), schema]
+      )).rejects.toThrow('Must be a number');
     });
   });
 
@@ -367,13 +389,15 @@ describe('Custom Validator Functions', () => {
         };
       };
 
-      const config = await resolve({
+      const schema = {
         DATABASE_CONNECTION: dbConnectionValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           DATABASE_CONNECTION: 'postgres://user:pass@localhost:5432/mydb?ssl=true'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.DATABASE_CONNECTION).toEqual({
         host: 'localhost',
@@ -398,13 +422,15 @@ describe('Custom Validator Functions', () => {
         return value;
       };
 
-      const config = await resolve({
+      const schema = {
         JWT_SECRET: jwtSecretValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           JWT_SECRET: 'super-secret-jwt-key-that-is-long-enough-and-secure'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.JWT_SECRET).toBe('super-secret-jwt-key-that-is-long-enough-and-secure');
     });
@@ -431,13 +457,15 @@ describe('Custom Validator Functions', () => {
         return { name, enabled, rollout };
       };
 
-      const config = await resolve({
+      const schema = {
         FEATURE_FLAG: featureFlagValidator
-      }, {
-        resolvers: [mockProvider({
+      };
+
+      const config = await resolve.with(
+        [mockProvider({
           FEATURE_FLAG: 'new-ui:true:25'
-        })]
-      });
+        }), schema]
+      );
 
       expect(config.FEATURE_FLAG).toEqual({
         name: 'new-ui',

@@ -27,11 +27,33 @@ export interface Resolver {
 }
 
 export interface ResolveOptions {
-  resolvers?: Resolver[];
   interpolate?: boolean;
   strict?: boolean;
   policies?: PolicyOptions;
   enableAudit?: boolean;
+  /**
+   * Control merge behavior when multiple resolvers provide the same variable.
+   *
+   * - `'last'` (default): Later resolvers override earlier ones
+   * - `'first'`: Earlier resolvers take precedence, later ones are skipped if value already set
+   *
+   * @example
+   * // Local .env overrides AWS secrets (for development)
+   * resolve.with(
+   *   [dotenv(), { DATABASE_URL: 'url' }],
+   *   [awsSecrets(), { DATABASE_URL: 'url' }],
+   *   { priority: 'first' }  // dotenv wins
+   * );
+   *
+   * @example
+   * // AWS secrets override process.env (for production, default)
+   * resolve.with(
+   *   [processEnv(), { DATABASE_URL: 'url' }],
+   *   [awsSecrets(), { DATABASE_URL: 'url' }]
+   *   // priority: 'last' is default - AWS wins
+   * );
+   */
+  priority?: 'first' | 'last';
 }
 
 export interface Provenance {

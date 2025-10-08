@@ -5,7 +5,21 @@
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParametersByPathCommand, GetParameterCommand } from '@aws-sdk/client-ssm';
-import type { Resolver } from 'node-env-resolver';
+import type { Resolver, SimpleEnvSchema, InferSimpleSchema, ResolveOptions } from 'node-env-resolver';
+
+// Re-export safe resolve types from node-env-resolver
+export interface SafeResolveResult<T> {
+  success: true;
+  data: T;
+}
+
+export interface SafeResolveError {
+  success: false;
+  error: string;
+  errors?: string[];
+}
+
+export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
 
 // AWS Secrets Manager
 export interface AwsSecretsOptions {
@@ -25,6 +39,10 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
       try {
         const client = new SecretsManagerClient({
           region: options.region || process.env.AWS_REGION || 'us-east-1',
+          // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
+          // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+          // 2. IAM roles (EC2, Lambda, ECS)
+          // 3. AWS credentials file (~/.aws/credentials)
           credentials: options.accessKeyId && options.secretAccessKey ? {
             accessKeyId: options.accessKeyId,
             secretAccessKey: options.secretAccessKey,
@@ -76,6 +94,10 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
       try {
         const client = new SSMClient({
           region: options.region || process.env.AWS_REGION || 'us-east-1',
+          // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
+          // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+          // 2. IAM roles (EC2, Lambda, ECS)
+          // 3. AWS credentials file (~/.aws/credentials)
           credentials: options.accessKeyId && options.secretAccessKey ? {
             accessKeyId: options.accessKeyId,
             secretAccessKey: options.secretAccessKey,
@@ -131,4 +153,148 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
       }
     },
   };
+}
+
+// Convenience functions for one-line usage
+
+/**
+ * Resolve environment variables directly from AWS SSM Parameter Store
+ *
+ * @example
+ * ```typescript
+ * const config = await resolveSsm({
+ *   path: '/myapp/config'
+ * }, {
+ *   API_ENDPOINT: 'url',
+ *   TIMEOUT: 30
+ * });
+ * ```
+ */
+export async function resolveSsm<T extends SimpleEnvSchema>(
+  ssmOptions: AwsSsmOptions,
+  schema: T,
+  resolveOptions?: Partial<ResolveOptions>
+): Promise<InferSimpleSchema<T>> {
+  // Import resolve dynamically to avoid circular dependencies
+  const { resolve } = await import('node-env-resolver');
+
+  return await resolve.with(
+    [awsSsm(ssmOptions), schema],
+    ...(resolveOptions ? [resolveOptions] : [])
+  ) as InferSimpleSchema<T>;
+}
+
+/**
+ * Safe version of resolveSsm that doesn't throw errors
+ *
+ * @example
+ * ```typescript
+ * const result = await safeResolveSsm({
+ *   path: '/myapp/config'
+ * }, {
+ *   API_ENDPOINT: 'url'
+ * });
+ *
+ * if (result.success) {
+ *   console.log(result.data.API_ENDPOINT);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
+ */
+export async function safeResolveSsm<T extends SimpleEnvSchema>(
+  ssmOptions: AwsSsmOptions,
+  schema: T,
+  resolveOptions?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
+  try {
+    // Import resolve dynamically to avoid circular dependencies
+    const { safeResolve } = await import('node-env-resolver');
+
+    const result = await safeResolve.with(
+      [awsSsm(ssmOptions), schema],
+      ...(resolveOptions ? [resolveOptions] : [])
+    );
+    
+    if (result.success) {
+      return { success: true, data: result.data as InferSimpleSchema<T> };
+    }
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Resolve environment variables directly from AWS Secrets Manager
+ *
+ * @example
+ * ```typescript
+ * const config = await resolveSecrets({
+ *   secretId: 'myapp/production/secrets'
+ * }, {
+ *   DATABASE_URL: 'url',
+ *   API_KEY: 'string'
+ * });
+ * ```
+ */
+export async function resolveSecrets<T extends SimpleEnvSchema>(
+  secretsOptions: AwsSecretsOptions,
+  schema: T,
+  resolveOptions?: Partial<ResolveOptions>
+): Promise<InferSimpleSchema<T>> {
+  // Import resolve dynamically to avoid circular dependencies
+  const { resolve } = await import('node-env-resolver');
+
+  return await resolve.with(
+    [awsSecrets(secretsOptions), schema],
+    ...(resolveOptions ? [resolveOptions] : [])
+  ) as InferSimpleSchema<T>;
+}
+
+/**
+ * Safe version of resolveSecrets that doesn't throw errors
+ *
+ * @example
+ * ```typescript
+ * const result = await safeResolveSecrets({
+ *   secretId: 'myapp/secrets'
+ * }, {
+ *   DATABASE_URL: 'url'
+ * });
+ *
+ * if (result.success) {
+ *   console.log(result.data.DATABASE_URL);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
+ */
+export async function safeResolveSecrets<T extends SimpleEnvSchema>(
+  secretsOptions: AwsSecretsOptions,
+  schema: T,
+  resolveOptions?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
+  try {
+    // Import resolve dynamically to avoid circular dependencies
+    const { safeResolve } = await import('node-env-resolver');
+
+    const result = await safeResolve.with(
+      [awsSecrets(secretsOptions), schema],
+      ...(resolveOptions ? [resolveOptions] : [])
+    );
+    
+    if (result.success) {
+      return { success: true, data: result.data as InferSimpleSchema<T> };
+    }
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
 }

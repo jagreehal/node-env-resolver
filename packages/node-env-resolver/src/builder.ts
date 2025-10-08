@@ -21,7 +21,7 @@ import type {
   InferSimpleSchema,
   ResolveOptions,
 } from './types.js';
-import { normalizeSchema, resolveEnvInternal, resolveEnvInternalSync } from './resolver.js';
+import { normalizeSchema, resolveEnvInternalSync } from './resolver.js';
 import { dotenv, processEnv } from './resolvers.js';
 // Type utility: Merge two schemas (last-wins)
 export type MergeSchemas<T, U> = Omit<T, keyof U> & U;
@@ -61,7 +61,7 @@ export class EnvBuilder<TAccumulated extends Record<string, unknown>> {
   /**
    * Resolve all resolvers and validate environment variables
    */
-  async resolve(): Promise<TAccumulated> {
+  resolve(): TAccumulated {
     // Build complete schema by merging all layers
     const completeSchema: EnvSchema = normalizeSchema(this.localSchema);
 
@@ -78,18 +78,15 @@ export class EnvBuilder<TAccumulated extends Record<string, unknown>> {
     // Add extend resolvers if specified in options
     const extendResolvers = (this.options as { extend?: Resolver[] }).extend || [];
 
-    // If resolvers option is explicitly set, use it; otherwise build from defaults + custom + extend
-    const allResolvers = this.options.resolvers
-      ? this.options.resolvers
-      : [...defaultResolvers, ...customResolvers, ...extendResolvers];
+    // Build from defaults + custom + extend
+    const allResolvers = [...defaultResolvers, ...customResolvers, ...extendResolvers];
 
     // Default policies: secure by default (block dotenv in production unless explicitly allowed)
     const policies = this.options.policies ?? {};
 
     // Resolve using internal resolver
-    const result = await resolveEnvInternal(completeSchema, {
+    const result = resolveEnvInternalSync(completeSchema, allResolvers, {
       ...this.options,
-      resolvers: allResolvers,
       policies,
       interpolate: this.options.interpolate ?? true,
       strict: this.options.strict ?? true,
@@ -161,18 +158,15 @@ export class EnvBuilderSync<TAccumulated extends Record<string, unknown>> {
     // Add extend resolvers if specified in options
     const extendResolvers = (this.options as { extend?: Resolver[] }).extend || [];
 
-    // If resolvers option is explicitly set, use it; otherwise build from defaults + custom + extend
-    const allResolvers = this.options.resolvers
-      ? this.options.resolvers
-      : [...defaultResolvers, ...customResolvers, ...extendResolvers];
+    // Build from defaults + custom + extend
+    const allResolvers = [...defaultResolvers, ...customResolvers, ...extendResolvers];
 
     // Default policies: secure by default (block dotenv in production unless explicitly allowed)
     const policies = this.options.policies ?? {};
 
     // Resolve using internal sync resolver
-    const result = resolveEnvInternalSync(completeSchema, {
+    const result = resolveEnvInternalSync(completeSchema, allResolvers, {
       ...this.options,
-      resolvers: allResolvers,
       policies,
       interpolate: this.options.interpolate ?? true,
       strict: this.options.strict ?? true,
@@ -282,7 +276,8 @@ export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> imp
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): PromiseLike<TResult1 | TResult2> {
     if (!this.simpleResolve) {
-      this.simpleResolve = this.builder.resolve();
+      // Wrap synchronous result in a Promise
+      this.simpleResolve = Promise.resolve(this.builder.resolve());
     }
     return this.simpleResolve.then(onfulfilled, onrejected);
   }
@@ -294,7 +289,8 @@ export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> imp
     onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
   ): Promise<TAccumulated | TResult> {
     if (!this.simpleResolve) {
-      this.simpleResolve = this.builder.resolve();
+      // Wrap synchronous result in a Promise
+      this.simpleResolve = Promise.resolve(this.builder.resolve());
     }
     return this.simpleResolve.catch(onrejected);
   }
@@ -304,7 +300,8 @@ export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> imp
    */
   finally(onfinally?: (() => void) | null): Promise<TAccumulated> {
     if (!this.simpleResolve) {
-      this.simpleResolve = this.builder.resolve();
+      // Wrap synchronous result in a Promise
+      this.simpleResolve = Promise.resolve(this.builder.resolve());
     }
     return this.simpleResolve.finally(onfinally);
   }

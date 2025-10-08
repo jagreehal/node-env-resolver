@@ -98,7 +98,8 @@ function interpolateValue(value: string, allEnv: Record<string, string>): string
 async function resolveFromResolvers(
   resolvers: Resolver[],
   interpolate: boolean,
-  strict: boolean
+  strict: boolean,
+  priority: 'first' | 'last' = 'last'
 ): Promise<{ mergedEnv: Record<string, string>; provenance: Record<string, Provenance> }> {
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
@@ -108,6 +109,13 @@ async function resolveFromResolvers(
       const env = await resolver.load();
       for (const [key, value] of Object.entries(env)) {
         if (value !== undefined) {
+          // priority: 'first' - only set if not already defined
+          // priority: 'last' - always overwrite (default behavior)
+          if (priority === 'first' && mergedEnv[key] !== undefined) {
+            // Skip: value already set by earlier resolver
+            continue;
+          }
+
           mergedEnv[key] = value;
           provenance[key] = {
             source: resolver.name,
@@ -145,7 +153,8 @@ async function resolveFromResolvers(
 function resolveFromResolversSync(
   resolvers: Resolver[],
   interpolate: boolean,
-  strict: boolean
+  strict: boolean,
+  priority: 'first' | 'last' = 'last'
 ): { mergedEnv: Record<string, string>; provenance: Record<string, Provenance> } {
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
@@ -162,6 +171,13 @@ function resolveFromResolversSync(
       const env = resolver.loadSync();
       for (const [key, value] of Object.entries(env)) {
         if (value !== undefined) {
+          // priority: 'first' - only set if not already defined
+          // priority: 'last' - always overwrite (default behavior)
+          if (priority === 'first' && mergedEnv[key] !== undefined) {
+            // Skip: value already set by earlier resolver
+            continue;
+          }
+
           mergedEnv[key] = value;
           provenance[key] = {
             source: resolver.name,
@@ -263,15 +279,16 @@ function validateEnvVarNames(schema: EnvSchema): string[] {
  */
 export async function resolveEnvInternal<T extends EnvSchema>(
   schema: T,
+  resolvers: Resolver[],
   options: ResolveOptions
 ): Promise<Record<string, unknown>> {
   const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
   const {
-    resolvers = [],
     interpolate = false,
     strict = true,
     policies,
-    enableAudit = isProduction
+    enableAudit = isProduction,
+    priority = 'last'
   } = options;
 
   // Validate environment variable names first
@@ -287,7 +304,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
   }
 
-  const { mergedEnv, provenance } = await resolveFromResolvers(resolvers, interpolate, strict);
+  const { mergedEnv, provenance } = await resolveFromResolvers(resolvers, interpolate, strict, priority);
 
   const result: Record<string, unknown> = {};
   const errors: string[] = [];
@@ -391,6 +408,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
  */
 export function resolveEnvInternalSync<T extends EnvSchema>(
   schema: T,
+  resolvers: Resolver[],
   options: ResolveOptions
 ): Record<string, unknown> {
   // Validate environment variable names first
@@ -400,13 +418,13 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
   }
 
   const {
-    resolvers = [],
     interpolate = false,
     strict = true,
-    policies
+    policies,
+    priority = 'last'
   } = options;
 
-  const { mergedEnv, provenance } = resolveFromResolversSync(resolvers, interpolate, strict);
+  const { mergedEnv, provenance } = resolveFromResolversSync(resolvers, interpolate, strict, priority);
 
   const result: Record<string, unknown> = {};
   const errors: string[] = [];
