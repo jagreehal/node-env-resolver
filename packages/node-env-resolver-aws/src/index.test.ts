@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index';
 const mockSecretsManagerSend = vi.fn();
 const mockSsmSend = vi.fn();
-const mockResolve = vi.fn();
+const mockResolveWith = vi.fn();
+const mockSafeResolveWith = vi.fn();
 
 // Mock AWS SDK clients
 vi.mock('@aws-sdk/client-secrets-manager', () => ({
@@ -22,7 +23,12 @@ vi.mock('@aws-sdk/client-ssm', () => ({
 
 // Mock node-env-resolver
 vi.mock('node-env-resolver', () => ({
-  resolve: mockResolve,
+  resolve: {
+    with: mockResolveWith,
+  },
+  safeResolve: {
+    with: mockSafeResolveWith,
+  },
 }));
 
 describe('node-env-resolver/aws', () => {
@@ -30,7 +36,8 @@ describe('node-env-resolver/aws', () => {
     vi.clearAllMocks();
     mockSecretsManagerSend.mockReset();
     mockSsmSend.mockReset();
-    mockResolve.mockReset();
+    mockResolveWith.mockReset();
+    mockSafeResolveWith.mockReset();
   });
 
   describe('awsSecrets', () => {
@@ -140,7 +147,7 @@ describe('node-env-resolver/aws', () => {
         TIMEOUT: 30
       };
 
-      mockResolve.mockResolvedValueOnce(expectedConfig);
+      mockResolveWith.mockResolvedValueOnce(expectedConfig);
 
       const result = await resolveSsm({
         path: '/myapp/config'
@@ -150,18 +157,16 @@ describe('node-env-resolver/aws', () => {
       });
 
       expect(result).toEqual(expectedConfig);
-      expect(mockResolve).toHaveBeenCalledWith(
-        { API_ENDPOINT: 'url', TIMEOUT: 30 },
-        expect.objectContaining({
-          resolvers: expect.arrayContaining([
-            expect.objectContaining({ name: 'aws-ssm(/myapp/config)' })
-          ])
-        })
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
+          { API_ENDPOINT: 'url', TIMEOUT: 30 }
+        ]
       );
     });
 
     it('should pass additional resolve options', async () => {
-      mockResolve.mockResolvedValueOnce({ API_ENDPOINT: 'https://api.example.com' });
+      mockResolveWith.mockResolvedValueOnce({ API_ENDPOINT: 'https://api.example.com' });
 
       await resolveSsm({
         path: '/myapp/config',
@@ -172,12 +177,12 @@ describe('node-env-resolver/aws', () => {
         strict: false
       });
 
-      expect(mockResolve).toHaveBeenCalledWith(
-        { API_ENDPOINT: 'url' },
-        expect.objectContaining({
-          strict: false,
-          resolvers: expect.any(Array)
-        })
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
+          { API_ENDPOINT: 'url' }
+        ],
+        { strict: false }
       );
     });
   });
@@ -189,7 +194,10 @@ describe('node-env-resolver/aws', () => {
         TIMEOUT: 30
       };
 
-      mockResolve.mockResolvedValueOnce(expectedConfig);
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: true,
+        data: expectedConfig
+      });
 
       const result = await safeResolveSsm({
         path: '/myapp/config'
@@ -205,7 +213,10 @@ describe('node-env-resolver/aws', () => {
     });
 
     it('should return error result on failure', async () => {
-      mockResolve.mockRejectedValueOnce(new Error('AWS SSM: Access denied'));
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: false,
+        error: 'AWS SSM: Access denied'
+      });
 
       const result = await safeResolveSsm({
         path: '/myapp/config'
@@ -227,7 +238,7 @@ describe('node-env-resolver/aws', () => {
         API_KEY: 'secret-key-123'
       };
 
-      mockResolve.mockResolvedValueOnce(expectedConfig);
+      mockResolveWith.mockResolvedValueOnce(expectedConfig);
 
       const result = await resolveSecrets({
         secretId: 'myapp/secrets'
@@ -237,18 +248,16 @@ describe('node-env-resolver/aws', () => {
       });
 
       expect(result).toEqual(expectedConfig);
-      expect(mockResolve).toHaveBeenCalledWith(
-        { DATABASE_URL: 'url', API_KEY: 'string' },
-        expect.objectContaining({
-          resolvers: expect.arrayContaining([
-            expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' })
-          ])
-        })
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
+          { DATABASE_URL: 'url', API_KEY: 'string' }
+        ]
       );
     });
 
     it('should pass additional resolve options', async () => {
-      mockResolve.mockResolvedValueOnce({ DATABASE_URL: 'postgres://localhost:5432/app' });
+      mockResolveWith.mockResolvedValueOnce({ DATABASE_URL: 'postgres://localhost:5432/app' });
 
       await resolveSecrets({
         secretId: 'myapp/secrets',
@@ -259,12 +268,12 @@ describe('node-env-resolver/aws', () => {
         strict: false
       });
 
-      expect(mockResolve).toHaveBeenCalledWith(
-        { DATABASE_URL: 'url' },
-        expect.objectContaining({
-          strict: false,
-          resolvers: expect.any(Array)
-        })
+      expect(mockResolveWith).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
+          { DATABASE_URL: 'url' }
+        ],
+        { strict: false }
       );
     });
   });
@@ -276,7 +285,10 @@ describe('node-env-resolver/aws', () => {
         API_KEY: 'secret-key-123'
       };
 
-      mockResolve.mockResolvedValueOnce(expectedConfig);
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: true,
+        data: expectedConfig
+      });
 
       const result = await safeResolveSecrets({
         secretId: 'myapp/secrets'
@@ -292,7 +304,10 @@ describe('node-env-resolver/aws', () => {
     });
 
     it('should return error result on failure', async () => {
-      mockResolve.mockRejectedValueOnce(new Error('AWS Secrets Manager: Secret not found'));
+      mockSafeResolveWith.mockResolvedValueOnce({
+        success: false,
+        error: 'AWS Secrets Manager: Secret not found'
+      });
 
       const result = await safeResolveSecrets({
         secretId: 'myapp/secrets'

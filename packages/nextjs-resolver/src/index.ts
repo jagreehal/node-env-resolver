@@ -6,7 +6,7 @@
  * resolve() is synchronous and works with Next.js config.
  */
 
-import { resolveSync } from 'node-env-resolver';
+import { resolve as nodeEnvResolve } from 'node-env-resolver';
 import type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema } from 'node-env-resolver';
 
 // Safe resolve result types (Zod-like)
@@ -33,11 +33,6 @@ export interface NextjsEnvConfig<TServer extends SimpleEnvSchema, TClient extend
 }
 
 export interface NextjsOptions extends Omit<ResolveOptions, 'resolvers'> {
-  /**
-   * Custom resolvers to add (dotenv and processEnv are included by default)
-   */
-  resolvers?: ResolveOptions['resolvers'];
-  
   /**
    * Prefix for client environment variables
    * @default 'NEXT_PUBLIC_'
@@ -128,8 +123,8 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
 
   // Use resolveSync - Next.js config must be sync
   // Next.js already handles .env files via process.env, so no custom resolvers needed
-  const serverResult: InferSimpleSchema<TServer> = resolveSync(config.server);
-  const clientResult: InferSimpleSchema<TClient> = resolveSync(config.client);
+  const serverResult: InferSimpleSchema<TServer> = nodeEnvResolve(config.server);
+  const clientResult: InferSimpleSchema<TClient> = nodeEnvResolve(config.client);
 
   // Create protected environment object with runtime guards
   const isBrowser = () => typeof (globalThis as GlobalWithWindow).window !== 'undefined';

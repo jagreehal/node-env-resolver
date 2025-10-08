@@ -3,7 +3,7 @@
  * Demonstrates async usage with AWS Secrets and caching
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, safeResolve, safeResolveSync, processEnv, cached, getAuditLog } from 'node-env-resolver';
+import { resolve, safeResolve, processEnv, cached, getAuditLog } from 'node-env-resolver';
 import type { Resolver } from 'node-env-resolver';
 
 // Mock AWS Secrets Manager for testing
@@ -194,12 +194,12 @@ describe('Advanced Resolvers Example', () => {
       }
 
       // Test with resolve (should throw)
-      await expect(resolve({
+      expect(() => resolve({
         'PORxxxT': 3000, // Invalid variable name (contains lowercase)
-      })).rejects.toThrow('Invalid environment variable name: "PORxxxT"');
+      })).toThrow('Invalid environment variable name: "PORxxxT"');
 
       // Test valid variable name (should work)
-      const validResult = await safeResolve({
+      const validResult = safeResolve({
         'VALID_VAR': { type: 'string', default: 'default' },
       });
 
@@ -269,10 +269,10 @@ describe('Advanced Resolvers Example', () => {
       }
     });
 
-    it('should work with safeResolveSync for sync resolvers', () => {
+    it('should work with safeResolve for sync resolvers', () => {
       process.env.PORT = '3000';
 
-      const result = safeResolveSync({
+      const result = safeResolve({
         PORT: 'number',
         DEBUG: false, // boolean with default
       });

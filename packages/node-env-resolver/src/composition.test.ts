@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, expectTypeOf } from 'vitest';
-import { env, envSync } from './builder.js';
+import { env } from './builder.js';
 import type { Resolver } from './index.js';
 // Mock custom resolver
 function createCustomResolver(values: Record<string, string>): Resolver {
@@ -21,13 +21,13 @@ function createCustomResolver(values: Record<string, string>): Resolver {
 }
 
 describe('Resolver Composition - Type Safety', () => {
-  it('should infer types from single env() call', async () => {
+  it('should infer types from single env() call', () => {
     // Set env vars for type test
     process.env.FOO = 'bar';
     process.env.BAR = '3000';
     process.env.DEBUG = 'false';
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
       BAR: 3000,
       DEBUG: false,
@@ -44,13 +44,13 @@ describe('Resolver Composition - Type Safety', () => {
     delete process.env.DEBUG;
   });
 
-  it('should accumulate types when chaining .from()', async () => {
+  it('should accumulate types when chaining .from()', () => {
     process.env.FOO = 'bar';
     process.env.BAR = '3000';
 
     const customResolver = createCustomResolver({ QUZ: 'quux' });
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
       BAR: 3000,
     })
@@ -68,13 +68,13 @@ describe('Resolver Composition - Type Safety', () => {
     delete process.env.BAR;
   });
 
-  it('should merge types correctly with overlapping keys (last-wins)', async () => {
+  it('should merge types correctly with overlapping keys (last-wins)', () => {
     const customResolver = createCustomResolver({
       FOO: 'overridden',
       QUZ: 'quux'
     });
 
-    const config = await env({
+    const config = env({
       FOO: 'string',  // will be overridden
       BAR: 3000,
     })
@@ -90,13 +90,13 @@ describe('Resolver Composition - Type Safety', () => {
     expectTypeOf(config.QUZ).toEqualTypeOf<string>();
   });
 
-  it('should handle multiple .from() chains', async () => {
+  it('should handle multiple .from() chains', () => {
     process.env.FOO = 'bar';
 
     const resolver1 = createCustomResolver({ QUZ: 'quux' });
     const resolver2 = createCustomResolver({ BAZ: 'bazz' });
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
     })
       .from(resolver1, { QUZ: 'string' })
@@ -110,10 +110,10 @@ describe('Resolver Composition - Type Safety', () => {
     delete process.env.FOO;
   });
 
-  it('should work with enum types', async () => {
+  it('should work with enum types', () => {
     process.env.NODE_ENV = 'development';
 
-    const config = await env({
+    const config = env({
       NODE_ENV: ['development', 'production'] as const,
     }).resolve();
 
@@ -122,8 +122,8 @@ describe('Resolver Composition - Type Safety', () => {
     delete process.env.NODE_ENV;
   });
 
-  it('should work with optional types', async () => {
-    const config = await env({
+  it('should work with optional types', () => {
+    const config = env({
       OPTIONAL_KEY: 'string?',
     }).resolve();
 
@@ -134,12 +134,12 @@ describe('Resolver Composition - Type Safety', () => {
 });
 
 describe('Resolver Composition - Runtime Behavior', () => {
-  it('should resolve from local provider only', async () => {
+  it('should resolve from local provider only', () => {
     // Set test env vars
     process.env.FOO = 'bar';
     process.env.BAR = '3000';
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
       BAR: 'number',
     }).resolve();
@@ -152,14 +152,14 @@ describe('Resolver Composition - Runtime Behavior', () => {
     delete process.env.BAR;
   });
 
-  it('should resolve from custom provider', async () => {
+  it('should resolve from custom provider', () => {
     process.env.FOO = 'local-value';
 
     const customResolver = createCustomResolver({
       QUZ: 'custom-value'
     });
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
     })
       .from(customResolver, {
@@ -173,7 +173,7 @@ describe('Resolver Composition - Runtime Behavior', () => {
     delete process.env.FOO;
   });
 
-  it('should override local values with custom provider (last-wins)', async () => {
+  it('should override local values with custom provider (last-wins)', () => {
     process.env.FOO = 'local-value';
 
     const customResolver = createCustomResolver({
@@ -181,7 +181,7 @@ describe('Resolver Composition - Runtime Behavior', () => {
       QUZ: 'quux'
     });
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
       BAR: 3000,
     })
@@ -199,7 +199,7 @@ describe('Resolver Composition - Runtime Behavior', () => {
     delete process.env.FOO;
   });
 
-  it('should handle multiple custom resolvers in order', async () => {
+  it('should handle multiple custom resolvers in order', () => {
     const resolver1 = createCustomResolver({
       FOO: 'from-resolver1',
       QUZ: 'from-resolver1'
@@ -210,7 +210,7 @@ describe('Resolver Composition - Runtime Behavior', () => {
       BAZ: 'from-resolver2'
     });
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
     })
       .from(resolver1, { FOO: 'string', QUZ: 'string' })
@@ -222,22 +222,22 @@ describe('Resolver Composition - Runtime Behavior', () => {
     expect(config.BAZ).toBe('from-resolver2');
   });
 
-  it('should fail when required variable is missing', async () => {
+  it('should fail when required variable is missing', () => {
     const customResolver = createCustomResolver({});
 
-    await expect(
+    expect(() => {
       env({
         REQUIRED_VAR: 'string',
       })
         .from(customResolver, {
           ANOTHER_VAR: 'string',
         })
-        .resolve()
-    ).rejects.toThrow();
+        .resolve();
+    }).toThrow();
   });
 
-  it('should handle defaults from local schema', async () => {
-    const config = await env({
+  it('should handle defaults from local schema', () => {
+    const config = env({
       PORT: 3000,
       DEBUG: false,
     }).resolve();
@@ -248,14 +248,14 @@ describe('Resolver Composition - Runtime Behavior', () => {
 });
 
 describe('Resolver Composition - Sync API', () => {
-  it('should work synchronously with envSync()', () => {
+  it('should work synchronously with env()', () => {
     process.env.FOO = 'bar';
     process.env.BAR = '3000';
 
-    const config = envSync({
+    const config = env({
       FOO: 'string',
       BAR: 'number',
-    }).resolveSync();
+    }).resolve();
 
     expect(config.FOO).toBe('bar');
     expect(config.BAR).toBe(3000);
@@ -275,13 +275,13 @@ describe('Resolver Composition - Sync API', () => {
       QUZ: 'quux'
     });
 
-    const config = envSync({
+    const config = env({
       FOO: 'string',
     })
       .from(customResolver, {
         QUZ: 'string',
       })
-      .resolveSync();
+      .resolve();
 
     expectTypeOf(config.FOO).toEqualTypeOf<string>();
     expectTypeOf(config.QUZ).toEqualTypeOf<string>();
@@ -296,13 +296,13 @@ describe('Resolver Composition - Sync API', () => {
       FOO: 'custom-value'
     });
 
-    const config = envSync({
+    const config = env({
       FOO: 'string',
     })
       .from(customResolver, {
         FOO: 'string',
       })
-      .resolveSync();
+      .resolve();
 
     expect(config.FOO).toBe('custom-value');
 
@@ -311,12 +311,12 @@ describe('Resolver Composition - Sync API', () => {
 });
 
 describe('Resolver Composition - Edge Cases', () => {
-  it('should handle empty custom provider schema', async () => {
+  it('should handle empty custom provider schema', () => {
     process.env.FOO = 'bar';
 
     const customResolver = createCustomResolver({});
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
     })
       .from(customResolver, {})
@@ -328,10 +328,10 @@ describe('Resolver Composition - Edge Cases', () => {
     delete process.env.FOO;
   });
 
-  it('should handle no .from() calls (just local)', async () => {
+  it('should handle no .from() calls (just local)', () => {
     process.env.FOO = 'bar';
 
-    const config = await env({
+    const config = env({
       FOO: 'string',
     }).resolve();
 
@@ -340,14 +340,14 @@ describe('Resolver Composition - Edge Cases', () => {
     delete process.env.FOO;
   });
 
-  it('should handle provider that returns undefined for a key', async () => {
+  it('should handle provider that returns undefined for a key', () => {
     const customResolver = createCustomResolver({
       QUZ: 'has-value'
     });
 
     process.env.MISSING_VAR = 'from-local';
 
-    const config = await env({
+    const config = env({
       MISSING_VAR: 'string',
     })
       .from(customResolver, {

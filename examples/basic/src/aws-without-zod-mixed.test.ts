@@ -36,7 +36,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       LOG_LEVEL: 'warn',
     };
 
-    const config = await resolve({
+    const schema = {
       // Shorthand syntax for simple cases
       NODE_ENV: ['development', 'production', 'test'] as const,
       PORT: 3000,
@@ -44,26 +44,28 @@ describe('AWS Secrets - Mixed Syntax', () => {
       DATABASE_PASSWORD: 'string',
       API_KEY: 'string?',
       JWT_SECRET: 'string',
-      
+
       // Full object syntax for complex validation
       DATABASE_URL: { type: 'url', secret: true },
       REDIS_URL: { type: 'url', optional: true },
       MAX_CONNECTIONS: { type: 'number', default: 100, min: 1, max: 1000 },
       LOG_LEVEL: { type: 'string', enum: ['debug', 'info', 'warn', 'error'] as const, default: 'info' },
       SESSION_TIMEOUT: { type: 'number', default: 3600, min: 60, max: 86400 },
-    }, {
-      resolvers: [
-        mockDotenvProvider(mockDotenv),
-        cached(
-          mockAwsSecretsProvider(mockSecrets),
-          awsCache({
-            ttl: 5 * 60 * 1000,
-            staleWhileRevalidate: true
-          })
-        ),
-      ],
-      interpolate: true,
-    });
+    };
+
+    const config = await resolve.with(
+      [mockDotenvProvider(mockDotenv), schema],
+      [cached(
+        mockAwsSecretsProvider(mockSecrets),
+        awsCache({
+          ttl: 5 * 60 * 1000,
+          staleWhileRevalidate: true
+        })
+      ), schema],
+      {
+        interpolate: true,
+      }
+    );
 
     expect(config.NODE_ENV).toBe('production');
     expect(config.PORT).toBe(8080);
@@ -86,14 +88,17 @@ describe('AWS Secrets - Mixed Syntax', () => {
 
     // Test development environment
     process.env.NODE_ENV = 'development';
-    const devConfig = await resolve({
+    const devSchema = {
       NODE_ENV: ['development', 'production', 'test'] as const,
       PORT: 3000,
       DATABASE_PASSWORD: 'string',
       API_KEY: 'string?',
-    }, {
-      resolvers: [processEnv(), mockAwsSecretsProvider(mockSecrets)],
-    });
+    };
+
+    const devConfig = await resolve.with(
+      [processEnv(), devSchema],
+      [mockAwsSecretsProvider(mockSecrets), devSchema]
+    );
 
     expect(devConfig.NODE_ENV).toBe('development');
     expect(devConfig.PORT).toBe(3000);
@@ -102,15 +107,20 @@ describe('AWS Secrets - Mixed Syntax', () => {
 
     // Test production environment
     process.env.NODE_ENV = 'production';
-    const prodConfig = await resolve({
+    const prodSchema = {
       NODE_ENV: ['development', 'production', 'test'] as const,
       PORT: 8080,
       DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
       API_KEY: { type: 'string', secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' },
-    }, {
-      resolvers: [processEnv(), mockAwsSecretsProvider(mockSecrets)],
-      strict: true,
-    });
+    };
+
+    const prodConfig = await resolve.with(
+      [processEnv(), prodSchema],
+      [mockAwsSecretsProvider(mockSecrets), prodSchema],
+      {
+        strict: true,
+      }
+    );
 
     expect(prodConfig.NODE_ENV).toBe('production');
     expect(prodConfig.PORT).toBe(8080);
@@ -125,27 +135,29 @@ describe('AWS Secrets - Mixed Syntax', () => {
       OPTIONAL_STRING: 'optional-value',
     };
 
-    const config = await resolve({
+    const schema = {
       // Simple validation
       SIMPLE_STRING: 'string',
-      
+
       // Complex validation
-      COMPLEX_STRING: { 
-        type: 'string', 
-        min: 5, 
-        max: 50, 
-        pattern: '^[a-z-]+$' 
+      COMPLEX_STRING: {
+        type: 'string',
+        min: 5,
+        max: 50,
+        pattern: '^[a-z-]+$'
       },
-      
+
       // Optional with default
-      OPTIONAL_STRING: { 
-        type: 'string', 
-        optional: true, 
-        default: 'default-value' 
+      OPTIONAL_STRING: {
+        type: 'string',
+        optional: true,
+        default: 'default-value'
       },
-    }, {
-      resolvers: [mockAwsSecretsProvider(mockSecrets)],
-    });
+    };
+
+    const config = await resolve.with(
+      [mockAwsSecretsProvider(mockSecrets), schema]
+    );
 
     expect(config.SIMPLE_STRING).toBe('simple-value');
     expect(config.COMPLEX_STRING).toBe('complex-value-with-validation');

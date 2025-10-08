@@ -4,9 +4,10 @@
 
 ## TL;DR
 
-* Use `resolve({...})` for the simple case (reads **process.env** only).
-* Use `resolve.with([provider, schema], … [, options])` when you need **multiple resolvers** (e.g. dotenv + AWS Secrets).
-* Merge rule is **left → right**, **last tuple wins** on key conflicts.
+* Use `resolve({...})` for the simple case (reads **process.env** only, synchronous).
+* Use `resolve.with([provider, schema], … [, options])` when you need **multiple resolvers** (e.g. dotenv + AWS Secrets, async).
+* Merge rule is **left → right**, **last tuple wins** on key conflicts (default).
+* Use `priority: 'first'` option to reverse precedence (first tuple wins).
 * In production, `.env` files are **not** read unless you explicitly include `dotenv()`.
 
 ---
@@ -19,7 +20,7 @@
 ```ts
 import { resolve } from 'node-env-resolver';
 
-const config = await resolve({
+const config = resolve({
   PORT: 3000,
   DATABASE_URL: 'url',
   DEBUG: false,
@@ -37,7 +38,7 @@ const config = await resolve({
 ```ts
 import { safeResolve } from 'node-env-resolver';
 
-const result = await safeResolve({
+const result = safeResolve({
   PORT: 'number',
   DATABASE_URL: 'url',
   API_KEY: 'string',
@@ -49,32 +50,6 @@ if (result.success) {
   console.error(result.error);    // Error message
 }
 ```
-
-### 1b) Sync versions
-
-For synchronous config loading (e.g., Next.js config files):
-
-```ts
-import { resolveSync, safeResolveSync } from 'node-env-resolver';
-
-// Throws on error
-const config = resolveSync({
-  PORT: 3000,
-  NODE_ENV: ['development', 'production'] as const
-});
-
-// Returns result object
-const result = safeResolveSync({
-  PORT: 3000,
-  DEBUG: false
-});
-
-if (result.success) {
-  console.log(result.data.PORT);
-}
-```
-
-**Note:** Sync versions cannot use async validators (Zod, Valibot). Use shorthand syntax only.
 
 
 ### 2) Multi-provider (tuple syntax)
@@ -113,7 +88,37 @@ if (!result.success) {
 const config = result.data;
 ```
 
-**Order rule:** Later tuples override earlier ones for overlapping keys.
+**Order rule:** Later tuples override earlier ones for overlapping keys (default `priority: 'last'`).
+
+### 2b) Priority control
+
+Control merge behaviour when multiple resolvers provide the same variable:
+
+```ts
+// priority: 'last' (default) - later resolvers override earlier ones
+const config = await resolve.with(
+  [processEnv(), { DATABASE_URL: 'url' }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }]
+  // AWS wins (last resolver)
+);
+
+// priority: 'first' - earlier resolvers take precedence
+const config = await resolve.with(
+  [dotenv(), { DATABASE_URL: 'url' }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }],
+  { priority: 'first' }
+  // dotenv wins (first resolver)
+);
+```
+
+**Use cases:**
+- `priority: 'last'` (default): Production secrets override local env
+- `priority: 'first'`: Local .env overrides cloud secrets (development workflow)
+
+**Semantics:**
+- Only `undefined` means "not set"
+- Empty strings, `null`, and other values are considered "set"
+- With `priority: 'first'`, later resolvers only set values that are `undefined`
 
 ### 3) Correct syntax for `.with()` (IMPORTANT!)
 
@@ -136,21 +141,35 @@ await resolve.with([
 
 **Why?** The function signature is variadic `...tuples`, not `tuples[]`.
 
-### 4) Options (optional last argument to `.with`)
+### 4) Options (optional last argument)
 
+**For single source:**
+```ts
+resolve(
+  { PORT: 3000, DATABASE_URL: 'url' },
+  {
+    strict: true,        // Fail on validation errors (default: true)
+    interpolate: false,  // ${VAR} expansion (default: true)
+    enableAudit: true    // Enable audit logging
+  }
+);
+```
+
+**For multiple sources (`.with`):**
 ```ts
 await resolve.with(
   [processEnv(), { PORT: 3000 }],
   [dotenv(),     { DATABASE_URL: 'url' }],
   {
-    strict: true,
-    interpolate: false,
+    priority: 'first' | 'last',  // Merge strategy (default: 'last')
+    strict: true,                 // Fail on resolver errors (default: true)
+    interpolate: false,           // ${VAR} expansion (default: true)
     policies: {
       enforceAllowedSources: {
         DATABASE_URL: ['aws-secrets']
       }
     },
-    // extend/resolvers: low-level hooks; prefer tuples for clarity
+    enableAudit: true             // Enable audit logging
   }
 );
 ```
@@ -186,6 +205,66 @@ dotenv({ path: '.env.production' })
 dotenv({ path: '.env', expand: true })
 // Loads: .env.defaults, .env, .env.local, .env.${NODE_ENV}, .env.${NODE_ENV}.local
 ```
+
+### AWS resolvers
+
+**Option 1: One-line convenience functions (recommended for single source)**
+
+```ts
+import { resolveSsm, resolveSecrets, safeResolveSsm, safeResolveSecrets } from 'node-env-resolver-aws';
+
+// SSM Parameter Store
+const config = await resolveSsm({
+  path: '/myapp/config',
+  region: 'us-east-1',
+  recursive: true
+}, {
+  API_ENDPOINT: 'url',
+  TIMEOUT: 30
+});
+
+// Secrets Manager
+const secrets = await resolveSecrets({
+  secretId: 'myapp/production/secrets',
+  region: 'us-east-1'
+}, {
+  DATABASE_URL: 'url',
+  API_KEY: 'string'
+});
+
+// Safe versions (return result object)
+const result = await safeResolveSecrets({
+  secretId: 'myapp/secrets'
+}, {
+  DATABASE_URL: 'url'
+});
+
+if (result.success) {
+  console.log(result.data.DATABASE_URL);
+} else {
+  console.error(result.error);
+}
+```
+
+**Option 2: Using with multiple sources**
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
+
+const config = await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [awsSecrets({ secretId: 'prod/db' }), { DATABASE_URL: 'postgres' }],
+  [awsSsm({ path: '/myapp/config', recursive: true }), { API_KEY: 'string' }]
+);
+```
+
+**AWS credentials:**
+- Automatically uses AWS SDK credential provider chain
+- Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- IAM roles (EC2, Lambda, ECS)
+- AWS credentials file (`~/.aws/credentials`)
+- No explicit configuration needed in most cases
 
 ### Custom resolvers
 
@@ -224,26 +303,84 @@ await resolve.with(
 );
 ```
 
-**AWS Secrets Manager:**
-```ts
-import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
-
-await resolve.with(
-  [processEnv(), { PORT: 3000 }],
-  [awsSecrets({ secretId: 'prod/db' }), { DATABASE_URL: 'postgres' }],
-  [awsSsm({ path: '/myapp/config', recursive: true }), { API_KEY: 'string' }]
-);
-```
+### Resolver wrappers
 
 **Wrappers** (decorators) return new resolvers:
 
 ```ts
 import { cached, retry, TTL } from 'node-env-resolver';
+import { awsSecrets } from 'node-env-resolver-aws';
 
+// TTL caching
+cached(awsSecrets({ secretId: 'prod/secrets' }), {
+  ttl: TTL.minutes5,
+  maxAge: TTL.hour,
+  staleWhileRevalidate: true  // Serve stale while refreshing in background
+})
+
+// Retry on failure
+retry(awsSecrets({ secretId: 'prod/secrets' }), {
+  attempts: 3,
+  delay: 1000
+})
+
+// Combined
 const stableAws = cached(
-  retry(awsSecretsProvider({ region: 'us-east-1' }), { attempts: 3 }),
+  retry(awsSecrets({ secretId: 'prod/secrets' }), { attempts: 3 }),
   { ttl: TTL.minutes5, staleWhileRevalidate: true }
 );
+
+await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [stableAws, { DATABASE_URL: 'url', API_KEY: 'string' }]
+);
+```
+
+**TTL constants:**
+```ts
+TTL.minute      // 60
+TTL.minutes5    // 300
+TTL.minutes15   // 900
+TTL.hour        // 3600
+TTL.hours6      // 21600
+TTL.day         // 86400
+```
+
+**Cache options:**
+```ts
+interface CachedOptions {
+  ttl: number;                    // Cache duration in seconds
+  maxAge?: number;                // Maximum age before force refresh (default: ttl * 2)
+  staleWhileRevalidate?: boolean; // Serve stale while refreshing (default: false)
+}
+```
+
+**Important caching pattern for AWS:**
+```ts
+// ✅ CORRECT - Call resolve() every time, let cached() wrapper handle caching
+export const getConfig = async () => {
+  return await resolve.with(
+    [cached(
+      awsSecrets({ secretId: 'app/secrets' }),
+      { ttl: TTL.minutes5, staleWhileRevalidate: true }
+    ), {
+      DATABASE_URL: 'url',
+      API_KEY: 'string',
+    }]
+  );
+};
+
+// In your handler
+app.get('/api/data', async (req, res) => {
+  const config = await getConfig(); // Fast after first call
+  // Use config...
+});
+
+// ❌ WRONG - Don't cache the result
+const config = resolve({...}); // Only called once
+app.get('/api/data', (req, res) => {
+  // Uses stale config forever
+});
 ```
 
 ---
@@ -254,13 +391,20 @@ const stableAws = cached(
 
 * `'string'` - Required string
 * `'string?'` - Optional string
-* `'number'` - Required number
-* `'boolean'` - Required boolean
+* `'number'` - Required number (coerced from string)
+* `'number?'` - Optional number
+* `'boolean'` - Required boolean (coerced from 'true'/'false')
+* `'boolean?'` - Optional boolean
 * `'url'` - Validated URL string
+* `'http'` - HTTP URL
+* `'https'` - HTTPS URL
 * `'email'` - Validated email
 * `'port'` - Port number (1-65535)
 * `'json'` - Parsed JSON (typed as `unknown`, narrow manually)
-* `'postgres'`, `'mysql'`, `'mongodb'`, `'redis'` - Database connection strings
+* `'postgres'` or `'postgresql'` - PostgreSQL connection string
+* `'mysql'` - MySQL connection string
+* `'mongodb'` - MongoDB connection string
+* `'redis'` - Redis connection string
 
 ### Pattern matching
 
@@ -273,6 +417,7 @@ API_KEY: 'string:/^sk_[a-zA-Z0-9]+$/'  // Regex pattern
 ```ts
 PORT: 3000,                                        // number with default 3000
 DEBUG: false,                                      // boolean with default false
+LOG_LEVEL: 'info',                                 // string with default 'info'
 NODE_ENV: ['development','production'] as const    // enum union
 ```
 
@@ -288,6 +433,8 @@ API_KEY: {
   type: 'string',
   optional: true,
   pattern: '^sk_[a-zA-Z0-9]+$',
+  min: 32,
+  max: 64,
   description: 'Secret key'
 }
 ```
@@ -303,19 +450,27 @@ const portValidator = (value: string): number => {
   return port;
 };
 
-const config = await resolve({
+const isValidEmail = (value: string): string => {
+  if (!value.includes('@')) {
+    throw new Error('Invalid email address');
+  }
+  return value.toLowerCase();
+};
+
+const config = resolve({
   CUSTOM_PORT: portValidator,
+  ADMIN_EMAIL: isValidEmail,
   DATABASE_URL: 'postgres'
 });
 ```
 
 ---
 
-## Behavior & Policies
+## Behaviour & Policies
 
 * **Default source**: `resolve({...})` reads **process.env only** (consistent across dev/staging/prod).
 * **Dotenv**: Add `dotenv()` explicitly when you want `.env` files (usually development).
-* **Merging**: Tuples merge **left → right**; later resolvers overwrite earlier ones on the same key.
+* **Merging**: Tuples merge **left → right**; later resolvers overwrite earlier ones on the same key (unless `priority: 'first'`).
 * **Security defaults**:
 
   * Production-safe by default (dotenv not used unless included).
@@ -336,10 +491,10 @@ Typical failures:
 Example:
 
 ```
-❌ Environment validation failed:
+Environment validation failed:
   - Missing required environment variable: DATABASE_URL
   - PORT: Invalid port number (1-65535)
-  - NODE_ENV: must be one of: development, production
+  - NODE_ENV: must be one of: development, production (got: "staging")
   - API_KEY: does not match pattern: ^sk_[a-zA-Z0-9]+$
 ```
 
@@ -350,20 +505,25 @@ Example:
 
 ---
 
-## Do / Don’t (for Agents)
+## Do / Don't (for Agents)
 
 **Do**
 
 * Prefer `resolve({...})` if only `process.env` is needed.
 * Use `resolve.with([provider, schema], …)` for multiple sources; keep **one source per key** if possible.
+* Use `priority: 'first'` for development workflows where local overrides should win.
 * Preserve tuple literal types with `as const` when storing tuples.
 * Document provider **order** explicitly in code reviews and PRs.
+* Use `cached()` wrapper for expensive operations (AWS API calls, database queries).
+* Call `resolve()` every time in handlers - let `cached()` make it fast.
 
-**Don’t**
+**Don't**
 
-* Don’t use object mapping like `{ provider: { …schema } }` — use tuples.
-* Don’t silently add dotenv in production.
-* Don’t mix overlapping keys across resolvers unless there’s an explicit override reason.
+* Don't use object mapping like `{ provider: { …schema } }` — use tuples.
+* Don't silently add dotenv in production.
+* Don't mix overlapping keys across resolvers unless there's an explicit override reason.
+* Don't cache the result of `resolve()` - cache the resolver instead.
+* Don't forget `as const` for enum arrays.
 
 ---
 
@@ -374,14 +534,14 @@ Example:
 ```ts
 import { safeResolve } from 'node-env-resolver';
 
-const result = await safeResolve({
+const result = safeResolve({
   PORT: 'number',
   DATABASE_URL: 'postgres',
   API_KEY: 'string'
 });
 
 if (!result.success) {
-  console.error('❌ Config validation failed:');
+  console.error('Config validation failed:');
   console.error(result.error);
   process.exit(1);
 }
@@ -390,22 +550,23 @@ if (!result.success) {
 const app = createApp(result.data);
 ```
 
-### 2) Strict prod, dotenv in dev
+### 2) Strict prod, dotenv in dev with priority control
 
 ```ts
 import { resolve, processEnv, dotenv } from 'node-env-resolver';
 
+// Development: local .env overrides everything
 const config = await resolve.with(
   [dotenv(), { DATABASE_URL: 'url', DEBUG: false }],
   [processEnv(), { PORT: 3000, NODE_ENV: ['development','production'] as const }],
-  {
-    strict: true,
-    policies: {
-      enforceAllowedSources: {
-        DATABASE_URL: ['aws-secrets'], // require secret to come from aws
-      },
-    },
-  }
+  { priority: 'first' }  // .env wins
+);
+
+// Production: cloud secrets override process.env
+const config = await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }]
+  // Default priority: 'last' - AWS wins
 );
 ```
 
@@ -420,14 +581,41 @@ const config = await resolve.with(
   [
     cached(
       retry(awsSecrets({ secretId: 'prod/secrets' }), { attempts: 3 }),
-      { ttl: TTL.minutes15 }
+      { ttl: TTL.minutes5, staleWhileRevalidate: true }
     ),
     { DATABASE_URL: 'url', API_KEY: 'string' }
   ]
 );
 ```
 
-### 4) Custom database resolver
+### 4) AWS one-liner with convenience functions
+
+```ts
+import { resolveSecrets, safeResolveSsm } from 'node-env-resolver-aws';
+
+// Secrets Manager (throws on error)
+const secrets = await resolveSecrets({
+  secretId: 'myapp/production/secrets'
+}, {
+  DATABASE_URL: 'url',
+  API_KEY: 'string'
+});
+
+// SSM Parameter Store (safe version)
+const result = await safeResolveSsm({
+  path: '/myapp/config',
+  recursive: true
+}, {
+  API_ENDPOINT: 'url'
+});
+
+if (!result.success) {
+  console.error(result.error);
+  process.exit(1);
+}
+```
+
+### 5) Custom database resolver
 
 ```ts
 import { safeResolve, processEnv, type Resolver } from 'node-env-resolver';
@@ -452,13 +640,105 @@ if (!result.success) {
 }
 ```
 
-### 5) JSON flags (narrow after parse)
+### 6) AWS Lambda with caching pattern
 
 ```ts
-const { FEATURE_FLAGS } = await resolve({
+import { resolve, cached, TTL } from 'node-env-resolver';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+// Define config loader (called every invocation)
+export const getConfig = async () => {
+  return await resolve.with(
+    [cached(
+      awsSecrets({ secretId: 'lambda/config' }),
+      { ttl: TTL.minutes5, staleWhileRevalidate: true }
+    ), {
+      DATABASE_URL: 'url',
+      API_KEY: 'string',
+    }]
+  );
+};
+
+// Lambda handler
+export const handler = async (event) => {
+  const config = await getConfig(); // Fast after first call
+  // Lambda container reuse = cache persists across invocations
+  // Use config...
+};
+```
+
+### 7) Express with cached AWS secrets
+
+```ts
+import express from 'express';
+import { resolve, cached, TTL } from 'node-env-resolver';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+const getConfig = async () => {
+  return await resolve.with(
+    [cached(
+      awsSecrets({ secretId: 'myapp/production' }),
+      { ttl: TTL.minutes5, staleWhileRevalidate: true }
+    ), {
+      DATABASE_URL: 'url',
+      STRIPE_KEY: 'string',
+    }]
+  );
+};
+
+const app = express();
+
+app.get('/api/data', async (req, res) => {
+  const config = await getConfig(); // Call every request - cached() makes it fast
+  // Use config.DATABASE_URL, config.STRIPE_KEY
+});
+
+app.listen(3000);
+```
+
+### 8) Next.js App Router
+
+```ts
+import { resolve, cached, TTL } from 'node-env-resolver';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+const getConfig = async () => {
+  return await resolve.with(
+    [cached(
+      awsSecrets({ secretId: 'myapp/nextjs' }),
+      { ttl: TTL.minutes5, staleWhileRevalidate: true }
+    ), {
+      DATABASE_URL: 'url',
+    }]
+  );
+};
+
+// API Route
+export async function GET(request: Request) {
+  const config = await getConfig(); // Call every request
+  // Use config...
+}
+
+// Server Component
+export default async function Page() {
+  const config = await getConfig(); // Call for each render
+  // Use config...
+}
+```
+
+### 9) JSON flags (narrow after parse)
+
+```ts
+const { FEATURE_FLAGS } = resolve({
   FEATURE_FLAGS: 'json'
 });
-const flags = FEATURE_FLAGS as { newUI?: boolean };
+
+// Narrow the type manually
+const flags = FEATURE_FLAGS as { newUI?: boolean; darkMode?: boolean };
+
+if (flags.newUI) {
+  // Use new UI
+}
 ```
 
 ---
@@ -466,19 +746,23 @@ const flags = FEATURE_FLAGS as { newUI?: boolean };
 ## Minimal Signature Cheatsheet
 
 ```ts
-// Primary - throws on error
-resolve(schema: Schema): Promise<TypedConfig>
+// Primary - throws on error (single source: process.env)
+resolve(schema: Schema, options?: ResolveOptions): TypedConfig
+
+// Primary - throws on error (multiple sources, async)
 resolve.with(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<MergedConfig>
 
-// Safe - returns result object
-safeResolve(schema: Schema): Promise<{ success: true, data: TypedConfig } | { success: false, error: string }>
-safeResolve.with(...tuples): Promise<{ success: true, data: MergedConfig } | { success: false, error: string }>
+// Safe - returns result object (single source: process.env)
+safeResolve(schema: Schema, options?: ResolveOptions): { success: true, data: TypedConfig } | { success: false, error: string }
 
-// Sync versions
-resolveSync(schema: Schema): TypedConfig                    // Throws
-safeResolveSync(schema: Schema): { success, data?, error? } // Returns result
-resolveSync.with(...tuples): MergedConfig                   // Throws
-safeResolveSync.with(...tuples): { success, data?, error? } // Returns result
+// Safe - returns result object (multiple sources, async)
+safeResolve.with(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<{ success: true, data: MergedConfig } | { success: false, error: string }>
+
+// AWS convenience functions (node-env-resolver-aws)
+resolveSsm(ssmOptions, schema, resolveOptions?): Promise<TypedConfig>
+safeResolveSsm(ssmOptions, schema, resolveOptions?): Promise<{ success, data?, error? }>
+resolveSecrets(secretsOptions, schema, resolveOptions?): Promise<TypedConfig>
+safeResolveSecrets(secretsOptions, schema, resolveOptions?): Promise<{ success, data?, error? }>
 
 // Resolvers
 interface Resolver {
@@ -492,15 +776,28 @@ interface Resolver {
 processEnv(): Resolver
 dotenv(path?: string | { path?: string, expand?: boolean }): Resolver
 
-// Utilities
-cached(resolver: Resolver, opts: { ttl: number }): Resolver
-retry(resolver: Resolver, opts: { attempts: number }): Resolver
-TTL.minute, TTL.minutes5, TTL.hour, TTL.day  // Constants
+// AWS resolvers (node-env-resolver-aws)
+awsSecrets(options: { secretId: string, region?: string, parseJson?: boolean }): Resolver
+awsSsm(options: { path: string, region?: string, recursive?: boolean }): Resolver
 
-// Options (subset)
+// Utilities
+cached(resolver: Resolver, opts: { ttl: number, maxAge?: number, staleWhileRevalidate?: boolean }): Resolver
+retry(resolver: Resolver, opts: { attempts: number, delay?: number }): Resolver
+TTL.minute, TTL.minutes5, TTL.minutes15, TTL.hour, TTL.hours6, TTL.day  // Constants
+
+// Options (single source)
 interface ResolveOptions {
-  interpolate?: boolean;  // ${VAR} expansion (default: true)
-  strict?: boolean;       // Fail on resolver errors (default: true)
+  interpolate?: boolean;        // ${VAR} expansion (default: true)
+  strict?: boolean;             // Fail on validation errors (default: true)
+  enableAudit?: boolean;        // Enable audit logging (default: false)
+}
+
+// Options (multiple sources - .with)
+interface ResolveOptions {
+  priority?: 'first' | 'last';  // Merge strategy (default: 'last')
+  interpolate?: boolean;        // ${VAR} expansion (default: true)
+  strict?: boolean;             // Fail on resolver errors (default: true)
+  enableAudit?: boolean;        // Enable audit logging (default: false)
   policies?: {
     enforceAllowedSources?: Record<string, string[]>; // key → allowed provider names
   };
@@ -509,21 +806,12 @@ interface ResolveOptions {
 
 ---
 
-## Test Hints (for Agents)
-
-* Unit tests: verify types with `// @ts-expect-error` for invalid shapes.
-* Integration: simulate provider order & conflicts; assert **last-wins**.
-* Security: ensure `.env` is ignored unless `dotenv()` present; assert source enforcement errors.
-* JSON schema: ensure `'json'` parses and is typed `unknown`.
-
----
-
 ## Zod Integration
 
 Use Zod schemas directly for validation:
 
 ```ts
-import { resolveZod, safeResolveZod, resolveSyncZod, safeResolveSyncZod } from 'node-env-resolver/zod';
+import { resolveZod, safeResolveZod } from 'node-env-resolver/zod';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -533,43 +821,49 @@ const schema = z.object({
   DEBUG: z.coerce.boolean().optional(),
 });
 
-// Throws on validation error
+// Single source (process.env) - Throws on validation error
 const env = await resolveZod(schema);
 
-// Returns result object (safe version)
+// Safe version - Returns result object
 const result = await safeResolveZod(schema);
 if (result.success) {
   console.log(result.data.PORT);
 } else {
   console.error(result.error);
 }
-
-// Sync versions
-const envSync = resolveSyncZod(schema);
-const resultSync = safeResolveSyncZod(schema);
 ```
 
 **With multiple resolvers:**
 ```ts
-import { resolveZod, processEnv, dotenv } from 'node-env-resolver/zod';
+import { resolveZod } from 'node-env-resolver/zod';
+import { processEnv, dotenv } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const env = await resolveZod(schema, {
-  resolvers: [
-    dotenv(),
-    processEnv(),
-    awsSecrets({ secretId: 'prod/secrets' })
-  ],
-  interpolate: true,
-  strict: true
-});
+const env = await resolveZod.with(
+  [dotenv(), schema],
+  [processEnv(), schema],
+  [awsSecrets({ secretId: 'prod/secrets' }), schema],
+  { priority: 'last' }  // AWS secrets win
+);
 ```
 
 **API:**
-- `resolveZod()` - Throws on error
-- `safeResolveZod()` - Returns `{ success, data?, error? }`
-- `resolveSyncZod()` - Sync, throws on error
-- `safeResolveSyncZod()` - Sync, returns result object
+- `resolveZod(schema, options?)` - Single source, async, throws on error
+- `resolveZod.with([resolver, schema], ..., options?)` - Multiple sources, async, throws on error
+- `safeResolveZod(schema, options?)` - Single source, async, returns `{ success, data?, error? }`
+- `safeResolveZod.with([resolver, schema], ..., options?)` - Multiple sources, async, returns result object
+
+---
+
+## Test Hints (for Agents)
+
+* Unit tests: verify types with `// @ts-expect-error` for invalid shapes.
+* Integration: simulate provider order & conflicts; assert **last-wins** or **first-wins** based on priority.
+* Priority tests: verify `priority: 'first'` only overwrites `undefined` values.
+* Security: ensure `.env` is ignored unless `dotenv()` present; assert source enforcement errors.
+* JSON schema: ensure `'json'` parses and is typed `unknown`.
+* Caching: verify cache hits/misses in metadata; test TTL expiry.
+* AWS: mock AWS SDK calls; test credential provider chain.
 
 ---
 
@@ -577,14 +871,140 @@ const env = await resolveZod(schema, {
 
 * Replace `z.enum([...])` with `['a','b'] as const`.
 * Replace `.default(3000)` with literal `3000`.
-* Replace `runtimeEnv: process.env` with `resolve({...})`.
-* For multi-source needs, move to `resolve.with([provider, schema], …)`.
-* If you prefer Zod schemas, use `resolveZod()` from `node-env-resolver/zod`.
+* Replace `runtimeEnv: process.env` with `resolve({...})` (now synchronous).
+* For multi-source needs, move to `resolve.with([provider, schema], …)` (async).
+* If you prefer Zod schemas, use `resolveZod()` from `node-env-resolver/zod` (async).
+* Replace custom merge logic with `priority: 'first' | 'last'` option.
 
 ---
 
-**Contact:** If you’re an agent proposing changes, prefer PRs that:
+## Performance Best Practices
+
+1. **Cache expensive resolvers:**
+   ```ts
+   cached(awsSecrets({...}), { ttl: TTL.minutes5, staleWhileRevalidate: true })
+   ```
+
+2. **Call resolve() every time:**
+   ```ts
+   // ✅ CORRECT
+   const getConfig = async () => resolve.with([cached(...), schema]);
+   app.get('/', async () => { const config = await getConfig(); });
+
+   // ❌ WRONG
+   const config = resolve({...}); // Called once
+   app.get('/', () => { /* uses stale config */ });
+   ```
+
+3. **Use staleWhileRevalidate for zero-latency updates:**
+   ```ts
+   cached(resolver, { ttl: 300, staleWhileRevalidate: true })
+   // Serves stale config while refreshing in background
+   ```
+
+4. **Choose appropriate TTL:**
+   - Frequently rotating secrets: `TTL.minutes5`
+   - Rarely changing config: `TTL.hour` or `TTL.hours6`
+
+5. **Combine retry with cache:**
+   ```ts
+   cached(retry(awsSecrets({...}), { attempts: 3 }), { ttl: TTL.minutes5 })
+   ```
+
+---
+
+## AWS Integration Details
+
+### Credential Provider Chain
+
+Credentials are automatically detected from:
+1. Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+2. IAM roles (EC2, Lambda, ECS)
+3. AWS credentials file (`~/.aws/credentials`)
+4. Explicit options (not recommended)
+
+No explicit configuration needed in most cases.
+
+### SSM Parameter Store
+
+```ts
+import { awsSsm, resolveSsm } from 'node-env-resolver-aws';
+
+// Single parameter
+awsSsm({ path: '/myapp/DATABASE_URL' })
+
+// All parameters under path (recursive)
+awsSsm({ path: '/myapp/production', recursive: true })
+
+// With region
+awsSsm({ path: '/myapp/config', region: 'us-west-2' })
+
+// One-line convenience
+const config = await resolveSsm({
+  path: '/myapp/config',
+  recursive: true
+}, {
+  API_ENDPOINT: 'url',
+  TIMEOUT: 30
+});
+```
+
+### Secrets Manager
+
+```ts
+import { awsSecrets, resolveSecrets } from 'node-env-resolver-aws';
+
+// Load JSON secret
+awsSecrets({ secretId: 'myapp/production/secrets' })
+
+// Load secret by ARN
+awsSecrets({ secretId: 'arn:aws:secretsmanager:...' })
+
+// With region
+awsSecrets({ secretId: 'myapp/secrets', region: 'us-east-1' })
+
+// One-line convenience
+const secrets = await resolveSecrets({
+  secretId: 'myapp/production/secrets'
+}, {
+  DATABASE_URL: 'url',
+  JWT_SECRET: 'string'
+});
+```
+
+### IAM Permissions
+
+**Secrets Manager:**
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["secretsmanager:GetSecretValue"],
+    "Resource": ["arn:aws:secretsmanager:region:account:secret:myapp/secrets-*"]
+  }]
+}
+```
+
+**SSM Parameter Store:**
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"],
+    "Resource": ["arn:aws:ssm:region:account:parameter/myapp/*"]
+  }]
+}
+```
+
+---
+
+**Contact:** If you're an agent proposing changes, prefer PRs that:
 
 * Keep one source per key where possible.
 * Include error messages that mention **which provider** a value came from.
 * Preserve tuple order and `as const` annotations.
+* Use `priority: 'first'` for development workflows, `priority: 'last'` for production.
+* Document caching strategy for expensive resolvers.
+* Follow the pattern: call `resolve()` every time, cache the resolver not the result.

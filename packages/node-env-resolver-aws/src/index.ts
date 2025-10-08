@@ -178,10 +178,10 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
   // Import resolve dynamically to avoid circular dependencies
   const { resolve } = await import('node-env-resolver');
 
-  return resolve(schema, {
-    ...resolveOptions,
-    resolvers: [awsSsm(ssmOptions)]
-  });
+  return await resolve.with(
+    [awsSsm(ssmOptions), schema],
+    ...(resolveOptions ? [resolveOptions] : [])
+  ) as InferSimpleSchema<T>;
 }
 
 /**
@@ -209,14 +209,17 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
     // Import resolve dynamically to avoid circular dependencies
-    const { resolve } = await import('node-env-resolver');
+    const { safeResolve } = await import('node-env-resolver');
 
-    const data = await resolve(schema, {
-      ...resolveOptions,
-      resolvers: [awsSsm(ssmOptions)]
-    });
-
-    return { success: true, data: data as InferSimpleSchema<T> };
+    const result = await safeResolve.with(
+      [awsSsm(ssmOptions), schema],
+      ...(resolveOptions ? [resolveOptions] : [])
+    );
+    
+    if (result.success) {
+      return { success: true, data: result.data as InferSimpleSchema<T> };
+    }
+    return result;
   } catch (error) {
     return {
       success: false,
@@ -246,10 +249,10 @@ export async function resolveSecrets<T extends SimpleEnvSchema>(
   // Import resolve dynamically to avoid circular dependencies
   const { resolve } = await import('node-env-resolver');
 
-  return resolve(schema, {
-    ...resolveOptions,
-    resolvers: [awsSecrets(secretsOptions)]
-  });
+  return await resolve.with(
+    [awsSecrets(secretsOptions), schema],
+    ...(resolveOptions ? [resolveOptions] : [])
+  ) as InferSimpleSchema<T>;
 }
 
 /**
@@ -277,14 +280,17 @@ export async function safeResolveSecrets<T extends SimpleEnvSchema>(
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
     // Import resolve dynamically to avoid circular dependencies
-    const { resolve } = await import('node-env-resolver');
+    const { safeResolve } = await import('node-env-resolver');
 
-    const data = await resolve(schema, {
-      ...resolveOptions,
-      resolvers: [awsSecrets(secretsOptions)]
-    });
-
-    return { success: true, data: data as InferSimpleSchema<T> };
+    const result = await safeResolve.with(
+      [awsSecrets(secretsOptions), schema],
+      ...(resolveOptions ? [resolveOptions] : [])
+    );
+    
+    if (result.success) {
+      return { success: true, data: result.data as InferSimpleSchema<T> };
+    }
+    return result;
   } catch (error) {
     return {
       success: false,

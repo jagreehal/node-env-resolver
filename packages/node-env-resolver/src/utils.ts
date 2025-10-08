@@ -15,17 +15,12 @@ export interface CacheOptions {
   key?: string;
 }
 
-export function cached(resolver: Resolver, options: number | CacheOptions = {}): Resolver {
-  // Handle backward compatibility: if first arg is number, treat as ttl
-  const config: CacheOptions = typeof options === 'number' 
-    ? { ttl: options }
-    : options;
-  
+export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver {
   const {
     ttl = 300000, // 5 minutes default
     maxAge = 3600000, // 1 hour max age
     staleWhileRevalidate = false,
-  } = config;
+  } = options;
   
   let cache: { 
     data: Record<string, string>; 
@@ -47,28 +42,39 @@ export function cached(resolver: Resolver, options: number | CacheOptions = {}):
         return data;
       }
       
-      // If cache is within TTL, return cached data
+      // If cache is within TTL, return cached data (fresh)
       if ((now - cache.timestamp) < ttl) {
-        // If stale-while-revalidate is enabled and we're past TTL but within maxAge,
-        // trigger background refresh
-        if (staleWhileRevalidate && !cache.refreshPromise && (now - cache.timestamp) >= ttl) {
-          cache.refreshPromise = resolver.load().then(data => {
-            cache!.data = data;
-            cache!.timestamp = now;
-            cache!.refreshPromise = undefined;
-            return data;
-          }).catch(() => {
-            // If background refresh fails, keep serving stale data
-            cache!.refreshPromise = undefined;
-            return cache!.data;
-          });
-        }
-        
         wrapper.metadata = { cached: true };
         return cache.data;
       }
       
-      // Cache is stale, refresh it
+      // Cache is stale (between TTL and maxAge)
+      // If stale-while-revalidate is enabled, serve stale data while refreshing in background
+      if (staleWhileRevalidate && !cache.refreshPromise) {
+        // Trigger background refresh (non-blocking, lazy/on-demand)
+        // This only runs when a request comes in, NOT via setInterval
+        cache.refreshPromise = resolver.load().then(data => {
+          // Success: update cache with fresh data
+          cache!.data = data;
+          cache!.timestamp = Date.now();
+          cache!.refreshPromise = undefined;
+          return data;
+        }).catch(() => {
+          // Error resilience: if refresh fails (AWS down, network error, etc.):
+          // - Silently catch the error (no throw)
+          // - Keep serving stale data to users
+          // - Clear refreshPromise to allow retry on next request
+          // - App stays up even if AWS is temporarily unavailable
+          cache!.refreshPromise = undefined;
+          return cache!.data;
+        });
+        
+        // Immediately return stale data (don't wait for background refresh)
+        wrapper.metadata = { cached: true, stale: true };
+        return cache.data;
+      }
+      
+      // Cache is stale and no stale-while-revalidate, force refresh
       const data = await resolver.load();
       cache = { data, timestamp: now };
       wrapper.metadata = { cached: false };

@@ -5,22 +5,22 @@ import { describe, it, expect } from 'vitest';
 import { resolve, safeResolve } from './index';
 
 describe('Environment Variable Name Validation', () => {
-  it('should validate environment variable names in resolve', async () => {
+  it('should validate environment variable names in resolve', () => {
     // Test invalid variable name (should throw)
-    await expect(resolve({
+    expect(() => resolve({
       'PORxxxT': 3000, // Invalid variable name
-    })).rejects.toThrow('Invalid environment variable name: "PORxxxT"');
+    })).toThrow('Invalid environment variable name: "PORxxxT"');
 
     // Test valid variable name (should work) - use default value to avoid "missing required" error
-    const result = await resolve({
+    const result = resolve({
       'VALID_VAR': { type: 'string', default: 'default-value' },
     });
     expect(result.VALID_VAR).toBe('default-value'); // Should get default value for valid name
   });
 
-  it('should validate environment variable names in safeResolve', async () => {
+  it('should validate environment variable names in safeResolve', () => {
     // Test invalid variable name (should return error result)
-    const safeResult = await safeResolve({
+    const safeResult = safeResolve({
       'PORxxxT': 3000, // Invalid variable name
     });
 
@@ -30,7 +30,7 @@ describe('Environment Variable Name Validation', () => {
     }
 
     // Test valid variable name (should work) - use default value to avoid "missing required" error
-    const validResult = await safeResolve({
+    const validResult = safeResolve({
       'VALID_VAR': { type: 'string', default: 'default-value' },
     });
 

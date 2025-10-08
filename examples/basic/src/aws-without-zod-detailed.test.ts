@@ -42,7 +42,7 @@ describe('AWS Secrets - Full Object Syntax', () => {
       JWT_SECRET: 'jwt-secret-key-for-production',
     };
 
-    const config = await resolve({
+    const schema = {
       NODE_ENV: { type: 'string', enum: ['development', 'production', 'test'] as const, default: 'development' },
       PORT: { type: 'port', default: 3000 },
       DATABASE_PASSWORD: { type: 'string', secret: true },
@@ -52,18 +52,20 @@ describe('AWS Secrets - Full Object Syntax', () => {
       DEBUG: { type: 'boolean', default: false },
       MAX_CONNECTIONS: { type: 'number', default: 100, min: 1, max: 1000 },
       JWT_SECRET: { type: 'string', secret: true },
-    }, {
-      resolvers: [
-        mockDotenvProvider(mockDotenv),
-        cached(mockAwsSsmProvider(mockSsm), { ttl: TTL.minutes15, staleWhileRevalidate: true, key: 'ssm-config' }),
-        cached(mockAwsSecretsProvider(mockSecrets), { ttl: TTL.minutes5, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-secrets' }),
-      ],
-      interpolate: true,
-      strict: true,
-      policies: {
-        allowDotenvInProduction: false,
-      },
-    });
+    } as const;
+
+    const config = await resolve.with(
+      [mockDotenvProvider(mockDotenv), schema],
+      [cached(mockAwsSsmProvider(mockSsm), { ttl: TTL.minutes15, staleWhileRevalidate: true, key: 'ssm-config' }), schema],
+      [cached(mockAwsSecretsProvider(mockSecrets), { ttl: TTL.minutes5, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-secrets' }), schema],
+      {
+        interpolate: true,
+        strict: true,
+        policies: {
+          allowDotenvInProduction: false,
+        },
+      }
+    );
 
     expect(config.NODE_ENV).toBe('production');
     expect(config.PORT).toBe(8080);
@@ -82,13 +84,17 @@ describe('AWS Secrets - Full Object Syntax', () => {
       API_KEY: 'invalid-key-format',
     };
 
-    await expect(resolve({
+    const schema = {
       DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
       API_KEY: { type: 'string', secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' },
-    }, {
-      resolvers: [mockAwsSecretsProvider(mockSecrets)],
-      strict: true,
-    })).rejects.toThrow();
+    } as const;
+
+    await expect(resolve.with(
+      [mockAwsSecretsProvider(mockSecrets), schema],
+      {
+        strict: true,
+      }
+    )).rejects.toThrow();
   });
 
   it('should demonstrate production-ready configuration', async () => {
@@ -99,27 +105,29 @@ describe('AWS Secrets - Full Object Syntax', () => {
       STRIPE_SECRET_KEY: 'sk_test_1234567890abcdef1234567890abcdef',
     };
 
-    const config = await resolve({
+    const schema = {
       NODE_ENV: { type: 'string', enum: ['development', 'production', 'test'] as const, default: 'development' },
       PORT: { type: 'port', default: 3000 },
       DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
       JWT_SECRET: { type: 'string', secret: true, min: 32 },
       ENCRYPTION_KEY: { type: 'string', secret: true, min: 16 },
       STRIPE_SECRET_KEY: { type: 'string', secret: true, pattern: '^sk_(live|test)_[a-zA-Z0-9]{24,}$' },
-    }, {
-      resolvers: [
-        cached(mockAwsSecretsProvider(mockSecrets), {
-          ttl: TTL.minutes5,
-          maxAge: TTL.hour,
-          staleWhileRevalidate: true,
-          key: 'production-secrets'
-        }),
-      ],
-      strict: true,
-      policies: {
-        allowDotenvInProduction: false,
-      },
-    });
+    } as const;
+
+    const config = await resolve.with(
+      [cached(mockAwsSecretsProvider(mockSecrets), {
+        ttl: TTL.minutes5,
+        maxAge: TTL.hour,
+        staleWhileRevalidate: true,
+        key: 'production-secrets'
+      }), schema],
+      {
+        strict: true,
+        policies: {
+          allowDotenvInProduction: false,
+        },
+      }
+    );
 
     expect(config.DATABASE_PASSWORD).toBe('production-db-password-123');
     expect(config.JWT_SECRET).toBe('jwt-secret-for-production-app-very-long-key');

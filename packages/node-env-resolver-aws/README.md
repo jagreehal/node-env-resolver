@@ -61,6 +61,92 @@ const config = await resolve({
 - Optional TTL caching
 - Full TypeScript support
 
+## Performance and caching
+
+AWS API calls are slow (~100-200ms) and cost money. Caching is essential for production applications.
+
+### Without caching (not recommended)
+
+```typescript
+// Every request hits AWS = slow and expensive
+export const handler = async (event) => {
+  const config = await resolveSecrets({
+    secretId: 'myapp/secrets'
+  }, {
+    DATABASE_URL: 'url',
+    API_KEY: 'string'
+  });
+  // 200ms delay on EVERY request + AWS API costs
+};
+```
+
+### With caching (recommended)
+
+```typescript
+import { resolveSecrets } from 'node-env-resolver-aws';
+import { cached, TTL } from 'node-env-resolver';
+
+// Cache AWS calls - call resolve every time, let cached() make it fast
+export const getConfig = async () => {
+  return await resolve({
+    DATABASE_URL: 'url',
+    API_KEY: 'string',
+  }, {
+    resolvers: [
+      cached(
+        awsSecrets({ secretId: 'myapp/secrets' }),
+        {
+          ttl: TTL.minutes5,
+          maxAge: TTL.hour,
+          staleWhileRevalidate: true
+        }
+      )
+    ]
+  });
+};
+
+// Call in your handler
+export const handler = async (event) => {
+  const config = await getConfig(); // Fast after first call!
+  // Use config...
+};
+```
+
+**AWS Lambda:**
+
+```typescript
+import { resolve, cached, TTL } from 'node-env-resolver';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+const getConfig = async () => {
+  return await resolve({
+    DATABASE_URL: 'url',
+  }, {
+    resolvers: [
+      cached(
+        awsSecrets({ secretId: 'myapp/lambda' }),
+        { ttl: TTL.minutes5, staleWhileRevalidate: true }
+      )
+    ]
+  });
+};
+
+export const handler = async (event) => {
+  const config = await getConfig(); // Call every invocation
+  // Lambda container reuse = cache persists across invocations
+  // = most invocations get instant config
+};
+```
+### Best Practices
+
+1. **Always use `cached()` wrapper** when accessing AWS Secrets Manager or SSM
+2. **Call `resolve()` every time** - don't cache the result in a variable
+3. **Use `staleWhileRevalidate: true`** for zero-latency updates
+4. **Choose appropriate TTL** based on how often secrets change:
+   - Frequently rotating: `TTL.minutes5`
+   - Rarely changing: `TTL.hour` or `TTL.hours6`
+5. **Set `maxAge`** as a safety net (default: 1 hour)
+
 ## AWS Credentials
 
 This package uses the standard AWS SDK credential provider chain. Credentials are automatically detected from:
@@ -446,6 +532,6 @@ try {
 - Check VPC/security group configuration
 - Verify internet/NAT gateway access
 
-## License
+## Licence
 
 MIT

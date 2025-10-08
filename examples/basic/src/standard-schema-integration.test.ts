@@ -49,17 +49,15 @@ describe('Standard Schema Integration', () => {
       API_SECRET: 'a'.repeat(32),
     };
 
-    const config = await resolve(schema, {
-      resolvers: [
-        cached(
-          mockAwsSecretsProvider(mockSecrets),
-          awsCache({
-            ttl: TTL.minutes5,
-            staleWhileRevalidate: true
-          })
-        )
-      ]
-    });
+    const config = await resolve.with(
+      [cached(
+        mockAwsSecretsProvider(mockSecrets),
+        awsCache({
+          ttl: TTL.minutes5,
+          staleWhileRevalidate: true
+        })
+      ), schema]
+    );
 
     expect(config.NODE_ENV).toBe('development');
     expect(config.PORT).toBe(3000);
