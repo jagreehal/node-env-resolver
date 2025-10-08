@@ -48,6 +48,48 @@ console.log(env.client.NEXT_PUBLIC_GA_ID);        // ✓ Works
 console.log(env.server.DATABASE_URL);              // ✗ Throws error
 ```
 
+## Safe resolve (Zod-like pattern)
+
+Like Zod's `parse()` vs `safeParse()`, you can choose between throwing errors or getting result objects:
+
+```javascript
+import { resolve, safeResolve } from 'node-env-resolver/nextjs';
+
+// ❌ Throws on validation failure (like Zod's parse())
+export const env = resolve({
+  server: {
+    DATABASE_URL: 'url',
+    API_SECRET: 'string',
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: 'url',
+  }
+});
+
+// ✅ Returns result object (like Zod's safeParse())
+const result = safeResolve({
+  server: {
+    DATABASE_URL: 'url',
+    API_SECRET: 'string',
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: 'url',
+  }
+});
+
+if (result.success) {
+  export const env = result.data;
+  // env.server and env.client are fully typed
+} else {
+  console.error('Environment validation failed:', result.error);
+  process.exit(1);
+}
+```
+
+**Use cases:**
+- `resolve()` - Throws on error (simpler, fail-fast)
+- `safeResolve()` - Returns `{ success, data?, error? }` (graceful error handling)
+
 ## Features
 
 - Automatic client/server split

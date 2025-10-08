@@ -130,6 +130,36 @@ const config = await resolve.with(
 );
 ```
 
+### Safe resolve (Zod-like pattern)
+
+Like Zod's `safeParse()`, use `safeResolve()` to get a result object instead of throwing:
+
+```ts
+import { safeResolve } from 'node-env-resolver';
+
+const result = await safeResolve({
+  PORT: 'number',
+  DATABASE_URL: 'postgres',
+  API_KEY: 'string',
+});
+
+if (result.success) {
+  console.log('Config loaded:', result.data);
+  // result.data.PORT is fully typed
+} else {
+  console.error('Validation failed:', result.error);
+  // Handle error gracefully
+}
+```
+
+**Available functions:**
+- `resolve()` - Throws on error (like Zod's `parse()`)
+- `safeResolve()` - Returns result object (like Zod's `safeParse()`)
+- `resolveSync()` - Sync version that throws
+- `safeResolveSync()` - Sync version that returns result object
+
+All functions support `.with()` for multiple sources.
+
 ### Next.js
 
 Automatic client/server environment variable splitting:

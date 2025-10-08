@@ -111,6 +111,61 @@ const config = await resolve.with(
 
 Later sources override earlier ones if there are conflicts.
 
+### Safe resolve (Zod-like pattern)
+
+Like Zod's `parse()` vs `safeParse()`, choose between throwing errors or getting result objects:
+
+```ts
+import { resolve, safeResolve } from 'node-env-resolver';
+
+// ❌ Throws on validation failure (like Zod's parse())
+try {
+  const config = await resolve({
+    PORT: 'number',
+    DATABASE_URL: 'postgres',
+  });
+  console.log(config.PORT);
+} catch (error) {
+  console.error(error.message);
+}
+
+// ✅ Returns result object (like Zod's safeParse())
+const result = await safeResolve({
+  PORT: 'number',
+  DATABASE_URL: 'postgres',
+});
+
+if (result.success) {
+  console.log('Port:', result.data.PORT);
+  // result.data is fully typed
+} else {
+  console.error('Failed:', result.error);
+}
+```
+
+**All variants:**
+
+| Function | Behavior | Use case |
+|----------|----------|----------|
+| `resolve()` | Throws on error | Simple apps, fail-fast |
+| `safeResolve()` | Returns `{ success, data?, error? }` | Graceful error handling |
+| `resolveSync()` | Sync, throws on error | Sync config loading |
+| `safeResolveSync()` | Sync, returns result object | Sync with error handling |
+
+All functions support `.with()` for multiple sources:
+
+```ts
+const result = await safeResolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [awsSecrets(), { API_KEY: 'string' }]
+);
+
+if (!result.success) {
+  console.error(result.error);
+  process.exit(1);
+}
+```
+
 ### With caching
 
 Add TTL caching for remote sources:

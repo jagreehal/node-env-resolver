@@ -33,7 +33,11 @@
     "isolatedModules": true,
     
     // No emit for type checking
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "node-env-resolver": ["../node-env-resolver/src"]
+    }
   },
   "include": [
     "src/**/*",

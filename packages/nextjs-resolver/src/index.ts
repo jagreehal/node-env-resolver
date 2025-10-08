@@ -9,6 +9,19 @@
 import { resolveSync } from 'node-env-resolver';
 import type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema } from 'node-env-resolver';
 
+// Safe resolve result types (Zod-like)
+export interface SafeResolveResult<T> {
+  success: true;
+  data: T;
+}
+
+export interface SafeResolveError {
+  success: false;
+  error: string;
+}
+
+export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
+
 // Type for globalThis with window property
 interface GlobalWithWindow {
   window?: Window;
@@ -142,6 +155,51 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
   };
 
   return protectedEnv;
+}
+
+/**
+ * Safe version of resolve() - returns result object instead of throwing (Zod-like pattern)
+ *
+ * @example
+ * ```typescript
+ * // env.ts
+ * import { safeResolve } from 'node-env-resolver/nextjs';
+ *
+ * const result = safeResolve({
+ *   server: {
+ *     DATABASE_URL: 'url',
+ *     API_SECRET: 'string',
+ *   },
+ *   client: {
+ *     NEXT_PUBLIC_APP_URL: 'url',
+ *     NEXT_PUBLIC_GA_ID: 'string?',
+ *   }
+ * });
+ *
+ * if (result.success) {
+ *   export const env = result.data;
+ * } else {
+ *   console.error('Environment validation failed:', result.error);
+ *   process.exit(1);
+ * }
+ * ```
+ */
+export function safeResolve<TServer extends SimpleEnvSchema, TClient extends SimpleEnvSchema>(
+  config: NextjsEnvConfig<TServer, TClient>,
+  options: Omit<NextjsOptions, 'resolvers'> & { resolvers?: never } = {}
+): SafeResolveResultType<{
+  server: InferSimpleSchema<TServer>;
+  client: InferSimpleSchema<TClient>;
+}> {
+  try {
+    const result = resolve(config, options);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
 }
 
 // Re-export useful types and utilities

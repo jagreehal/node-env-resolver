@@ -78,7 +78,7 @@ describe('resolvers', () => {
         key: 'custom-key'
       });
       
-      expect(cachedProvider.name).toBe('cached(custom-key)');
+      expect(cachedProvider.name).toBe('cached(test-provider)');
       
       await cachedProvider.load();
       await cachedProvider.load();
@@ -125,7 +125,7 @@ describe('resolvers', () => {
         key: 'test-cache'
       });
       
-      expect(cachedProvider.name).toBe('cached(test-cache)');
+      expect(cachedProvider.name).toBe('cached(test-provider)');
       
       // First call
       const result = await cachedProvider.load();

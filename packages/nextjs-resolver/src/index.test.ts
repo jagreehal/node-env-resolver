@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve } from './index';
+import { resolve, safeResolve } from './index';
 // Mock the globalThis.window for browser detection
 const originalGlobalThis = globalThis;
 
@@ -448,6 +448,123 @@ describe('node-env-resolver/nextjs', () => {
         },
         client: {}
       })).toThrow(/INVALID_ENUM must be one of: valid1, valid2/);
+    });
+  });
+
+  describe('safeResolve() - Zod-like pattern', () => {
+    it('returns success result when validation passes', () => {
+      process.env.DATABASE_URL = 'postgres://localhost:5432/test';
+      process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+
+      const result = safeResolve({
+        server: {
+          DATABASE_URL: 'url',
+          PORT: 3000
+        },
+        client: {
+          NEXT_PUBLIC_APP_URL: 'url'
+        }
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.server.DATABASE_URL).toBe('postgres://localhost:5432/test');
+        expect(result.data.server.PORT).toBe(3000);
+        expect(result.data.client.NEXT_PUBLIC_APP_URL).toBe('https://app.example.com');
+      }
+    });
+
+    it('returns error result when validation fails', () => {
+      const result = safeResolve({
+        server: {
+          REQUIRED_VAR: 'string'
+        },
+        client: {}
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('Missing required environment variable: REQUIRED_VAR');
+      }
+    });
+
+    it('returns error result for invalid client prefix', () => {
+      process.env.INVALID_CLIENT_VAR = 'value';
+
+      const result = safeResolve({
+        server: {},
+        client: {
+          INVALID_CLIENT_VAR: 'string'
+        }
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain("Client environment variables must be prefixed with 'NEXT_PUBLIC_'");
+      }
+    });
+
+    it('returns error result for server vars with client prefix', () => {
+      process.env.NEXT_PUBLIC_DATABASE_URL = 'postgres://localhost:5432/test';
+
+      const result = safeResolve({
+        server: {
+          NEXT_PUBLIC_DATABASE_URL: 'url'
+        },
+        client: {}
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain("Server environment variables should not be prefixed with 'NEXT_PUBLIC_'");
+      }
+    });
+
+    it('returns error result for invalid URL', () => {
+      process.env.DATABASE_URL = 'not-a-url';
+
+      const result = safeResolve({
+        server: {
+          DATABASE_URL: 'url'
+        },
+        client: {}
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('Environment validation failed');
+      }
+    });
+
+    it('handles runtime protection in success result', () => {
+      // Mock browser environment
+      (globalThis as { window?: Window }).window = {};
+
+      process.env.SECRET_VAR = 'secret-value';
+      process.env.NEXT_PUBLIC_PUBLIC_VAR = 'public-value';
+
+      const result = safeResolve({
+        server: {
+          SECRET_VAR: 'string'
+        },
+        client: {
+          NEXT_PUBLIC_PUBLIC_VAR: 'string'
+        }
+      }, {
+        runtimeProtection: true
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        // Client vars should be accessible
+        expect(result.data.client.NEXT_PUBLIC_PUBLIC_VAR).toBe('public-value');
+
+        // Server vars should throw in browser
+        expect(() => {
+          const _secret = result.data.server.SECRET_VAR;
+          void _secret;
+        }).toThrow(/Cannot access server environment variable 'SECRET_VAR' in client-side code/);
+      }
     });
   });
 });

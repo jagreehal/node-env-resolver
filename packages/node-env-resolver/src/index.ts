@@ -85,6 +85,20 @@ type MergeTupleSchemas<T extends ReadonlyArray<unknown>> =
       : never
     : Record<string, never>;
 
+// Safe resolve result types (Zod-like)
+export interface SafeResolveResult<T> {
+  success: true;
+  data: T;
+}
+
+export interface SafeResolveError {
+  success: false;
+  error: string;
+  errors?: string[];
+}
+
+export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
+
 // Type guard to check if an argument is options (plain object without provider)
 function isOptions(arg: unknown): arg is Partial<ResolveOptions> {
   if (!arg || typeof arg !== 'object' || Array.isArray(arg)) return false;
@@ -185,7 +199,200 @@ resolveImpl.with = async function resolveWith<
   return result as MergeTupleSchemas<FilterOptions<T>>;
 };
 
+// Safe resolve implementation (doesn't throw, returns result object)
+async function safeResolveImpl<T extends SimpleEnvSchema>(
+  schema: T,
+  options?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
+  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const defaultResolvers = buildDefaultResolvers();
+
+  // Default policies: secure by default (block dotenv in production unless explicitly allowed)
+  const defaultPolicies = options?.policies ?? {};
+
+  const resolveOptions: ResolveOptions = {
+    resolvers: defaultResolvers,
+    interpolate: true,
+    strict: true,
+    enableAudit: isProduction,
+    policies: defaultPolicies,
+    ...options,
+  };
+
+  const normalizedSchema = normalizeSchema(schema);
+
+  try {
+    const result = await resolveEnvInternal(normalizedSchema, resolveOptions);
+    return { success: true, data: result as InferSimpleSchema<T> };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Safe resolve with multiple resolvers using tuple syntax (doesn't throw)
+ *
+ * @example
+ * ```typescript
+ * // Returns { success: true, data: {...} } or { success: false, error: "..." }
+ * const result = await safeResolve.with(
+ *   [processEnv(), { PORT: 3000 }],
+ *   [awsSecrets({ region: 'us-east-1' }), { DATABASE_URL: 'url' }]
+ * );
+ *
+ * if (result.success) {
+ *   console.log(result.data.PORT); // Type-safe access
+ * } else {
+ *   console.error(result.error); // Detailed error message
+ * }
+ * ```
+ */
+safeResolveImpl.with = async function safeResolveWith<
+  const T extends ReadonlyArray<readonly [Resolver, SimpleEnvSchema] | Partial<ResolveOptions>>
+>(
+  ...args: T
+): Promise<SafeResolveResultType<MergeTupleSchemas<FilterOptions<T>>>> {
+  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+
+  // Separate tuples from options
+  const tuples = args.filter((arg): arg is readonly [Resolver, SimpleEnvSchema] =>
+    Array.isArray(arg) && arg.length === 2
+  );
+  const options = args.find(isOptions);
+
+  // Build merged schema (last wins)
+  const mergedSchema: EnvSchema = {};
+  for (const [, schema] of tuples) {
+    const normalized = normalizeSchema(schema);
+    Object.assign(mergedSchema, normalized);
+  }
+
+  // Build resolvers list from tuples
+  const resolvers = tuples.map(([provider]) => provider);
+
+  const resolveOptions: ResolveOptions = {
+    resolvers,
+    interpolate: true,
+    strict: true,
+    enableAudit: isProduction,
+    ...options,
+  };
+
+  try {
+    const result = await resolveEnvInternal(mergedSchema, resolveOptions);
+    return { success: true, data: result as MergeTupleSchemas<FilterOptions<T>> };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+};
+
+/**
+ * Synchronous safe resolve (doesn't throw, returns result object)
+ */
+function safeResolveSyncImpl<T extends SimpleEnvSchema>(
+  schema: T,
+  options?: Partial<ResolveOptions>
+): SafeResolveResultType<InferSimpleSchema<T>> {
+  // Validate that schema doesn't contain async validators (Zod/Valibot/etc)
+  for (const [key, value] of Object.entries(schema)) {
+    // Check if value is a Standard Schema (has ~standard property)
+    if (value && typeof value === 'object' && '~standard' in value) {
+      return {
+        success: false,
+        error: `❌ safeResolveSync() cannot be used with async validators.\n` +
+               `   Variable '${key}' uses a Standard Schema validator (Zod, Valibot, etc.)\n` +
+               `   💡 Use safeResolve() instead, or use shorthand syntax for sync validation.`
+      };
+    }
+  }
+
+  const defaultResolvers = buildDefaultResolvers();
+
+  const resolveOptions: ResolveOptions = {
+    resolvers: defaultResolvers,
+    interpolate: true,
+    strict: true,
+    ...options,
+  };
+
+  const normalizedSchema = normalizeSchema(schema);
+
+  try {
+    const result = resolveEnvInternalSync(normalizedSchema, resolveOptions);
+    return { success: true, data: result as InferSimpleSchema<T> };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Synchronous safe resolve with multiple resolvers using tuple syntax (doesn't throw)
+ */
+safeResolveSyncImpl.with = function safeResolveSyncWith<
+  const T extends ReadonlyArray<readonly [Resolver, SimpleEnvSchema] | Partial<ResolveOptions>>
+>(
+  ...args: T
+): SafeResolveResultType<MergeTupleSchemas<FilterOptions<T>>> {
+  // Separate tuples from options
+  const tuples = args.filter((arg): arg is readonly [Resolver, SimpleEnvSchema] =>
+    Array.isArray(arg) && arg.length === 2
+  );
+  const options = args.find(isOptions);
+
+  // Validate no async validators in any schema
+  for (const [, schema] of tuples) {
+    for (const [key, value] of Object.entries(schema)) {
+      if (value && typeof value === 'object' && '~standard' in value) {
+        return {
+          success: false,
+          error: `❌ safeResolveSync.with() cannot be used with async validators.\n` +
+                 `   Variable '${key}' uses a Standard Schema validator (Zod, Valibot, etc.)\n` +
+                 `   💡 Use safeResolve.with() instead, or use shorthand syntax for sync validation.`
+        };
+      }
+    }
+  }
+
+  // Build merged schema (last wins)
+  const mergedSchema: EnvSchema = {};
+  for (const [, schema] of tuples) {
+    const normalized = normalizeSchema(schema);
+    Object.assign(mergedSchema, normalized);
+  }
+
+  // Build resolvers list from tuples
+  const resolvers = tuples.map(([provider]) => provider);
+
+  const resolveOptions: ResolveOptions = {
+    resolvers,
+    interpolate: true,
+    strict: true,
+    ...options,
+  };
+
+  try {
+    const result = resolveEnvInternalSync(mergedSchema, resolveOptions);
+    return { success: true, data: result as MergeTupleSchemas<FilterOptions<T>> };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+};
+
 export const resolve = resolveImpl;
+export const safeResolve = safeResolveImpl;
+export const safeResolveSync = safeResolveSyncImpl;
 
 /**
  * Synchronous version of resolve() - only works with sync-capable resolvers
