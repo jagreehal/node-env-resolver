@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0
+
+### Patch Changes
+
+- Updated dependencies [b4afee9]
+  - node-env-resolver@1.1.0
+
 ## 1.0.0
 
 ### Major Changes
