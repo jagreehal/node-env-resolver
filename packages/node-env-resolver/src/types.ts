@@ -23,6 +23,7 @@ export interface Resolver {
   name: string;
   load(): Promise<Record<string, string>>;
   loadSync?(): Record<string, string>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ResolveOptions {

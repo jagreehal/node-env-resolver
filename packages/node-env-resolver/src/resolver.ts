@@ -112,6 +112,7 @@ async function resolveFromResolvers(
           provenance[key] = {
             source: resolver.name,
             timestamp: Date.now(),
+            ...(resolver.metadata?.cached !== undefined && { cached: resolver.metadata.cached as boolean })
           };
         }
       }
@@ -165,6 +166,7 @@ function resolveFromResolversSync(
           provenance[key] = {
             source: resolver.name,
             timestamp: Date.now(),
+            ...(resolver.metadata?.cached !== undefined && { cached: resolver.metadata.cached as boolean })
           };
         }
       }
@@ -241,6 +243,22 @@ function applyPolicies(
 }
 
 /**
+ * Validate environment variable names
+ */
+function validateEnvVarNames(schema: EnvSchema): string[] {
+  const errors: string[] = [];
+  const envVarRegex = /^[A-Z_][A-Z0-9_]*$/;
+
+  for (const key of Object.keys(schema)) {
+    if (!envVarRegex.test(key)) {
+      errors.push(`Invalid environment variable name: "${key}". Environment variable names must contain only uppercase letters, numbers, and underscores, and cannot start with a number.`);
+    }
+  }
+
+  return errors;
+}
+
+/**
  * Internal resolver - used by both old resolve() and new env() APIs
  */
 export async function resolveEnvInternal<T extends EnvSchema>(
@@ -255,6 +273,19 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     policies,
     enableAudit = isProduction
   } = options;
+
+  // Validate environment variable names first
+  const nameValidationErrors = validateEnvVarNames(schema);
+  if (nameValidationErrors.length > 0) {
+    if (enableAudit) {
+      logAuditEvent({
+        type: 'validation_failure',
+        timestamp: Date.now(),
+        error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`
+      });
+    }
+    throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
+  }
 
   const { mergedEnv, provenance } = await resolveFromResolvers(resolvers, interpolate, strict);
 
@@ -362,6 +393,12 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
   schema: T,
   options: ResolveOptions
 ): Record<string, unknown> {
+  // Validate environment variable names first
+  const nameValidationErrors = validateEnvVarNames(schema);
+  if (nameValidationErrors.length > 0) {
+    throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
+  }
+
   const {
     resolvers = [],
     interpolate = false,

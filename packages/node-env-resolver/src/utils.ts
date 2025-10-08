@@ -25,7 +25,6 @@ export function cached(resolver: Resolver, options: number | CacheOptions = {}):
     ttl = 300000, // 5 minutes default
     maxAge = 3600000, // 1 hour max age
     staleWhileRevalidate = false,
-    key = resolver.name
   } = config;
   
   let cache: { 
@@ -34,8 +33,9 @@ export function cached(resolver: Resolver, options: number | CacheOptions = {}):
     refreshPromise?: Promise<Record<string, string>>;
   } | null = null;
   
-  return {
-    name: `cached(${key})`,
+  const wrapper: Resolver = {
+    name: `cached(${resolver.name})`,
+    metadata: {},
     async load() {
       const now = Date.now();
       
@@ -43,6 +43,7 @@ export function cached(resolver: Resolver, options: number | CacheOptions = {}):
       if (!cache || (now - cache.timestamp) > maxAge) {
         const data = await resolver.load();
         cache = { data, timestamp: now };
+        wrapper.metadata = { cached: false };
         return data;
       }
       
@@ -63,15 +64,19 @@ export function cached(resolver: Resolver, options: number | CacheOptions = {}):
           });
         }
         
+        wrapper.metadata = { cached: true };
         return cache.data;
       }
       
       // Cache is stale, refresh it
       const data = await resolver.load();
       cache = { data, timestamp: now };
+      wrapper.metadata = { cached: false };
       return data;
     },
   };
+  
+  return wrapper;
 }
 
 // Utility functions for common TTL configurations
