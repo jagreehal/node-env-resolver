@@ -32,11 +32,11 @@
     "build": "NODE_ENV=production tsup",
     "build:dev": "tsup",
     "build:dts": "tsc --emitDeclarationOnly",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "type-check": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src/",
     "test": "vitest run",
     "dev": "tsup --watch",
-    "prepublishOnly": "pnpm build && pnpm typecheck"
+    "prepublishOnly": "pnpm build && pnpm type-check"
   },
   "keywords": [
     "nextjs",

@@ -59,11 +59,11 @@
     "build": "NODE_ENV=production tsup && tsc --emitDeclarationOnly",
     "build:dev": "tsup",
     "build:dts": "tsc --emitDeclarationOnly",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "type-check": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src/",
     "test": "vitest run",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "prepublishOnly": "pnpm build && pnpm typecheck"
+    "prepublishOnly": "pnpm build && pnpm type-check"
   },
   "keywords": [
     "environment",

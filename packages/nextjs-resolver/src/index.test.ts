@@ -354,7 +354,7 @@ describe('node-env-resolver-nextjs', () => {
 
     it('handles runtime protection', () => {
       // Mock browser environment
-      (globalThis as { window?: Window }).window = {};
+      (globalThis as { window?: Window }).window = {} as Window;
 
       process.env.SECRET_VAR = 'secret-value';
       process.env.NEXT_PUBLIC_PUBLIC_VAR = 'public-value';
@@ -386,7 +386,7 @@ describe('node-env-resolver-nextjs', () => {
   describe('browser detection', () => {
     it('detects browser environment correctly', () => {
       // Mock browser environment
-      (globalThis as { window?: Window }).window = {};
+      (globalThis as { window?: Window }).window = {} as Window;
 
       process.env.NEXT_PUBLIC_BROWSER_VAR = 'browser-value';
 
@@ -538,7 +538,7 @@ describe('node-env-resolver-nextjs', () => {
 
     it('handles runtime protection in success result', () => {
       // Mock browser environment
-      (globalThis as { window?: Window }).window = {};
+      (globalThis as { window?: Window }).window = {} as Window;
 
       process.env.SECRET_VAR = 'secret-value';
       process.env.NEXT_PUBLIC_PUBLIC_VAR = 'public-value';

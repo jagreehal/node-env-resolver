@@ -14,7 +14,7 @@
     "example:basic": "pnpm --filter simple-example dev",
     "example:express": "pnpm --filter express-app-example dev",
     "example:lambda": "pnpm --filter aws-lambda-example dev",
-    "release": "turbo run build lint && changeset publish"
+    "release": "turbo run build lint type-check && changeset publish"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
