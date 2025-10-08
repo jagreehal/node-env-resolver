@@ -15,6 +15,7 @@
 
 ### 1) Single-provider (default: process.env)
 
+**Throws on error (like Zod's `parse()`):**
 ```ts
 import { resolve } from 'node-env-resolver';
 
@@ -32,8 +33,53 @@ const config = await resolve({
 // API_KEY: string | undefined
 ```
 
+**Safe version - returns result object (like Zod's `safeParse()`):**
+```ts
+import { safeResolve } from 'node-env-resolver';
+
+const result = await safeResolve({
+  PORT: 'number',
+  DATABASE_URL: 'url',
+  API_KEY: 'string',
+});
+
+if (result.success) {
+  console.log(result.data.PORT);  // Fully typed
+} else {
+  console.error(result.error);    // Error message
+}
+```
+
+### 1b) Sync versions
+
+For synchronous config loading (e.g., Next.js config files):
+
+```ts
+import { resolveSync, safeResolveSync } from 'node-env-resolver';
+
+// Throws on error
+const config = resolveSync({
+  PORT: 3000,
+  NODE_ENV: ['development', 'production'] as const
+});
+
+// Returns result object
+const result = safeResolveSync({
+  PORT: 3000,
+  DEBUG: false
+});
+
+if (result.success) {
+  console.log(result.data.PORT);
+}
+```
+
+**Note:** Sync versions cannot use async validators (Zod, Valibot). Use shorthand syntax only.
+
+
 ### 2) Multi-provider (tuple syntax)
 
+**Throws on error:**
 ```ts
 import { resolve, processEnv, dotenv } from 'node-env-resolver';
 
@@ -49,20 +95,46 @@ const config = await resolve.with(
 );
 ```
 
+**Safe version - returns result object:**
+```ts
+import { safeResolve, processEnv } from 'node-env-resolver';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+const result = await safeResolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'postgres' }]
+);
+
+if (!result.success) {
+  console.error('Config failed:', result.error);
+  process.exit(1);
+}
+
+const config = result.data;
+```
+
 **Order rule:** Later tuples override earlier ones for overlapping keys.
 
-### 3) Variadic vs array form
+### 3) Correct syntax for `.with()` (IMPORTANT!)
 
+**✅ CORRECT** - Spread arguments directly, no wrapper array:
 ```ts
-const resolvers = [
+await resolve.with(
   [processEnv(), { PORT: 3000 }],
-  [dotenv(),     { DATABASE_URL: 'url' }],
-] as const;
-
-await resolve.with(...resolvers);     // preferred
-// If supported in your version:
-// await resolve.with(resolvers);
+  [dotenv(), { DATABASE_URL: 'url' }]
+);
 ```
+
+**❌ WRONG** - Don't wrap in extra array:
+```ts
+// This will fail with "Invalid environment variable name: 0, 1"
+await resolve.with([
+  [processEnv(), { PORT: 3000 }],
+  [dotenv(), { DATABASE_URL: 'url' }]
+]);
+```
+
+**Why?** The function signature is variadic `...tuples`, not `tuples[]`.
 
 ### 4) Options (optional last argument to `.with`)
 
@@ -87,28 +159,80 @@ await resolve.with(
 
 ## Resolver Model
 
-A **provider** returns a map of string values. It can be an object or a factory.
+A **resolver** (provider) returns a map of string values.
 
 ```ts
 export interface Resolver {
-  name: string;
-  load(): Promise<Record<string, string>>;
-  loadSync?(): Record<string, string>;
+  name: string;                              // Unique name for logging
+  load(): Promise<Record<string, string>>;   // Async loader
+  loadSync?(): Record<string, string>;       // Optional sync loader
+  metadata?: Record<string, unknown>;        // Optional (e.g., { cached: true })
 }
+```
 
-// Object provider (no options)
-const databaseProvider: Resolver = {
-  name: 'database-config',
-  async load() { return { FEATURE_FLAGS: '{"experiments":true}' }; }
+### Built-in resolvers
+
+```ts
+import { processEnv, dotenv } from 'node-env-resolver';
+
+// Load from process.env
+processEnv()
+
+// Load from .env file
+dotenv('.env')
+dotenv({ path: '.env.production' })
+
+// Load with expand mode (multiple .env files)
+dotenv({ path: '.env', expand: true })
+// Loads: .env.defaults, .env, .env.local, .env.${NODE_ENV}, .env.${NODE_ENV}.local
+```
+
+### Custom resolvers
+
+**Simple object resolver:**
+```ts
+const databaseResolver: Resolver = {
+  name: 'database',
+  async load() {
+    const rows = await db.query('SELECT key, value FROM config');
+    return Object.fromEntries(rows.map(r => [r.key, r.value]));
+  }
 };
 
-// Factory provider (with options)
-function awsSecretsProvider(opts: { region: string }): Resolver {
+// Use it
+await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [databaseResolver, { FEATURE_FLAGS: 'json' }]
+);
+```
+
+**Factory resolver (with options):**
+```ts
+function apiResolver(url: string): Resolver {
   return {
-    name: `aws-secrets(${opts.region})`,
-    async load() { /* fetch secrets */ return { DATABASE_URL: 'postgres://...' }; }
+    name: `api(${url})`,
+    async load() {
+      const response = await fetch(url);
+      return response.json();
+    }
   };
 }
+
+await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [apiResolver('https://config.example.com/api'), { RATE_LIMIT: 'number' }]
+);
+```
+
+**AWS Secrets Manager:**
+```ts
+import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
+
+await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [awsSecrets({ secretId: 'prod/db' }), { DATABASE_URL: 'postgres' }],
+  [awsSsm({ path: '/myapp/config', recursive: true }), { API_KEY: 'string' }]
+);
 ```
 
 **Wrappers** (decorators) return new resolvers:
@@ -126,25 +250,38 @@ const stableAws = cached(
 
 ## Schema DSL (Standard Schema–style)
 
-Shorthand:
+### Shorthand types
 
-* `'string'` / `'string?'` (optional)
-* `'number'`, `'boolean'`
-* `'url'` → **validated string** URL (not a URL object)
-* `'email'`
-* `'port'` or `'port:3000'` (default)
-* `'json'` → parsed JSON (**typed as `unknown`**; narrow manually)
-* `'string:/^abc/'` (regex pattern)
+* `'string'` - Required string
+* `'string?'` - Optional string
+* `'number'` - Required number
+* `'boolean'` - Required boolean
+* `'url'` - Validated URL string
+* `'email'` - Validated email
+* `'port'` - Port number (1-65535)
+* `'json'` - Parsed JSON (typed as `unknown`, narrow manually)
+* `'postgres'`, `'mysql'`, `'mongodb'`, `'redis'` - Database connection strings
 
-Literals & enums:
+### Pattern matching
 
 ```ts
-PORT: 3000,                           // number default
-DEBUG: false,                         // boolean default
-NODE_ENV: ['development','production'] as const  // enum union
+API_KEY: 'string:/^sk_[a-zA-Z0-9]+$/'  // Regex pattern
 ```
 
-Advanced object form:
+### Literals & defaults
+
+```ts
+PORT: 3000,                                        // number with default 3000
+DEBUG: false,                                      // boolean with default false
+NODE_ENV: ['development','production'] as const    // enum union
+```
+
+**IMPORTANT difference:**
+- `PORT: 3000` - Uses default if missing (no error)
+- `PORT: 'number'` - Required, throws if missing
+- `PORT: 'number?'` - Optional, returns `undefined` if missing
+
+### Advanced object form
 
 ```ts
 API_KEY: {
@@ -153,6 +290,23 @@ API_KEY: {
   pattern: '^sk_[a-zA-Z0-9]+$',
   description: 'Secret key'
 }
+```
+
+### Custom validators
+
+```ts
+const portValidator = (value: string): number => {
+  const port = parseInt(value, 10);
+  if (isNaN(port) || port < 1 || port > 65535) {
+    throw new Error('Invalid port');
+  }
+  return port;
+};
+
+const config = await resolve({
+  CUSTOM_PORT: portValidator,
+  DATABASE_URL: 'postgres'
+});
 ```
 
 ---
@@ -215,11 +369,34 @@ Example:
 
 ## Common Recipes
 
-### 1) Strict prod, dotenv in dev
+### 1) Safe resolve with error handling
 
 ```ts
+import { safeResolve } from 'node-env-resolver';
+
+const result = await safeResolve({
+  PORT: 'number',
+  DATABASE_URL: 'postgres',
+  API_KEY: 'string'
+});
+
+if (!result.success) {
+  console.error('❌ Config validation failed:');
+  console.error(result.error);
+  process.exit(1);
+}
+
+// Now use result.data safely
+const app = createApp(result.data);
+```
+
+### 2) Strict prod, dotenv in dev
+
+```ts
+import { resolve, processEnv, dotenv } from 'node-env-resolver';
+
 const config = await resolve.with(
-  [dotenv(),     { DATABASE_URL: 'url', DEBUG: false }],
+  [dotenv(), { DATABASE_URL: 'url', DEBUG: false }],
   [processEnv(), { PORT: 3000, NODE_ENV: ['development','production'] as const }],
   {
     strict: true,
@@ -232,19 +409,50 @@ const config = await resolve.with(
 );
 ```
 
-### 2) AWS Secrets + cache + retry
+### 3) AWS Secrets + cache + retry
 
 ```ts
+import { resolve, processEnv, cached, retry, TTL } from 'node-env-resolver';
+import { awsSecrets } from 'node-env-resolver-aws';
+
 const config = await resolve.with(
   [processEnv(), { PORT: 3000 }],
-  [cached(retry(awsSecretsProvider({ region: 'us-east-1' }), { attempts: 3 }), { ttl: TTL.minutes15 }), {
-    DATABASE_URL: 'url',
-    API_KEY: 'string'
-  }]
+  [
+    cached(
+      retry(awsSecrets({ secretId: 'prod/secrets' }), { attempts: 3 }),
+      { ttl: TTL.minutes15 }
+    ),
+    { DATABASE_URL: 'url', API_KEY: 'string' }
+  ]
 );
 ```
 
-### 3) JSON flags (narrow after parse)
+### 4) Custom database resolver
+
+```ts
+import { safeResolve, processEnv, type Resolver } from 'node-env-resolver';
+
+const dbResolver: Resolver = {
+  name: 'postgres-config',
+  async load() {
+    const client = await db.connect();
+    const result = await client.query('SELECT key, value FROM app_config');
+    return Object.fromEntries(result.rows.map(r => [r.key, r.value]));
+  }
+};
+
+const result = await safeResolve.with(
+  [processEnv(), { PORT: 3000, NODE_ENV: ['dev', 'prod'] as const }],
+  [dbResolver, { FEATURE_FLAGS: 'json', RATE_LIMIT: 'number' }]
+);
+
+if (!result.success) {
+  console.error('Config failed:', result.error);
+  process.exit(1);
+}
+```
+
+### 5) JSON flags (narrow after parse)
 
 ```ts
 const { FEATURE_FLAGS } = await resolve({
@@ -258,31 +466,44 @@ const flags = FEATURE_FLAGS as { newUI?: boolean };
 ## Minimal Signature Cheatsheet
 
 ```ts
-// Primary
+// Primary - throws on error
 resolve(schema: Schema): Promise<TypedConfig>
+resolve.with(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<MergedConfig>
 
-// Multi-provider
-resolve.with(
-  ...pairs: readonly [Resolver, Schema][],
-  options?: ResolveOptions
-): Promise<MergedTypedConfig>
+// Safe - returns result object
+safeResolve(schema: Schema): Promise<{ success: true, data: TypedConfig } | { success: false, error: string }>
+safeResolve.with(...tuples): Promise<{ success: true, data: MergedConfig } | { success: false, error: string }>
+
+// Sync versions
+resolveSync(schema: Schema): TypedConfig                    // Throws
+safeResolveSync(schema: Schema): { success, data?, error? } // Returns result
+resolveSync.with(...tuples): MergedConfig                   // Throws
+safeResolveSync.with(...tuples): { success, data?, error? } // Returns result
 
 // Resolvers
 interface Resolver {
   name: string;
   load(): Promise<Record<string,string>>;
   loadSync?(): Record<string,string>;
+  metadata?: Record<string, unknown>;
 }
+
+// Built-in resolvers
+processEnv(): Resolver
+dotenv(path?: string | { path?: string, expand?: boolean }): Resolver
+
+// Utilities
+cached(resolver: Resolver, opts: { ttl: number }): Resolver
+retry(resolver: Resolver, opts: { attempts: number }): Resolver
+TTL.minute, TTL.minutes5, TTL.hour, TTL.day  // Constants
 
 // Options (subset)
 interface ResolveOptions {
-  interpolate?: boolean;
-  strict?: boolean;
+  interpolate?: boolean;  // ${VAR} expansion (default: true)
+  strict?: boolean;       // Fail on resolver errors (default: true)
   policies?: {
     enforceAllowedSources?: Record<string, string[]>; // key → allowed provider names
-    // other policy knobs…
   };
-  // resolvers/extend (low-level) exist but prefer tuples.
 }
 ```
 
@@ -297,12 +518,68 @@ interface ResolveOptions {
 
 ---
 
+## Zod Integration
+
+Use Zod schemas directly for validation:
+
+```ts
+import { resolveZod, safeResolveZod, resolveSyncZod, safeResolveSyncZod } from 'node-env-resolver/zod';
+import { z } from 'zod';
+
+const schema = z.object({
+  PORT: z.coerce.number().default(3000),
+  DATABASE_URL: z.string().url(),
+  NODE_ENV: z.enum(['development', 'production', 'test']),
+  DEBUG: z.coerce.boolean().optional(),
+});
+
+// Throws on validation error
+const env = await resolveZod(schema);
+
+// Returns result object (safe version)
+const result = await safeResolveZod(schema);
+if (result.success) {
+  console.log(result.data.PORT);
+} else {
+  console.error(result.error);
+}
+
+// Sync versions
+const envSync = resolveSyncZod(schema);
+const resultSync = safeResolveSyncZod(schema);
+```
+
+**With multiple resolvers:**
+```ts
+import { resolveZod, processEnv, dotenv } from 'node-env-resolver/zod';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+const env = await resolveZod(schema, {
+  resolvers: [
+    dotenv(),
+    processEnv(),
+    awsSecrets({ secretId: 'prod/secrets' })
+  ],
+  interpolate: true,
+  strict: true
+});
+```
+
+**API:**
+- `resolveZod()` - Throws on error
+- `safeResolveZod()` - Returns `{ success, data?, error? }`
+- `resolveSyncZod()` - Sync, throws on error
+- `safeResolveSyncZod()` - Sync, returns result object
+
+---
+
 ## Migration Tips (from t3-env or Zod)
 
 * Replace `z.enum([...])` with `['a','b'] as const`.
 * Replace `.default(3000)` with literal `3000`.
 * Replace `runtimeEnv: process.env` with `resolve({...})`.
 * For multi-source needs, move to `resolve.with([provider, schema], …)`.
+* If you prefer Zod schemas, use `resolveZod()` from `node-env-resolver/zod`.
 
 ---
 

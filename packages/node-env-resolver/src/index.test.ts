@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, resolveSync } from './index';import { resolveEnvWithZod } from './zod';import {
+import { resolve, resolveSync } from './index';
+import { resolveZod } from './zod';
+import {
   validateWithStandardSchema,
   toStandardSchema,
   schemaToStandardSchema
@@ -299,7 +301,7 @@ describe('Zod and Standard Schema helpers', () => {
         return { NODE_ENV: String(obj.NODE_ENV ?? 'test'), PORT: Number(obj.PORT ?? 3000) };
       },
     };
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [
         {
           name: 'mock',

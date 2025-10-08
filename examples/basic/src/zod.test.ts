@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { processEnv } from 'node-env-resolver';
-import { resolveEnvWithZod } from 'node-env-resolver/zod';
+import { resolveZod } from 'node-env-resolver/zod';
 import { z } from 'zod';
 
 // Mock process.env for testing
@@ -117,7 +117,7 @@ describe('Zod Integration with Standard Schema', () => {
       });
 
       // Use the proper Zod integration
-      const config = await resolveEnvWithZod(zodSchema, {
+      const config = await resolveZod(zodSchema, {
         resolvers: [processEnv()],
       });
 
@@ -142,7 +142,7 @@ describe('Zod Integration with Standard Schema', () => {
       });
 
       // Use the proper Zod integration - should throw error since DATABASE_URL is required
-      await expect(resolveEnvWithZod(zodSchema, {
+      await expect(resolveZod(zodSchema, {
         resolvers: [processEnv()],
       })).rejects.toThrow();
     });
@@ -162,7 +162,7 @@ describe('Zod Integration with Standard Schema', () => {
       });
 
       // Use the proper Zod integration - should throw error for invalid values
-      await expect(resolveEnvWithZod(zodSchema, {
+      await expect(resolveZod(zodSchema, {
         resolvers: [processEnv()],
       })).rejects.toThrow();
     });
@@ -184,7 +184,7 @@ describe('Zod Integration with Standard Schema', () => {
       });
 
       // Use the proper Zod integration
-      const config = await resolveEnvWithZod(zodSchema, {
+      const config = await resolveZod(zodSchema, {
         resolvers: [processEnv()],
       });
 

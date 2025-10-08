@@ -2,7 +2,7 @@
  * Test type inference
  */
 import { describe, it, expect } from 'vitest';
-import { resolveEnvWithZod } from 'node-env-resolver/zod';
+import { resolveZod } from 'node-env-resolver/zod';
 import { processEnv } from 'node-env-resolver';
 import { z } from 'zod';
 
@@ -19,7 +19,7 @@ describe('Type Inference Test', () => {
       DEBUG: z.boolean().optional(),
     });
 
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     
@@ -42,7 +42,7 @@ describe('Type Inference Test', () => {
       DEBUG: z.boolean().optional(),
     });
 
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     
@@ -68,7 +68,7 @@ describe('Type Inference Test', () => {
         DEBUG: z.boolean().optional(),
       });
 
-      const env = await resolveEnvWithZod(envSchema, {
+      const env = await resolveZod(envSchema, {
         resolvers: [processEnv()],
       });
       
@@ -90,7 +90,7 @@ describe('Type Inference Test', () => {
       // Set up environment variables
       process.env.DATABASE_URL = 'https://example.com';
       
-      const env = await resolveEnvWithZod(schema, {
+      const env = await resolveZod(schema, {
         resolvers: [processEnv()],
       });
       
@@ -109,7 +109,7 @@ describe('Type Inference Test', () => {
     // Set up environment variables
     process.env.DATABASE_URL = 'https://example.com';
     
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     
@@ -127,7 +127,7 @@ describe('Type Inference Test', () => {
     // Set up environment variables
     process.env.DATABASE_URL = 'https://example.com';
     
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     
@@ -145,7 +145,7 @@ describe('Type Inference Test', () => {
     // Set up environment variables
     process.env.DATABASE_URL = 'https://example.com';
     
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     
@@ -164,7 +164,7 @@ describe('Type Inference Test', () => {
     // Set up environment variables
     process.env.DATABASE_URL = 'https://example.com';
     
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     
@@ -195,7 +195,7 @@ describe('Type Inference Test', () => {
     process.env.NODE_ENV = 'development';
     process.env.DATABASE_URL = 'https://example.com';
     
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     
@@ -221,7 +221,7 @@ describe('Type Inference Test', () => {
     // Set up environment variables
     process.env.DATABASE_URL = 'https://example.com';
     
-    const env = await resolveEnvWithZod(schema, {
+    const env = await resolveZod(schema, {
       resolvers: [processEnv()],
     });
     

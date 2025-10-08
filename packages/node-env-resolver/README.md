@@ -111,6 +111,49 @@ const config = await resolve.with(
 
 Later sources override earlier ones if there are conflicts.
 
+### Custom providers
+
+Create your own resolver to load config from any source:
+
+```ts
+import { resolve, type Resolver } from 'node-env-resolver';
+
+// Custom resolver that loads from a database
+const databaseResolver: Resolver = {
+  name: 'database',
+  async load() {
+    const config = await db.query('SELECT key, value FROM config');
+    return Object.fromEntries(config.rows.map(r => [r.key, r.value]));
+  }
+};
+
+// Custom resolver that loads from an API
+const apiResolver: Resolver = {
+  name: 'api',
+  async load() {
+    const response = await fetch('https://config.example.com/api/config');
+    return response.json();
+  }
+};
+
+// Use custom resolvers
+const config = await resolve.with(
+  [processEnv(), { PORT: 3000 }],
+  [databaseResolver, { FEATURE_FLAGS: 'json' }],
+  [apiResolver, { RATE_LIMIT: 'number' }]
+);
+```
+
+**Resolver interface:**
+```ts
+interface Resolver {
+  name: string;                             // Unique name for logging/debugging
+  load: () => Promise<Record<string, string>>;
+  loadSync?: () => Record<string, string>;  // Optional sync support
+  metadata?: Record<string, unknown>;       // Optional metadata (e.g., cached: true)
+}
+```
+
 ### Safe resolve (Zod-like pattern)
 
 Like Zod's `parse()` vs `safeParse()`, choose between throwing errors or getting result objects:
@@ -223,7 +266,7 @@ For advanced validation:
 ```ts
 await resolve(schema, {
   resolvers: [customResolver],     // Custom resolvers
-  extend: [awsSecrets()],           // Extend default resolvers
+  extend: [awsSecrets({ secretId: 'app/secrets' })],  // Extend default resolvers
   strict: true,                     // Strict mode
   enableAudit: true,                // Audit logging
   policies: {                       // Security policies
@@ -289,15 +332,14 @@ app.listen(config.PORT, () => {
 ### AWS Lambda
 
 ```ts
-import { resolve } from 'node-env-resolver';
-import { awsSecrets } from 'node-env-resolver-aws';
+import { resolveSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve({
+const config = await resolveSecrets({
+  secretId: 'lambda/secrets'
+}, {
   API_ENDPOINT: 'url',
   TIMEOUT: 30,
   LOG_LEVEL: ['debug', 'info', 'warn', 'error'] as const
-}, {
-  extend: [awsSecrets({ secretId: 'lambda/secrets' })]
 });
 
 export const handler = async (event) => {
