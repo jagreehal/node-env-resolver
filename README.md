@@ -4,7 +4,7 @@ Type-safe environment variable resolution with zero dependencies and ultra-small
 
 [![npm version](https://img.shields.io/npm/v/node-env-resolver)](https://www.npmjs.com/package/node-env-resolver)
 
-**Bundle Size:** ~3.7KB gzipped for basic usage (string, number, boolean) | Full library with all validators: ~6KB gzipped
+**Bundle Size:** ~6KB gzipped (includes all validators)
 
 ## Install
 
@@ -104,70 +104,73 @@ config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
 
 ## Performance & Bundle Size
 
-**Ultra-lightweight with intelligent lazy loading.** The library uses a pay-for-what-you-use architecture:
+**Ultra-lightweight and optimized.** The library is ~6KB gzipped and supports all validator types synchronously.
 
-### Basic Types (3.7KB gzipped)
+### Efficient validation architecture
 
-Common types use **inline validation** with zero external dependencies:
+The library uses a two-tier validation strategy:
+
+**Basic types** use inline validation with zero external dependencies:
 - `string`, `number`, `boolean` (with min/max validation)
 - `enum` (array validation)
 - `pattern` (regex validation)
 - `custom` (validator functions)
 
-```ts
-// Only 3.7KB gzipped - no validators loaded!
-const config = resolve({
-  PORT: 3000,
-  DEBUG: false,
-  NODE_ENV: ['development', 'production'] as const,
-  API_KEY: 'string'
-});
-```
-
-### Advanced Types (Lazy Loaded)
-
-Advanced validators are **only loaded when you use them**:
+**Advanced types** use specialized validators:
 - Database URLs: `postgres`, `mysql`, `mongodb`, `redis`
 - Web types: `http`, `https`, `url`, `email`
 - Format types: `json`, `date`, `timestamp`, `port`
 
+All types work both synchronously and asynchronously:
+
 ```ts
-// 6KB gzipped - validators lazy-loaded on first use
+// Synchronous - works with all types
+const config = resolve({
+  PORT: 3000,
+  DATABASE_URL: 'postgres',
+  API_URL: 'url',
+  NODE_ENV: ['development', 'production'] as const
+});
+
+// Also works with async resolvers
 const config = await resolve.with([
-  provider,
+  awsSecrets(),
   { DATABASE_URL: 'postgres', API_URL: 'url' }
 ]);
 ```
 
 ### Audit Logging (Lazy Loaded)
 
-Audit logging is **only loaded when enabled**:
+Audit logging is lazy-loaded only when enabled, keeping the base bundle minimal:
 
 ```ts
-// 3.7KB gzipped - audit module not loaded
+// Base bundle
 const config = resolve({ PORT: 3000 });
 
-// 3.9KB gzipped - audit loaded when enabled
+// Audit module loaded when enabled
 const config = resolve({ PORT: 3000 }, { enableAudit: true });
 ```
 
 ### Tree-Shaking Friendly
 
-The library uses ES modules with **no static imports** between core modules. Modern bundlers like Rollup, esbuild, and Webpack can eliminate unused code:
+The library uses ES modules for optimal tree-shaking:
 
 ```ts
-// Your bundle only includes what you actually use
-import { resolve } from 'node-env-resolver';  // ✅ Only core + basic validators
+// Core functionality
+import { resolve } from 'node-env-resolver';
 
-import { resolveZod } from 'node-env-resolver/zod';  // ✅ Separate chunk
-import { awsSecrets } from 'node-env-resolver-aws';  // ✅ Separate package
+// Optional integrations (separate chunks)
+import { resolveZod } from 'node-env-resolver/zod';
+import { awsSecrets } from 'node-env-resolver-aws';
 ```
 
 ## Built-in validators
 
-### Basic types (inline validation, synchronous)
+All validator types work synchronously and asynchronously.
 
-These types use inline validation with **zero external dependencies** and work in both sync and async mode:
+### Basic types
+
+These types use inline validation:
 
 - `'string'` - Any string value (with optional `min`/`max` length)
 - `'number'` - Numeric value (coerced from string, with optional `min`/`max`)
@@ -176,13 +179,13 @@ These types use inline validation with **zero external dependencies** and work i
 - `'pattern'` - Regex pattern validation
 - `'custom'` - Custom validator function
 
-### Advanced types (lazy-loaded, async only)
+### Advanced types
 
-These types are **lazy-loaded** when first used and require async resolution (`resolve.with()`):
+Advanced validators provide specialized validation and parsing:
 
 **Network types:**
 
-- `'url'` - Valid URL
+- `'url'` - Valid URL (returns URL object)
 - `'http'` - HTTP or HTTPS URL
 - `'https'` - HTTPS-only URL (strict)
 - `'email'` - Email address
@@ -202,8 +205,6 @@ These types are **lazy-loaded** when first used and require async resolution (`r
 - `'timestamp'` - Unix timestamp
 
 All validators automatically handle type coercion from environment variable strings.
-
-**Performance tip:** Use basic types when possible to minimize bundle size. Reserve advanced types for validation that truly needs them (e.g., use `'string'` with `pattern` for simple URL validation instead of `'url'`).
 
 ## Custom validators
 
@@ -353,42 +354,29 @@ All functions have safe variants:
 
 ## Synchronous resolution
 
-`resolve()` is **synchronous by default** when reading from `process.env` and using **basic types only**:
+`resolve()` is **synchronous by default** when reading from `process.env`:
 
 ```ts
 import { resolve } from 'node-env-resolver';
 
-// Synchronous - no await needed
+// Synchronous - no await needed, works with ALL types
 const config = resolve({
   PORT: 3000,
   NODE_ENV: ['development', 'production'] as const,
   API_KEY: 'string',
+  API_URL: 'url',        // Advanced types work synchronously!
+  DATABASE_URL: 'postgres',
   DEBUG: false
 });
 ```
 
-**Important:** Synchronous resolution only works with basic types (`string`, `number`, `boolean`, `enum`, `pattern`, `custom`). Advanced types require async validation:
+`resolve.with()` is **async** when using custom resolvers:
 
 ```ts
-// ❌ Error: resolveSync cannot validate 'url' type
-const config = resolve({
-  API_URL: 'url'  // Advanced type requires async
-});
-
-// ✅ Use async resolution for advanced types
-const config = await resolve.with([
-  processEnv(),
-  { API_URL: 'url' }  // Now works
-]);
-```
-
-`resolve.with()` is **always async** when using custom resolvers or advanced validators:
-
-```ts
-// Async - await required
+// Async - await required when using custom resolvers
 const config = await resolve.with(
   [processEnv(), { PORT: 3000 }],
-  [dotenv(), { DATABASE_URL: 'postgres' }]  // Advanced type
+  [dotenv(), { DATABASE_URL: 'postgres', API_URL: 'url' }]
 );
 ```
 

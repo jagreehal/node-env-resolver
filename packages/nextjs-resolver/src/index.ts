@@ -3,7 +3,9 @@
  * Zero-config Next.js integration with automatic client/server split
  *
  * IMPORTANT: Next.js config files must be synchronous.
- * resolve() is synchronous and works with Next.js config.
+ * resolve() is synchronous and works with ALL validator types:
+ * - Basic types: string, number, boolean, enums, pattern, custom
+ * - Advanced types: postgres, url, email, json, port, etc.
  */
 
 import { resolve as nodeEnvResolve } from 'node-env-resolver';
@@ -56,7 +58,9 @@ export interface NextjsOptions extends Omit<ResolveOptions, 'resolvers'> {
  * Create type-safe environment configuration for Next.js with automatic client/server split
  *
  * IMPORTANT: Next.js config files must be synchronous.
- * This function is synchronous and works perfectly with Next.js.
+ * This function is synchronous and supports ALL validator types:
+ * - Basic types: string, number, boolean, enums, pattern, custom
+ * - Advanced types: postgres, url, email, json, port, date, etc.
  *
  * @example
  * ```typescript
@@ -67,7 +71,9 @@ export interface NextjsOptions extends Omit<ResolveOptions, 'resolvers'> {
  *   server: {
  *     DATABASE_URL: 'url',
  *     API_SECRET: 'string',
- *     RESEND_API_KEY: 'string'
+ *     RESEND_API_KEY: 'string',
+ *     PORT: 'port:3000',
+ *     NODE_ENV: ['dev', 'prod'] as const
  *   },
  *   client: {
  *     NEXT_PUBLIC_APP_URL: 'url',
@@ -155,6 +161,8 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
 /**
  * Safe version of resolve() - returns result object instead of throwing (Zod-like pattern)
  *
+ * Supports all validator types (basic and advanced).
+ *
  * @example
  * ```typescript
  * // env.ts
@@ -164,6 +172,7 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
  *   server: {
  *     DATABASE_URL: 'url',
  *     API_SECRET: 'string',
+ *     PORT: 'port:3000'
  *   },
  *   client: {
  *     NEXT_PUBLIC_APP_URL: 'url',

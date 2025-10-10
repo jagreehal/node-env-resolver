@@ -21,6 +21,7 @@ export const env = resolve({
   server: {
     DATABASE_URL: 'url',
     RESEND_API_KEY: 'string',
+    PORT: 'port:3000',
   },
   client: {
     NEXT_PUBLIC_APP_URL: 'url',
@@ -97,6 +98,7 @@ if (result.success) {
 - Full TypeScript support
 - Works with Next.js 13+ App Router
 - Zero configuration required
+- Supports all validator types (basic and advanced)
 
 ## Environment files
 
@@ -129,10 +131,11 @@ Use the same shorthand syntax as the core package:
 ```javascript
 export const env = resolve({
   server: {
-    PORT: 3000,
+    PORT: 'port:3000',
     DATABASE_URL: 'url',
     NODE_ENV: ['development', 'test', 'production'] as const,
     API_KEY: 'string',
+    MAX_CONNECTIONS: { type: 'number', min: 1, max: 100 },
   },
   client: {
     NEXT_PUBLIC_API_URL: 'url',
@@ -146,9 +149,10 @@ TypeScript knows all the types:
 
 ```typescript
 env.server.PORT;                    // number
-env.server.DATABASE_URL;            // URL object
+env.server.DATABASE_URL;            // URL
 env.server.NODE_ENV;                // 'development' | 'test' | 'production'
-env.client.NEXT_PUBLIC_API_URL;     // URL object
+env.server.MAX_CONNECTIONS;         // number
+env.client.NEXT_PUBLIC_API_URL;     // URL
 env.client.NEXT_PUBLIC_GA_ID;       // string | undefined
 ```
 
@@ -182,25 +186,24 @@ export const env = resolve({
 
 ## Custom resolvers
 
-Add cloud resolvers or other sources:
+**Note:** Custom resolvers are not yet supported in the Next.js integration because Next.js config files must be synchronous, and most resolvers (AWS Secrets, Vault, etc.) are async.
+
+If you need custom resolvers, use the core `node-env-resolver` package in your API routes or server components instead:
 
 ```javascript
-import { resolve } from 'node-env-resolver-nextjs';
+// app/api/config/route.ts
+import { resolve } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-export const env = resolve({
-  server: {
-    DATABASE_URL: 'url',
-    API_KEY: 'string',
-  },
-  client: {
-    NEXT_PUBLIC_APP_URL: 'url',
-  }
-}, {
-  extend: [
-    awsSecrets({ secretId: 'prod/app/secrets' }),
-  ]
-});
+// This is async and works in API routes
+export async function GET() {
+  const config = await resolve.with(
+    [awsSecrets({ secretId: 'prod/app/secrets' })],
+    { DATABASE_URL: 'url', API_KEY: 'string' }
+  );
+  
+  return Response.json({ status: 'ok' });
+}
 ```
 
 ## Production security
@@ -212,22 +215,15 @@ export const env = resolve({
   server: {
     DATABASE_URL: 'url',
     API_SECRET: 'string',
+    PORT: 'port:3000',
   },
   client: {
     NEXT_PUBLIC_APP_URL: 'url',
   }
-}, {
-  policies: {
-    // Allow specific vars from .env in production if needed
-    allowDotenvInProduction: ['PORT', 'NODE_ENV'],
-
-    // Enforce specific sources for sensitive data
-    enforceAllowedSources: {
-      DATABASE_URL: ['aws-secrets(prod/db)'],
-    },
-  },
 });
 ```
+
+Production platforms like Vercel automatically inject environment variables into `process.env`, so no additional configuration is needed.
 
 ## Example: SaaS app
 
@@ -241,12 +237,14 @@ export const env = resolve({
     NEXTAUTH_URL: 'url',
     STRIPE_SECRET_KEY: 'string',
     RESEND_API_KEY: 'string',
+    PORT: 'port:3000',
     NODE_ENV: ['development', 'test', 'production'] as const,
   },
   client: {
     NEXT_PUBLIC_APP_URL: 'url',
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'string',
     NEXT_PUBLIC_POSTHOG_KEY: 'string?',
+    NEXT_PUBLIC_ENABLE_ANALYTICS: false,
   }
 });
 ```

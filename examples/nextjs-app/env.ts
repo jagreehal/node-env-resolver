@@ -3,7 +3,7 @@ import { resolve } from 'node-env-resolver-nextjs';
 // For Next.js applications, we define server and client variables separately
 export const env = resolve({
   server: {
-    // Database - using shorthand syntax
+    // Database - using shorthand syntax with advanced types
     DATABASE_URL: 'postgres?',
 
     // Authentication

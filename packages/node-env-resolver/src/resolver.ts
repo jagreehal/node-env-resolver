@@ -11,6 +11,7 @@ import type {
   PolicyOptions,
   Provenance,
 } from './types';
+import { toStandardSchema } from './standard-schema';
 
 /**
  * Lazy-loaded audit logger (only imported when audit is enabled)
@@ -259,14 +260,42 @@ function needsAdvancedValidation(type: string): boolean {
 }
 
 /**
- * Lazy-loaded advanced validation (loads standard-schema + validators only when needed)
+ * Advanced validation using standard-schema (works both sync and async)
  */
-async function validateAdvancedType(
+function validateAdvancedTypeSync(
+  key: string,
+  def: EnvDefinition,
+  rawValue: string | undefined
+): ValidationResult {
+  const standardDef = toStandardSchema(key, def);
+  const validationResult = standardDef['~standard'].validate(rawValue);
+
+  // If validation is async, we can't use it in sync mode
+  if (validationResult instanceof Promise) {
+    throw new Error(
+      `Cannot validate '${key}' synchronously because the validator returned a Promise. ` +
+      `This shouldn't happen with standard types. Please file a bug report.`
+    );
+  }
+
+  if (validationResult.issues) {
+    return {
+      success: false,
+      error: validationResult.issues.map((issue) => issue.message).join('; ')
+    };
+  }
+
+  return { success: true, value: validationResult.value };
+}
+
+/**
+ * Advanced validation using standard-schema (async version)
+ */
+async function validateAdvancedTypeAsync(
   key: string,
   def: EnvDefinition,
   rawValue: string | undefined
 ): Promise<ValidationResult> {
-  const { toStandardSchema } = await import('./standard-schema');
   const standardDef = toStandardSchema(key, def);
   const validationResult = standardDef['~standard'].validate(rawValue);
 
@@ -598,9 +627,9 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       const type = def.type || 'string';
       let validationResult: ValidationResult;
 
-      // Use inline validation for basic types, lazy-load for advanced types
+      // Use inline validation for basic types, standard-schema for advanced types
       if (needsAdvancedValidation(type)) {
-        validationResult = await validateAdvancedType(key, def, rawValue);
+        validationResult = await validateAdvancedTypeAsync(key, def, rawValue);
       } else {
         validationResult = validateBasicType(key, def, rawValue);
       }
@@ -714,17 +743,14 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
 
     try {
       const type = def.type || 'string';
+      let validationResult: ValidationResult;
 
-      // Sync version: cannot use advanced validation (requires async import)
+      // Use inline validation for basic types, standard-schema for advanced types
       if (needsAdvancedValidation(type)) {
-        throw new Error(
-          `resolveSync cannot validate '${key}' with type '${type}'. ` +
-          `Advanced types (url, email, postgres, etc.) require async validation. ` +
-          `Use resolve() instead of resolveSync() for advanced validators.`
-        );
+        validationResult = validateAdvancedTypeSync(key, def, rawValue);
+      } else {
+        validationResult = validateBasicType(key, def, rawValue);
       }
-
-      const validationResult = validateBasicType(key, def, rawValue);
 
       if (!validationResult.success) {
         errors.push(validationResult.error!);
