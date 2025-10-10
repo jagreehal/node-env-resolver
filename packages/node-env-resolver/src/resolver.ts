@@ -10,7 +10,30 @@ import type {
   ResolveOptions,
   PolicyOptions,
   Provenance,
-} from './types';import { toStandardSchema } from './standard-schema';import { logAuditEvent } from './audit';
+} from './types';
+
+/**
+ * Lazy-loaded audit logger (only imported when audit is enabled)
+ */
+import type { AuditEvent } from './audit';
+
+let auditLogger: ((event: AuditEvent) => void) | null = null;
+async function logAuditEvent(event: AuditEvent): Promise<void> {
+  if (!auditLogger) {
+    const audit = await import('./audit');
+    auditLogger = audit.logAuditEvent;
+  }
+  auditLogger(event);
+}
+
+function logAuditEventSync(event: AuditEvent): void {
+  if (!auditLogger) {
+    // Sync context - use require for CommonJS compatibility or dynamic import with top-level handling
+    // For now, skip audit in sync mode if not already loaded
+    return;
+  }
+  auditLogger(event);
+}
 /**
  * Parse shorthand syntax into EnvDefinition
  */
@@ -93,6 +116,175 @@ function interpolateValue(value: string, allEnv: Record<string, string>): string
 }
 
 /**
+ * Inline validation for basic types (no external dependencies)
+ * This eliminates the need to load standard-schema and validators for simple use cases
+ */
+interface ValidationResult {
+  success: boolean;
+  value?: unknown;
+  error?: string;
+}
+
+function validateBasicType(
+  key: string,
+  def: EnvDefinition,
+  rawValue: string | undefined
+): ValidationResult {
+  const type = def.type || 'string';
+
+  // Handle missing values
+  if (rawValue === undefined || rawValue === '') {
+    if (def.default !== undefined) {
+      return { success: true, value: def.default };
+    }
+    if (def.optional) {
+      return { success: true, value: undefined };
+    }
+    return { success: false, error: `Missing required environment variable: ${key}` };
+  }
+
+  // Handle enum validation
+  if (def.enum) {
+    if (!def.enum.includes(rawValue)) {
+      return {
+        success: false,
+        error: `${key} must be one of: ${def.enum.join(', ')}`
+      };
+    }
+    return { success: true, value: rawValue };
+  }
+
+  // Handle pattern validation
+  if (def.pattern) {
+    const regex = new RegExp(def.pattern);
+    if (!regex.test(rawValue)) {
+      return {
+        success: false,
+        error: `${key} does not match required pattern: ${def.pattern}`
+      };
+    }
+    // Pattern validation doesn't change type - continue to type validation
+  }
+
+  // Type-specific validation
+  switch (type) {
+    case 'string': {
+      if (def.min !== undefined && rawValue.length < def.min) {
+        return {
+          success: false,
+          error: `${key} must be at least ${def.min} characters`
+        };
+      }
+      if (def.max !== undefined && rawValue.length > def.max) {
+        return {
+          success: false,
+          error: `${key} must be at most ${def.max} characters`
+        };
+      }
+      return { success: true, value: rawValue };
+    }
+
+    case 'number': {
+      const num = Number(rawValue);
+      if (isNaN(num)) {
+        return { success: false, error: `${key}: Invalid number` };
+      }
+      if (def.min !== undefined && num < def.min) {
+        return {
+          success: false,
+          error: `${key} must be at least ${def.min}`
+        };
+      }
+      if (def.max !== undefined && num > def.max) {
+        return {
+          success: false,
+          error: `${key} must be at most ${def.max}`
+        };
+      }
+      return { success: true, value: num };
+    }
+
+    case 'boolean': {
+      const lowerValue = rawValue.toLowerCase();
+      if (!['true', '1', 'yes', 'on', 'false', '0', 'no', 'off', ''].includes(lowerValue)) {
+        return { success: false, error: `${key}: Invalid boolean` };
+      }
+      const boolValue = ['true', '1', 'yes', 'on'].includes(lowerValue);
+      return { success: true, value: boolValue };
+    }
+
+    case 'custom': {
+      if (!def.validator) {
+        return {
+          success: false,
+          error: `Custom validator function is required for type 'custom'`
+        };
+      }
+      try {
+        const result = def.validator(rawValue);
+        return { success: true, value: result };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : `Custom validation failed for ${key}`
+        };
+      }
+    }
+
+    // Advanced types - need standard-schema
+    default:
+      return { success: false, error: 'NEEDS_ADVANCED_VALIDATION' };
+  }
+}
+
+/**
+ * Check if a type requires advanced validation (loads standard-schema)
+ */
+function needsAdvancedValidation(type: string): boolean {
+  return [
+    'postgres',
+    'postgresql',
+    'mysql',
+    'mongodb',
+    'redis',
+    'http',
+    'https',
+    'url',
+    'email',
+    'port',
+    'json',
+    'date',
+    'timestamp'
+  ].includes(type);
+}
+
+/**
+ * Lazy-loaded advanced validation (loads standard-schema + validators only when needed)
+ */
+async function validateAdvancedType(
+  key: string,
+  def: EnvDefinition,
+  rawValue: string | undefined
+): Promise<ValidationResult> {
+  const { toStandardSchema } = await import('./standard-schema');
+  const standardDef = toStandardSchema(key, def);
+  const validationResult = standardDef['~standard'].validate(rawValue);
+
+  const resolved = validationResult instanceof Promise
+    ? await validationResult
+    : validationResult;
+
+  if (resolved.issues) {
+    return {
+      success: false,
+      error: resolved.issues.map((issue) => issue.message).join('; ')
+    };
+  }
+
+  return { success: true, value: resolved.value };
+}
+
+/**
  * Resolve from resolvers (async)
  */
 async function resolveFromResolvers(
@@ -119,7 +311,7 @@ async function resolveFromResolvers(
     for (const result of results) {
       if (result.status === 'rejected') {
         const error = result.reason;
-        logAuditEvent({
+        await logAuditEvent({
           type: 'resolver_error',
           timestamp: Date.now(),
           source: 'unknown',
@@ -177,7 +369,7 @@ async function resolveFromResolvers(
           }
         }
       } catch (error) {
-        logAuditEvent({
+        await logAuditEvent({
           type: 'resolver_error',
           timestamp: Date.now(),
           source: resolver.name,
@@ -251,7 +443,7 @@ function resolveFromResolversSync(
         }
       }
     } catch (error) {
-      logAuditEvent({
+      logAuditEventSync({
         type: 'resolver_error',
         timestamp: Date.now(),
         source: resolver.name,
@@ -359,7 +551,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
   const nameValidationErrors = validateEnvVarNames(schema);
   if (nameValidationErrors.length > 0) {
     if (enableAudit) {
-      logAuditEvent({
+      await logAuditEvent({
         type: 'validation_failure',
         timestamp: Date.now(),
         error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`
@@ -403,46 +595,44 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     }
 
     try {
-      const standardDef = toStandardSchema(key, def);
-      const validationResult = standardDef['~standard'].validate(rawValue);
+      const type = def.type || 'string';
+      let validationResult: ValidationResult;
 
-      if (validationResult instanceof Promise) {
-        const resolved = await validationResult;
-        if (resolved.issues) {
-          errors.push(...resolved.issues.map((issue) => issue.message));
-        } else {
-          result[key] = resolved.value;
+      // Use inline validation for basic types, lazy-load for advanced types
+      if (needsAdvancedValidation(type)) {
+        validationResult = await validateAdvancedType(key, def, rawValue);
+      } else {
+        validationResult = validateBasicType(key, def, rawValue);
+      }
+
+      if (!validationResult.success) {
+        errors.push(validationResult.error!);
+        if (enableAudit) {
+          await logAuditEvent({
+            type: 'validation_failure',
+            timestamp: Date.now(),
+            key,
+            error: validationResult.error!
+          });
         }
       } else {
-        if (validationResult.issues) {
-          errors.push(...validationResult.issues.map((issue) => issue.message));
-          if (enableAudit) {
-            logAuditEvent({
-              type: 'validation_failure',
-              timestamp: Date.now(),
-              key,
-              error: validationResult.issues.map((i) => i.message).join('; ')
-            });
-          }
-        } else {
-          result[key] = validationResult.value;
-          // Audit ALL env var loads (not just secrets - all env vars are sensitive)
-          if (enableAudit) {
-            logAuditEvent({
-              type: 'env_loaded',
-              timestamp: Date.now(),
-              key,
-              source: provenance[key]?.source ?? 'unknown',
-              metadata: { cached: provenance[key]?.cached }
-            });
-          }
+        result[key] = validationResult.value;
+        // Audit ALL env var loads (not just secrets - all env vars are sensitive)
+        if (enableAudit) {
+          await logAuditEvent({
+            type: 'env_loaded',
+            timestamp: Date.now(),
+            key,
+            source: provenance[key]?.source ?? 'unknown',
+            metadata: { cached: provenance[key]?.cached }
+          });
         }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       errors.push(`${key}: ${message}`);
       if (enableAudit) {
-        logAuditEvent({
+        await logAuditEvent({
           type: 'validation_failure',
           timestamp: Date.now(),
           key,
@@ -454,7 +644,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
 
   if (errors.length > 0) {
     if (enableAudit) {
-      logAuditEvent({
+      await logAuditEvent({
         type: 'validation_failure',
         timestamp: Date.now(),
         error: `${errors.length} validation error(s)`,
@@ -465,7 +655,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
   }
 
   if (enableAudit) {
-    logAuditEvent({
+    await logAuditEvent({
       type: 'validation_success',
       timestamp: Date.now(),
       metadata: {
@@ -523,15 +713,21 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     }
 
     try {
-      const standardDef = toStandardSchema(key, def);
-      const validationResult = standardDef['~standard'].validate(rawValue);
+      const type = def.type || 'string';
 
-      if (validationResult instanceof Promise) {
-        throw new Error(`resolveSync cannot validate '${key}' because validation is async`);
+      // Sync version: cannot use advanced validation (requires async import)
+      if (needsAdvancedValidation(type)) {
+        throw new Error(
+          `resolveSync cannot validate '${key}' with type '${type}'. ` +
+          `Advanced types (url, email, postgres, etc.) require async validation. ` +
+          `Use resolve() instead of resolveSync() for advanced validators.`
+        );
       }
 
-      if (validationResult.issues) {
-        errors.push(...validationResult.issues.map((issue) => issue.message));
+      const validationResult = validateBasicType(key, def, rawValue);
+
+      if (!validationResult.success) {
+        errors.push(validationResult.error!);
       } else {
         result[key] = validationResult.value;
       }

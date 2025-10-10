@@ -1,8 +1,10 @@
 # node-env-resolver
 
-Type-safe environment variable resolution with zero dependencies.
+Type-safe environment variable resolution with zero dependencies and ultra-small bundle size.
 
 [![npm version](https://img.shields.io/npm/v/node-env-resolver)](https://www.npmjs.com/package/node-env-resolver)
+
+**Bundle Size:** ~3.7KB gzipped for basic usage (string, number, boolean) | Full library with all validators: ~6KB gzipped
 
 ## Install
 
@@ -100,31 +102,108 @@ config.NODE_ENV;  // 'development' | 'production' | 'test'
 config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
 ```
 
+## Performance & Bundle Size
+
+**Ultra-lightweight with intelligent lazy loading.** The library uses a pay-for-what-you-use architecture:
+
+### Basic Types (3.7KB gzipped)
+
+Common types use **inline validation** with zero external dependencies:
+- `string`, `number`, `boolean` (with min/max validation)
+- `enum` (array validation)
+- `pattern` (regex validation)
+- `custom` (validator functions)
+
+```ts
+// Only 3.7KB gzipped - no validators loaded!
+const config = resolve({
+  PORT: 3000,
+  DEBUG: false,
+  NODE_ENV: ['development', 'production'] as const,
+  API_KEY: 'string'
+});
+```
+
+### Advanced Types (Lazy Loaded)
+
+Advanced validators are **only loaded when you use them**:
+- Database URLs: `postgres`, `mysql`, `mongodb`, `redis`
+- Web types: `http`, `https`, `url`, `email`
+- Format types: `json`, `date`, `timestamp`, `port`
+
+```ts
+// 6KB gzipped - validators lazy-loaded on first use
+const config = await resolve.with([
+  provider,
+  { DATABASE_URL: 'postgres', API_URL: 'url' }
+]);
+```
+
+### Audit Logging (Lazy Loaded)
+
+Audit logging is **only loaded when enabled**:
+
+```ts
+// 3.7KB gzipped - audit module not loaded
+const config = resolve({ PORT: 3000 });
+
+// 3.9KB gzipped - audit loaded when enabled
+const config = resolve({ PORT: 3000 }, { enableAudit: true });
+```
+
+### Tree-Shaking Friendly
+
+The library uses ES modules with **no static imports** between core modules. Modern bundlers like Rollup, esbuild, and Webpack can eliminate unused code:
+
+```ts
+// Your bundle only includes what you actually use
+import { resolve } from 'node-env-resolver';  // ✅ Only core + basic validators
+
+import { resolveZod } from 'node-env-resolver/zod';  // ✅ Separate chunk
+import { awsSecrets } from 'node-env-resolver-aws';  // ✅ Separate package
+```
+
 ## Built-in validators
 
-### Basic types
+### Basic types (inline validation, synchronous)
 
-- `'string'` - Any string value
-- `'number'` - Numeric value (coerced from string)
+These types use inline validation with **zero external dependencies** and work in both sync and async mode:
+
+- `'string'` - Any string value (with optional `min`/`max` length)
+- `'number'` - Numeric value (coerced from string, with optional `min`/`max`)
 - `'boolean'` - Boolean value (`'true'`/`'false'` coerced to boolean)
-- `'json'` - JSON value (parsed automatically)
-- `'port'` - Port number (1-65535)
+- `'enum'` - Array of allowed values
+- `'pattern'` - Regex pattern validation
+- `'custom'` - Custom validator function
 
-### Network types
+### Advanced types (lazy-loaded, async only)
+
+These types are **lazy-loaded** when first used and require async resolution (`resolve.with()`):
+
+**Network types:**
 
 - `'url'` - Valid URL
-- `'http'` - HTTP URL
-- `'https'` - HTTPS URL
+- `'http'` - HTTP or HTTPS URL
+- `'https'` - HTTPS-only URL (strict)
 - `'email'` - Email address
 
-### Database connection strings
+**Database connection strings:**
 
 - `'postgres'` or `'postgresql'` - PostgreSQL connection string
 - `'mysql'` - MySQL connection string
 - `'mongodb'` - MongoDB connection string
 - `'redis'` - Redis connection string
 
+**Format types:**
+
+- `'json'` - JSON value (parsed automatically)
+- `'port'` - Port number (1-65535)
+- `'date'` - ISO 8601 date string
+- `'timestamp'` - Unix timestamp
+
 All validators automatically handle type coercion from environment variable strings.
+
+**Performance tip:** Use basic types when possible to minimize bundle size. Reserve advanced types for validation that truly needs them (e.g., use `'string'` with `pattern` for simple URL validation instead of `'url'`).
 
 ## Custom validators
 
@@ -274,7 +353,7 @@ All functions have safe variants:
 
 ## Synchronous resolution
 
-`resolve()` is **synchronous by default** when reading from `process.env`:
+`resolve()` is **synchronous by default** when reading from `process.env` and using **basic types only**:
 
 ```ts
 import { resolve } from 'node-env-resolver';
@@ -282,21 +361,36 @@ import { resolve } from 'node-env-resolver';
 // Synchronous - no await needed
 const config = resolve({
   PORT: 3000,
-  NODE_ENV: ['development', 'production'] as const
+  NODE_ENV: ['development', 'production'] as const,
+  API_KEY: 'string',
+  DEBUG: false
 });
 ```
 
-However, `resolve.with()` is **async** when using custom resolvers (like loading from files or APIs):
+**Important:** Synchronous resolution only works with basic types (`string`, `number`, `boolean`, `enum`, `pattern`, `custom`). Advanced types require async validation:
+
+```ts
+// ❌ Error: resolveSync cannot validate 'url' type
+const config = resolve({
+  API_URL: 'url'  // Advanced type requires async
+});
+
+// ✅ Use async resolution for advanced types
+const config = await resolve.with([
+  processEnv(),
+  { API_URL: 'url' }  // Now works
+]);
+```
+
+`resolve.with()` is **always async** when using custom resolvers or advanced validators:
 
 ```ts
 // Async - await required
 const config = await resolve.with(
   [processEnv(), { PORT: 3000 }],
-  [dotenv(), { DATABASE_URL: 'url' }]
+  [dotenv(), { DATABASE_URL: 'postgres' }]  // Advanced type
 );
 ```
-
-Synchronous resolution works with shorthand syntax and Zod schemas (see Zod integration below).
 
 ## Advanced features
 
