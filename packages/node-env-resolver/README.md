@@ -194,6 +194,57 @@ const config = await resolve.with(
 
 This is useful for development workflows where local overrides should take precedence over cloud secrets.
 
+### Performance optimizations
+
+The library includes two automatic performance optimizations:
+
+#### 1. Early termination with `priority: 'first'`
+
+When using `priority: 'first'`, resolvers are called sequentially, but execution **stops early** once all required environment variables are satisfied:
+
+```ts
+const config = await resolve.with(
+  [dotenv(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+  [awsSecrets(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+  [gcpSecrets(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+  { priority: 'first' }
+);
+// If dotenv() provides all required keys, awsSecrets() and gcpSecrets() are never called!
+```
+
+This is particularly valuable in development where:
+
+- Local `.env` file contains all needed variables
+- Expensive remote resolver calls (AWS Secrets Manager, Parameter Store, GCP Secret Manager) are skipped
+- Startup time is significantly reduced
+
+**What counts as "satisfied"?**
+
+- Only **required** keys (no `optional: true`, no `default` value) trigger early termination
+- Optional variables and variables with defaults do **not** prevent calling remaining resolvers
+
+#### 2. Parallel execution with `priority: 'last'`
+
+When using `priority: 'last'` (the default), all resolvers are called **in parallel** for maximum performance:
+
+```ts
+const config = await resolve.with(
+  [awsSecrets(), { DATABASE_URL: 'url' }],      // 100ms
+  [awsParameterStore(), { API_KEY: 'string' }], // 100ms
+  [gcpSecrets(), { JWT_SECRET: 'string' }]      // 100ms
+  // Default: priority: 'last'
+);
+// Total time: ~100ms (parallel) instead of ~300ms (sequential)
+```
+
+Since `priority: 'last'` means "last write wins", the order doesn't matter for conflict resolution, so all resolvers can run concurrently.
+
+**Use cases:**
+
+- Production environments loading from multiple remote secret stores
+- Fetching different variables from different sources
+- Significant speedup when resolvers have network latency
+
 ## Safe error handling
 
 Like Zod's `safeParse()`, use `safeResolve()` to get a result object instead of throwing:

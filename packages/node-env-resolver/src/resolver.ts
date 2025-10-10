@@ -99,23 +99,42 @@ async function resolveFromResolvers(
   resolvers: Resolver[],
   interpolate: boolean,
   strict: boolean,
-  priority: 'first' | 'last' = 'last'
+  priority: 'first' | 'last' = 'last',
+  allSchemaKeys?: Set<string>
 ): Promise<{ mergedEnv: Record<string, string>; provenance: Record<string, Provenance> }> {
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
 
-  for (const resolver of resolvers) {
-    try {
-      const env = await resolver.load();
+  // Optimization: parallel execution for priority: 'last'
+  // When priority is 'last', resolver order doesn't affect which values win
+  // (last write wins), so we can call all resolvers in parallel for better performance
+  if (priority === 'last') {
+    const results = await Promise.allSettled(
+      resolvers.map(async (resolver) => ({
+        resolver,
+        env: await resolver.load()
+      }))
+    );
+
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        const error = result.reason;
+        logAuditEvent({
+          type: 'resolver_error',
+          timestamp: Date.now(),
+          source: 'unknown',
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        if (strict) {
+          throw new Error(`Resolver failed: ${error instanceof Error ? error.message : error}`);
+        }
+        continue;
+      }
+
+      const { resolver, env } = result.value;
       for (const [key, value] of Object.entries(env)) {
         if (value !== undefined) {
-          // priority: 'first' - only set if not already defined
-          // priority: 'last' - always overwrite (default behavior)
-          if (priority === 'first' && mergedEnv[key] !== undefined) {
-            // Skip: value already set by earlier resolver
-            continue;
-          }
-
           mergedEnv[key] = value;
           provenance[key] = {
             source: resolver.name,
@@ -124,16 +143,50 @@ async function resolveFromResolvers(
           };
         }
       }
-    } catch (error) {
-      logAuditEvent({
-        type: 'resolver_error',
-        timestamp: Date.now(),
-        source: resolver.name,
-        error: error instanceof Error ? error.message : String(error)
-      });
+    }
+  } else {
+    // priority: 'first' - sequential execution with early termination
+    // Resolvers must run in order, but we can skip remaining resolvers
+    // if all required keys are already satisfied
+    for (const resolver of resolvers) {
+      try {
+        const env = await resolver.load();
+        for (const [key, value] of Object.entries(env)) {
+          if (value !== undefined) {
+            // priority: 'first' - only set if not already defined
+            if (mergedEnv[key] !== undefined) {
+              // Skip: value already set by earlier resolver
+              continue;
+            }
 
-      if (strict) {
-        throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`);
+            mergedEnv[key] = value;
+            provenance[key] = {
+              source: resolver.name,
+              timestamp: Date.now(),
+              ...(resolver.metadata?.cached !== undefined && { cached: resolver.metadata.cached as boolean })
+            };
+          }
+        }
+
+        // Optimization: early termination
+        // If we have ALL schema keys (including optional and defaults), skip remaining resolvers
+        if (allSchemaKeys && allSchemaKeys.size > 0) {
+          const hasAllKeys = Array.from(allSchemaKeys).every(key => mergedEnv[key] !== undefined);
+          if (hasAllKeys) {
+            break;
+          }
+        }
+      } catch (error) {
+        logAuditEvent({
+          type: 'resolver_error',
+          timestamp: Date.now(),
+          source: resolver.name,
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        if (strict) {
+          throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`);
+        }
       }
     }
   }
@@ -154,11 +207,13 @@ function resolveFromResolversSync(
   resolvers: Resolver[],
   interpolate: boolean,
   strict: boolean,
-  priority: 'first' | 'last' = 'last'
+  priority: 'first' | 'last' = 'last',
+  allSchemaKeys?: Set<string>
 ): { mergedEnv: Record<string, string>; provenance: Record<string, Provenance> } {
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
 
+  // Note: sync resolvers cannot be parallelized, always sequential
   for (const resolver of resolvers) {
     try {
       if (!resolver.loadSync) {
@@ -184,6 +239,15 @@ function resolveFromResolversSync(
             timestamp: Date.now(),
             ...(resolver.metadata?.cached !== undefined && { cached: resolver.metadata.cached as boolean })
           };
+        }
+      }
+
+      // Optimization: early termination for priority: 'first'
+      // If we have ALL schema keys (including optional and defaults), skip remaining resolvers
+      if (priority === 'first' && allSchemaKeys && allSchemaKeys.size > 0) {
+        const hasAllKeys = Array.from(allSchemaKeys).every(key => mergedEnv[key] !== undefined);
+        if (hasAllKeys) {
+          break;
         }
       }
     } catch (error) {
@@ -304,7 +368,17 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
   }
 
-  const { mergedEnv, provenance } = await resolveFromResolvers(resolvers, interpolate, strict, priority);
+  // Collect all schema keys for early termination optimization
+  // Early termination happens when ALL keys (not just required) are satisfied
+  const allSchemaKeys = new Set<string>(Object.keys(schema));
+
+  const { mergedEnv, provenance } = await resolveFromResolvers(
+    resolvers,
+    interpolate,
+    strict,
+    priority,
+    allSchemaKeys
+  );
 
   const result: Record<string, unknown> = {};
   const errors: string[] = [];
@@ -424,7 +498,17 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     priority = 'last'
   } = options;
 
-  const { mergedEnv, provenance } = resolveFromResolversSync(resolvers, interpolate, strict, priority);
+  // Collect all schema keys for early termination optimization
+  // Early termination happens when ALL keys (not just required) are satisfied
+  const allSchemaKeys = new Set<string>(Object.keys(schema));
+
+  const { mergedEnv, provenance } = resolveFromResolversSync(
+    resolvers,
+    interpolate,
+    strict,
+    priority,
+    allSchemaKeys
+  );
 
   const result: Record<string, unknown> = {};
   const errors: string[] = [];
