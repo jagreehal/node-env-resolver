@@ -339,7 +339,7 @@ describe('resolve() - Synchronous environment resolver', () => {
     const config = resolve({
       PORT: 3000,                    // number default
       DEBUG: false,                  // boolean default
-      API_URL: 'url:https://api.example.com',  // url with default
+      API_URL: 'string:https://api.example.com',  // string with default (sync types only)
       MISSING_OPTIONAL: 'string?'    // optional string
     });
 

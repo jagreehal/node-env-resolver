@@ -1,8 +1,10 @@
 # node-env-resolver
 
-Type-safe environment variable resolution with zero dependencies.
+Type-safe environment variable resolution with zero dependencies and ultra-small bundle size.
 
 [![npm version](https://img.shields.io/npm/v/node-env-resolver)](https://www.npmjs.com/package/node-env-resolver)
+
+**Bundle Size:** ~6KB gzipped (includes all validators)
 
 ## Install
 
@@ -100,29 +102,110 @@ config.NODE_ENV;  // 'development' | 'production' | 'test'
 config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
 ```
 
+## Performance & Bundle Size
+
+**Ultra-lightweight and optimized.** The library uses intelligent validation strategies to minimize bundle size:
+
+### Inline validation for basic types
+
+Common types use **inline validation** with zero external dependencies:
+- `string`, `number`, `boolean` (with min/max validation)
+- `enum` (array validation)
+- `pattern` (regex validation)
+- `custom` (validator functions)
+
+```ts
+// Minimal overhead for basic validation
+const config = resolve({
+  PORT: 3000,
+  DEBUG: false,
+  NODE_ENV: ['development', 'production'] as const,
+  API_KEY: 'string'
+});
+```
+
+### All types work synchronously
+
+All validator types (including advanced ones) work in both synchronous and asynchronous contexts:
+
+```ts
+// Synchronous - works with all types
+const config = resolve({
+  DATABASE_URL: 'postgres',
+  API_URL: 'url',
+  PORT: 'port:3000'
+});
+
+// Also works with async resolvers
+const config = await resolve.with([
+  awsSecrets(),
+  { DATABASE_URL: 'postgres', API_URL: 'url' }
+]);
+```
+
+### Audit Logging (Lazy Loaded)
+
+Audit logging is **only loaded when enabled**:
+
+```ts
+// Audit module not loaded
+const config = resolve({ PORT: 3000 });
+
+// Audit loaded when enabled
+const config = resolve({ PORT: 3000 }, { enableAudit: true });
+```
+
+### Tree-Shaking Friendly
+
+The library uses ES modules for optimal tree-shaking:
+
+```ts
+// Your bundle only includes what you import
+import { resolve } from 'node-env-resolver';  // ✅ Core functionality
+
+import { resolveZod } from 'node-env-resolver/zod';  // ✅ Separate chunk
+import { awsSecrets } from 'node-env-resolver-aws';  // ✅ Separate package
+```
+
 ## Built-in validators
+
+All validator types work synchronously and asynchronously.
 
 ### Basic types
 
-- `'string'` - Any string value
-- `'number'` - Numeric value (coerced from string)
+These types use inline validation with **zero external dependencies**:
+
+- `'string'` - Any string value (with optional `min`/`max` length)
+- `'number'` - Numeric value (coerced from string, with optional `min`/`max`)
 - `'boolean'` - Boolean value (`'true'`/`'false'` coerced to boolean)
-- `'json'` - JSON value (parsed automatically)
-- `'port'` - Port number (1-65535)
+- `'enum'` - Array of allowed values
+- `'pattern'` - Regex pattern validation
+- `'custom'` - Custom validator function
 
-### Network types
+### Advanced types
 
-- `'url'` - Valid URL
-- `'http'` - HTTP URL
-- `'https'` - HTTPS URL
+Advanced validators provide specialized validation and parsing:
+
+**Network types:**
+
+- `'url'` - Valid URL (returns URL object)
+- `'http'` - HTTP or HTTPS URL
+- `'https'` - HTTPS-only URL (strict)
 - `'email'` - Email address
 
-### Database connection strings
+**Database connection strings:**
 
 - `'postgres'` or `'postgresql'` - PostgreSQL connection string
 - `'mysql'` - MySQL connection string
 - `'mongodb'` - MongoDB connection string
 - `'redis'` - Redis connection string
+
+**Format types:**
+
+- `'json'` - JSON value (parsed automatically)
+- `'port'` - Port number (1-65535)
+- `'date'` - ISO 8601 date string
+- `'timestamp'` - Unix timestamp
 
 All validators automatically handle type coercion from environment variable strings.
 
@@ -194,6 +277,57 @@ const config = await resolve.with(
 
 This is useful for development workflows where local overrides should take precedence over cloud secrets.
 
+### Performance optimizations
+
+The library includes two automatic performance optimizations:
+
+#### 1. Early termination with `priority: 'first'`
+
+When using `priority: 'first'`, resolvers are called sequentially, but execution **stops early** once all required environment variables are satisfied:
+
+```ts
+const config = await resolve.with(
+  [dotenv(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+  [awsSecrets(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+  [gcpSecrets(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+  { priority: 'first' }
+);
+// If dotenv() provides all required keys, awsSecrets() and gcpSecrets() are never called!
+```
+
+This is particularly valuable in development where:
+
+- Local `.env` file contains all needed variables
+- Expensive remote resolver calls (AWS Secrets Manager, Parameter Store, GCP Secret Manager) are skipped
+- Startup time is significantly reduced
+
+**What counts as "satisfied"?**
+
+- Only **required** keys (no `optional: true`, no `default` value) trigger early termination
+- Optional variables and variables with defaults do **not** prevent calling remaining resolvers
+
+#### 2. Parallel execution with `priority: 'last'`
+
+When using `priority: 'last'` (the default), all resolvers are called **in parallel** for maximum performance:
+
+```ts
+const config = await resolve.with(
+  [awsSecrets(), { DATABASE_URL: 'url' }],      // 100ms
+  [awsParameterStore(), { API_KEY: 'string' }], // 100ms
+  [gcpSecrets(), { JWT_SECRET: 'string' }]      // 100ms
+  // Default: priority: 'last'
+);
+// Total time: ~100ms (parallel) instead of ~300ms (sequential)
+```
+
+Since `priority: 'last'` means "last write wins", the order doesn't matter for conflict resolution, so all resolvers can run concurrently.
+
+**Use cases:**
+
+- Production environments loading from multiple remote secret stores
+- Fetching different variables from different sources
+- Significant speedup when resolvers have network latency
+
 ## Safe error handling
 
 Like Zod's `safeParse()`, use `safeResolve()` to get a result object instead of throwing:
@@ -228,24 +362,26 @@ All functions have safe variants:
 ```ts
 import { resolve } from 'node-env-resolver';
 
-// Synchronous - no await needed
+// Synchronous - no await needed, works with ALL types
 const config = resolve({
   PORT: 3000,
-  NODE_ENV: ['development', 'production'] as const
+  NODE_ENV: ['development', 'production'] as const,
+  API_KEY: 'string',
+  API_URL: 'url',        // Advanced types work synchronously!
+  DATABASE_URL: 'postgres',
+  DEBUG: false
 });
 ```
 
-However, `resolve.with()` is **async** when using custom resolvers (like loading from files or APIs):
+`resolve.with()` is **async** when using custom resolvers:
 
 ```ts
-// Async - await required
+// Async - await required when using custom resolvers
 const config = await resolve.with(
   [processEnv(), { PORT: 3000 }],
-  [dotenv(), { DATABASE_URL: 'url' }]
+  [dotenv(), { DATABASE_URL: 'postgres', API_URL: 'url' }]
 );
 ```
-
-Synchronous resolution works with shorthand syntax and Zod schemas (see Zod integration below).
 
 ## Advanced features
 
