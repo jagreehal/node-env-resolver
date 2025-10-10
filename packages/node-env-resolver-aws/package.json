@@ -48,7 +48,7 @@
     "@aws-sdk/client-ssm": "^3.906.0"
   },
   "peerDependencies": {
-    "node-env-resolver": "^2.0.0"
+    "node-env-resolver": "^2.0.1"
   },
   "publishConfig": {
     "access": "public"
