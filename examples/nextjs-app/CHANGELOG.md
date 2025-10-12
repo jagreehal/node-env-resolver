@@ -1,5 +1,12 @@
 # nextjs-env-resolver-example
 
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies [eeb10db]
+  - node-env-resolver-nextjs@4.0.0
+
 ## 0.0.6
 
 ### Patch Changes
