@@ -1,5 +1,13 @@
 # aws-lambda-example
 
+## 1.0.6
+
+### Patch Changes
+
+- Updated dependencies [eeb10db]
+  - node-env-resolver-aws@4.0.0
+  - node-env-resolver@3.0.0
+
 ## 1.0.5
 
 ### Patch Changes
