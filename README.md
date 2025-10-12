@@ -4,7 +4,7 @@ Type-safe environment variable resolution with zero dependencies and ultra-small
 
 [![npm version](https://img.shields.io/npm/v/node-env-resolver)](https://www.npmjs.com/package/node-env-resolver)
 
-**Bundle Size:** ~3.6KB gzipped (optimized core with code splitting and lazy-loaded validators)
+**Bundle Size:** ~3.6KB gzipped
 
 ## Install
 
