@@ -20,6 +20,7 @@ import { resolve } from 'node-env-resolver';
 const config = resolve({
   PORT: 3000,
   NODE_ENV: ['development', 'production', 'test'] as const,
+  DATABASE_URL: 'postgres',
   DEBUG: false,
   API_KEY: 'string?'
 });
@@ -27,6 +28,7 @@ const config = resolve({
 // config is fully typed
 config.PORT;         // number
 config.NODE_ENV;     // 'development' | 'production' | 'test'
+config.DATABASE_URL; // valid PostgreSQL connection string
 config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
@@ -40,6 +42,7 @@ import { dotenv } from 'node-env-resolver/resolvers';
 const config = await resolve.with([dotenv(), {
   PORT: 3000,
   NODE_ENV: ['development', 'production', 'test'] as const,
+  DATABASE_URL: 'postgres',
   DEBUG: false,
   API_KEY: 'string?'
 }]);
@@ -47,6 +50,7 @@ const config = await resolve.with([dotenv(), {
 // config is fully typed
 config.PORT;         // number
 config.NODE_ENV;     // 'development' | 'production' | 'test'
+config.DATABASE_URL; // valid PostgreSQL connection string
 config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
