@@ -36,20 +36,27 @@ function logAuditEventSync(event: AuditEvent): void {
 }
 
 /**
- * Lazy-loaded validators (only imported when advanced types are used)
+ * Validators - imported at module level for sync validation support
+ * This allows advanced types (url, email, postgres, etc.) to work in sync contexts like Next.js
+ */
+import * as validatorsModule from './validators';
+
+/**
+ * Lazy-loaded validators reference (only set when advanced types are used)
  */
 let validators: typeof import('./validators') | null = null;
+
 async function loadValidators() {
   if (!validators) {
-    validators = await import('./validators');
+    validators = validatorsModule;
   }
   return validators;
 }
 
 function loadValidatorsSync() {
   if (!validators) {
-    // In sync context, validators must be pre-loaded or types must be basic
-    throw new Error('Advanced validators not loaded in sync context');
+    // Use the pre-imported validators module for sync validation
+    validators = validatorsModule;
   }
   return validators;
 }

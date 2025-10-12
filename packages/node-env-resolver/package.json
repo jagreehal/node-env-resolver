@@ -34,6 +34,10 @@
       "import": "./dist/utils.js",
       "types": "./dist/utils.d.ts"
     },
+    "./validators": {
+      "import": "./dist/validators.js",
+      "types": "./dist/validators.d.ts"
+    },
     "./audit": {
       "import": "./dist/audit.js",
       "types": "./dist/audit.d.ts"
