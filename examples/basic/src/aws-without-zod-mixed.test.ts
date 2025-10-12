@@ -3,7 +3,8 @@
  * Combining shorthand and full object syntax for flexibility
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, cached, awsCache, processEnv } from 'node-env-resolver';
+import { resolve, processEnv } from 'node-env-resolver';
+import { cached, awsCache } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
 // Mock resolvers for testing

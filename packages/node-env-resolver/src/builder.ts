@@ -20,9 +20,9 @@ import type {
   EnvSchema,
   InferSimpleSchema,
   ResolveOptions,
-} from './types.js';
-import { normalizeSchema, resolveEnvInternalSync } from './resolver.js';
-import { dotenv, processEnv } from './resolvers.js';
+} from './types';
+import { normalizeSchema, resolveEnvInternalSync } from './resolver';
+import { dotenv, processEnv } from './resolvers';
 // Type utility: Merge two schemas (last-wins)
 export type MergeSchemas<T, U> = Omit<T, keyof U> & U;
 

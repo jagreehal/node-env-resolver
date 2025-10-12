@@ -5,7 +5,8 @@
 
 import {
   processEnv, type Resolver, type PolicyOptions
-} from './index.js';
+} from './index';
+import type { SafeResolveResult, ValidationIssue } from './validation-types';
 async function resolveFromResolvers(resolvers: Resolver[], interpolate: boolean, strict: boolean) {
   let env: Record<string, string> = {};
   for (const resolver of resolvers) {
@@ -29,34 +30,24 @@ async function resolveFromResolvers(resolvers: Resolver[], interpolate: boolean,
 export type InferZodOutput<T> = T extends { parse: (input: unknown) => infer R } ? R : never;
 
 /**
- * Convert a Zod schema to Standard Schema format
+ * Convert Zod error to unified ValidationIssue format
  */
-export function zodToStandardSchema<T extends { safeParseAsync: (input: unknown) => Promise<{ success: boolean; data?: unknown; error?: { issues: Array<{ message: string; path: unknown[] }> } }> }>(zodSchema: T) {
-  return {
-    '~standard': {
-      version: 1 as const,
-      vendor: 'zod',
-      validate: async (value: unknown) => {
-        const result = await zodSchema.safeParseAsync(value);
-        if (result.success) {
-          return { value: result.data };
-        }
-        return {
-          issues: result.error?.issues.map(issue => ({
-            message: issue.message,
-            path: issue.path
-          })) || [{
-            message: 'Zod validation failed',
-            path: []
-          }]
-        };
-      },
-      types: {
-        input: {} as unknown,
-        output: {} as InferZodOutput<T>
-      }
-    }
-  };
+function zodErrorToIssues(zodError: unknown): ValidationIssue[] {
+  if (!zodError || typeof zodError !== 'object') {
+    return [{ path: [], message: 'Validation failed', code: 'unknown_error' }];
+  }
+
+  const error = zodError as { issues?: Array<{ path: (string | number)[]; message: string; code?: string }> };
+
+  if (!error.issues || !Array.isArray(error.issues)) {
+    return [{ path: [], message: 'Validation failed', code: 'unknown_error' }];
+  }
+
+  return error.issues.map(issue => ({
+    path: issue.path || [],
+    message: issue.message,
+    code: issue.code
+  }));
 }
 
 /**
@@ -65,7 +56,7 @@ export function zodToStandardSchema<T extends { safeParseAsync: (input: unknown)
  * @example
  * ```ts
  * import { resolveZod } from 'node-env-resolver/zod';
- * import { z } from 'zod';
+ * import * as z from 'zod';
  *
  * const schema = z.object({
  *   PORT: z.coerce.number().default(3000),
@@ -86,12 +77,12 @@ export async function resolveZod<TSchema extends { parse: (input: unknown) => un
 }
 
 /**
- * Safe version - returns result object instead of throwing (Zod-like pattern)
+ * Safe version - returns result object instead of throwing (unified error format)
  *
  * @example
  * ```ts
  * import { safeResolveZod } from 'node-env-resolver/zod';
- * import { z } from 'zod';
+ * import * as z from 'zod';
  *
  * const schema = z.object({
  *   PORT: z.coerce.number(),
@@ -104,16 +95,16 @@ export async function resolveZod<TSchema extends { parse: (input: unknown) => un
  *   console.log(result.data.PORT);
  * } else {
  *   console.error(result.error);
+ *   result.issues.forEach(issue => {
+ *     console.log(`${issue.path.join('.')}: ${issue.message}`);
+ *   });
  * }
  * ```
  */
-export async function safeResolveZod<TSchema extends { safeParse: (input: unknown) => { success: boolean; data?: unknown; error?: { issues: Array<{ message: string }> } } }>(
+export async function safeResolveZod<TSchema extends { safeParse: (input: unknown) => { success: boolean; data?: unknown; error?: unknown } }>(
   zodSchema: TSchema,
   options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
-): Promise<
-  | { success: true; data: InferZodOutput<TSchema> }
-  | { success: false; error: string }
-> {
+): Promise<SafeResolveResult<InferZodOutput<TSchema>>> {
   try {
     const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
     const mergedEnv = await resolveFromResolvers(resolvers, interpolate, strict);
@@ -123,12 +114,14 @@ export async function safeResolveZod<TSchema extends { safeParse: (input: unknow
       return { success: true, data: result.data as InferZodOutput<TSchema> };
     }
 
-    const errorMessage = result.error?.issues.map(issue => issue.message).join(', ') || 'Validation failed';
-    return { success: false, error: errorMessage };
+    const issues = zodErrorToIssues(result.error);
+    const errorMessage = issues.map(issue => issue.message).join(', ');
+    return { success: false, error: errorMessage, issues };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      issues: [{ path: [], message: error instanceof Error ? error.message : String(error), code: 'resolver_error' }]
     };
   }
 }
@@ -163,7 +156,7 @@ function resolveFromResolversSync(resolvers: Resolver[], interpolate: boolean, s
  * @example
  * ```ts
  * import { resolveSyncZod } from 'node-env-resolver/zod';
- * import { z } from 'zod';
+ * import * as z from 'zod';
  *
  * const schema = z.object({
  *   PORT: z.coerce.number().default(3000)
@@ -183,12 +176,12 @@ export function resolveSyncZod<TSchema extends { parse: (input: unknown) => unkn
 }
 
 /**
- * Safe sync version - returns result object instead of throwing
+ * Safe sync version - returns result object instead of throwing (unified error format)
  *
  * @example
  * ```ts
  * import { safeResolveSyncZod } from 'node-env-resolver/zod';
- * import { z } from 'zod';
+ * import * as z from 'zod';
  *
  * const schema = z.object({
  *   PORT: z.coerce.number()
@@ -200,16 +193,16 @@ export function resolveSyncZod<TSchema extends { parse: (input: unknown) => unkn
  *   console.log(result.data.PORT);
  * } else {
  *   console.error(result.error);
+ *   result.issues.forEach(issue => {
+ *     console.log(`${issue.path.join('.')}: ${issue.message}`);
+ *   });
  * }
  * ```
  */
-export function safeResolveSyncZod<TSchema extends { safeParse: (input: unknown) => { success: boolean; data?: unknown; error?: { issues: Array<{ message: string }> } } }>(
+export function safeResolveSyncZod<TSchema extends { safeParse: (input: unknown) => { success: boolean; data?: unknown; error?: unknown } }>(
   zodSchema: TSchema,
   options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
-):
-  | { success: true; data: InferZodOutput<TSchema> }
-  | { success: false; error: string }
-{
+): SafeResolveResult<InferZodOutput<TSchema>> {
   try {
     const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
     const mergedEnv = resolveFromResolversSync(resolvers, interpolate, strict);
@@ -219,12 +212,14 @@ export function safeResolveSyncZod<TSchema extends { safeParse: (input: unknown)
       return { success: true, data: result.data as InferZodOutput<TSchema> };
     }
 
-    const errorMessage = result.error?.issues.map(issue => issue.message).join(', ') || 'Validation failed';
-    return { success: false, error: errorMessage };
+    const issues = zodErrorToIssues(result.error);
+    const errorMessage = issues.map(issue => issue.message).join(', ');
+    return { success: false, error: errorMessage, issues };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      issues: [{ path: [], message: error instanceof Error ? error.message : String(error), code: 'resolver_error' }]
     };
   }
 }

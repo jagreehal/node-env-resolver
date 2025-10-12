@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { processEnv } from 'node-env-resolver';
 import { resolveZod, resolveSyncZod, safeResolveSyncZod } from 'node-env-resolver/zod';
-import { z } from 'zod';
+import * as z from 'zod';
 
 // Mock process.env for testing
 const originalEnv = process.env;

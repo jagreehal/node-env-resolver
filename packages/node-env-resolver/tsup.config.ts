@@ -1,13 +1,13 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/web.ts', 'src/zod.ts', 'src/standard-schema.ts', 'src/utils.ts', 'src/validators.ts', 'src/audit.ts', 'src/builder.ts', 'src/resolvers.ts', 'src/resolver.ts', 'src/types.ts'],
+  entry: ['src/index.ts', 'src/web.ts', 'src/zod.ts', 'src/valibot.ts', 'src/utils.ts', 'src/validators.ts', 'src/audit.ts', 'src/builder.ts', 'src/resolvers.ts', 'src/resolver.ts', 'src/types.ts', 'src/validation-types.ts'],
   outDir: './dist/',
   clean: false,
   format: ['esm'],
-  splitting: true,
+  splitting: true, // Enable code splitting for dynamic imports
   sourcemap: process.env.NODE_ENV !== 'production',
-  bundle: false,
+  bundle: true,
   watch: false,
   treeshake: true,
   dts: false,
@@ -15,4 +15,5 @@ export default defineConfig({
   minify: process.env.NODE_ENV === 'production',
   keepNames: false,
   removeNodeProtocol: false,
+  external: [],
 });

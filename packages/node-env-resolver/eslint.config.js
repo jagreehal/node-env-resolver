@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
+import importZod from 'eslint-plugin-import-zod';
 import globals from 'globals';
 
 export default [
@@ -21,6 +22,7 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tseslint,
+      'import-zod': importZod,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
@@ -32,6 +34,7 @@ export default [
       'prefer-template': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
+      'import-zod/prefer-zod-namespace': 'error',
     },
   },
   {
@@ -50,6 +53,7 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tseslint,
+      'import-zod': importZod,
     },
     rules: {
       'no-console': 'off',
@@ -60,6 +64,7 @@ export default [
       'prefer-template': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
+      'import-zod/prefer-zod-namespace': 'error',
     },
   },
   {
