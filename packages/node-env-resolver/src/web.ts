@@ -3,9 +3,9 @@
  * Import from 'node-env-resolver/web' to use client-safe environment resolution
  */
 
-import { resolve } from './index.js';
-import { processEnv, dotenv } from './resolvers.js';
-import type { Resolver, EnvDefinition, EnvSchema, PolicyOptions, SimpleEnvSchema, InferSimpleSchema } from './types.js';
+import { resolve } from './index';
+import { processEnv, dotenv } from './resolvers';
+import type { Resolver, EnvDefinition, EnvSchema, PolicyOptions, SimpleEnvSchema, InferSimpleSchema } from './types';
 // Runtime detection helper
 // Type for globalThis with window property
 interface GlobalWithWindow {

@@ -3,7 +3,8 @@
  * Using the composition API for explicit provider mapping
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, cached, TTL } from 'node-env-resolver';
+import { resolve, processEnv } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
 // Mock AWS Secrets Manager for testing

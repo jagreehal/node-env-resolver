@@ -36,32 +36,37 @@ export type {
   InferSchema,
   InferSimpleSchema,
 } from './types';
+// Re-export validation types for Zod/Valibot integrations
+export type {
+  ValidationIssue,
+  SafeResolveResult as SafeResolveResultWithIssues
+} from './validation-types';
 // Re-export audit types and functions
 export { getAuditLog, clearAuditLog, type AuditEvent, type AuditEventType } from './audit';
 // Import resolver functions
 import { normalizeSchema, resolveEnvInternal, resolveEnvInternalSync } from './resolver';
-// Import and re-export built-in resolvers
-import { dotenv, processEnv, type DotenvOptions } from './resolvers';export { dotenv, processEnv, type DotenvOptions };
 
 // Import type helper from builder
 import { type MergeSchemas } from './builder';
-// Re-export utility resolvers
-export { cached, retry, TTL, awsCache, type CacheOptions } from './utils';
-// Re-export Standard Schema integration
-export { 
-  toStandardSchema, 
-  schemaToStandardSchema, 
-  validateWithStandardSchema, 
-  validateEnvWithStandardSchema,
-  type StandardSchemaEnvDefinition,
-  type StandardSchemaEnvSchema 
-} from './standard-schema';
-// Cloud resolvers are available as separate packages, e.g. node-env-resolver/aws
+
+// Inlined processEnv resolver (avoids importing resolvers.ts with dotenv parser)
+// Note: Exported for use in zod.ts, valibot.ts, and user code
+export function processEnv(): Resolver {
+  return {
+    name: 'process.env',
+    async load() {
+      return { ...process.env } as Record<string, string>;
+    },
+    loadSync() {
+      return { ...process.env } as Record<string, string>;
+    }
+  };
+}
 
 // Helper to build default resolvers (just processEnv)
 function buildDefaultResolvers(): Resolver[] {
   // Only use process.env for consistency across all environments
-  // Users can explicitly add dotenv() if they want .env file support
+  // Users can explicitly add dotenv() from 'node-env-resolver/resolvers' if they want .env file support
   return [processEnv()];
 }
 

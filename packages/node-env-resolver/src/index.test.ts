@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolve } from './index';
 import { resolveZod } from './zod';
-import {
-  validateWithStandardSchema,
-  toStandardSchema,
-  schemaToStandardSchema
-} from './standard-schema';
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
   name: 'mock',
@@ -202,38 +197,6 @@ describe('Simplified resolve() API', () => {
     )).rejects.toThrow(/Invalid email/);
   });
 
-  it('handles json type validation', async () => {
-    const config = await resolve.with(
-      [{
-        name: 'mock',
-        async load() {
-          return {
-            FEATURE_FLAGS: '{"analytics":true,"beta":false}'
-          } as Record<string, string>;
-        },
-      }, {
-        FEATURE_FLAGS: 'json',
-        CONFIG: 'json?',
-      }]
-    );
-
-    expect(config.FEATURE_FLAGS).toEqual({ analytics: true, beta: false });
-    expect(config.CONFIG).toBeUndefined();
-  });
-
-  it('throws on invalid json', async () => {
-    await expect(resolve.with(
-      [{
-        name: 'mock',
-        async load() {
-          return { CONFIG: '{invalid json}' } as Record<string, string>;
-        },
-      }, {
-        CONFIG: 'json',
-      }]
-    )).rejects.toThrow(/Invalid JSON/);
-  });
-
   it('handles email with default value', async () => {
     const config = await resolve.with(
       [{
@@ -247,21 +210,6 @@ describe('Simplified resolve() API', () => {
     );
 
     expect(config.ADMIN_EMAIL).toBe('admin@example.com');
-  });
-
-  it('handles json with default value', async () => {
-    const config = await resolve.with(
-      [{
-        name: 'mock',
-        async load() {
-          return {} as Record<string, string>;
-        },
-      }, {
-        SETTINGS: 'json:{"theme":"dark"}',
-      }]
-    );
-
-    expect(config.SETTINGS).toEqual({ theme: 'dark' });
   });
 });
 
@@ -287,26 +235,7 @@ describe('Zod and Standard Schema helpers', () => {
     expect(env.PORT).toBe(4000);
   });
 
-  it('works with Standard Schema V1', async () => {
-    // Create a proper Standard Schema using node-env-resolver's helper
-    const nodeEnvSchema = {
-      type: 'string' as const,
-      default: 'development'
-    };
-    
-    const standardSchema = toStandardSchema('NODE_ENV', nodeEnvSchema);
-    
-    // Test individual validation
-    const result = await validateWithStandardSchema(standardSchema, 'test');
-    expect((result as { value: string }).value).toBe('test');
-    
-    // Test schema conversion
-    const schema = {
-      NODE_ENV: nodeEnvSchema
-    };
-    const standardSchemaMap = schemaToStandardSchema(schema);
-    expect(standardSchemaMap.NODE_ENV['~standard'].vendor).toBe('node-env-resolver');
-  });
+  // Standard Schema removed - use direct Zod/Valibot integrations instead
 });
 
 describe('resolve() - Synchronous environment resolver', () => {

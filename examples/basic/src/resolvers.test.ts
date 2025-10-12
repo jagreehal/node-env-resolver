@@ -3,7 +3,8 @@
  * Demonstrates async usage with AWS Secrets and caching
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, safeResolve, processEnv, cached, getAuditLog } from 'node-env-resolver';
+import { resolve, safeResolve, processEnv, getAuditLog } from 'node-env-resolver';
+import { cached } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
 // Mock AWS Secrets Manager for testing

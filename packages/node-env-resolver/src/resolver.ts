@@ -11,7 +11,6 @@ import type {
   PolicyOptions,
   Provenance,
 } from './types';
-import { toStandardSchema } from './standard-schema';
 
 /**
  * Lazy-loaded audit logger (only imported when audit is enabled)
@@ -35,6 +34,41 @@ function logAuditEventSync(event: AuditEvent): void {
   }
   auditLogger(event);
 }
+
+/**
+ * Validators - imported at module level for sync validation support
+ * This allows advanced types (url, email, postgres, etc.) to work in sync contexts like Next.js
+ */
+import * as validatorsModule from './validators';
+
+/**
+ * Lazy-loaded validators reference (only set when advanced types are used)
+ */
+let validators: typeof import('./validators') | null = null;
+
+async function loadValidators() {
+  if (!validators) {
+    validators = validatorsModule;
+  }
+  return validators;
+}
+
+function loadValidatorsSync() {
+  if (!validators) {
+    // Use the pre-imported validators module for sync validation
+    validators = validatorsModule;
+  }
+  return validators;
+}
+
+/**
+ * Types that require advanced validators
+ */
+const ADVANCED_TYPES = new Set([
+  'postgres', 'postgresql', 'mysql', 'mongodb', 'redis',
+  'http', 'https', 'url', 'email', 'port', 'json', 'date', 'timestamp'
+]);
+
 /**
  * Parse shorthand syntax into EnvDefinition
  */
@@ -61,6 +95,12 @@ function parseShorthand(value: string): EnvDefinition {
       defaultValue = Number(defaultStr);
     } else if (type === 'boolean') {
       defaultValue = defaultStr === 'true';
+    } else if (type === 'json') {
+      try {
+        defaultValue = JSON.parse(defaultStr);
+      } catch {
+        // Keep as string if JSON parse fails
+      }
     }
 
     return {
@@ -118,7 +158,8 @@ function interpolateValue(value: string, allEnv: Record<string, string>): string
 
 /**
  * Inline validation for basic types (no external dependencies)
- * This eliminates the need to load standard-schema and validators for simple use cases
+ * Core types: string, number, boolean, enum, pattern, custom
+ * Advanced types lazy-load validators from validators.ts
  */
 interface ValidationResult {
   success: boolean;
@@ -167,7 +208,7 @@ function validateBasicType(
     // Pattern validation doesn't change type - continue to type validation
   }
 
-  // Type-specific validation
+  // Type-specific validation (basic types only)
   switch (type) {
     case 'string': {
       if (def.min !== undefined && rawValue.length < def.min) {
@@ -232,85 +273,183 @@ function validateBasicType(
       }
     }
 
-    // Advanced types - need standard-schema
+    // Advanced types need validators
     default:
       return { success: false, error: 'NEEDS_ADVANCED_VALIDATION' };
   }
 }
 
 /**
- * Check if a type requires advanced validation (loads standard-schema)
- */
-function needsAdvancedValidation(type: string): boolean {
-  return [
-    'postgres',
-    'postgresql',
-    'mysql',
-    'mongodb',
-    'redis',
-    'http',
-    'https',
-    'url',
-    'email',
-    'port',
-    'json',
-    'date',
-    'timestamp'
-  ].includes(type);
-}
-
-/**
- * Advanced validation using standard-schema (works both sync and async)
- */
-function validateAdvancedTypeSync(
-  key: string,
-  def: EnvDefinition,
-  rawValue: string | undefined
-): ValidationResult {
-  const standardDef = toStandardSchema(key, def);
-  const validationResult = standardDef['~standard'].validate(rawValue);
-
-  // If validation is async, we can't use it in sync mode
-  if (validationResult instanceof Promise) {
-    throw new Error(
-      `Cannot validate '${key}' synchronously because the validator returned a Promise. ` +
-      `This shouldn't happen with standard types. Please file a bug report.`
-    );
-  }
-
-  if (validationResult.issues) {
-    return {
-      success: false,
-      error: validationResult.issues.map((issue) => issue.message).join('; ')
-    };
-  }
-
-  return { success: true, value: validationResult.value };
-}
-
-/**
- * Advanced validation using standard-schema (async version)
+ * Advanced validation using lazy-loaded validators (async)
  */
 async function validateAdvancedTypeAsync(
   key: string,
   def: EnvDefinition,
   rawValue: string | undefined
 ): Promise<ValidationResult> {
-  const standardDef = toStandardSchema(key, def);
-  const validationResult = standardDef['~standard'].validate(rawValue);
+  const type = def.type || 'string';
 
-  const resolved = validationResult instanceof Promise
-    ? await validationResult
-    : validationResult;
-
-  if (resolved.issues) {
-    return {
-      success: false,
-      error: resolved.issues.map((issue) => issue.message).join('; ')
-    };
+  // Handle missing values
+  if (rawValue === undefined || rawValue === '') {
+    if (def.default !== undefined) {
+      return { success: true, value: def.default };
+    }
+    if (def.optional) {
+      return { success: true, value: undefined };
+    }
+    return { success: false, error: `Missing required environment variable: ${key}` };
   }
 
-  return { success: true, value: resolved.value };
+  const v = await loadValidators();
+
+  // Call appropriate validator based on type
+  let validatorResult;
+  switch (type) {
+    case 'postgres':
+    case 'postgresql':
+      validatorResult = v.validatePostgres(rawValue);
+      break;
+    case 'mysql':
+      validatorResult = v.validateMysql(rawValue);
+      break;
+    case 'mongodb':
+      validatorResult = v.validateMongodb(rawValue);
+      break;
+    case 'redis':
+      validatorResult = v.validateRedis(rawValue);
+      break;
+    case 'http':
+      validatorResult = v.validateHttp(rawValue);
+      break;
+    case 'https':
+      validatorResult = v.validateHttps(rawValue);
+      break;
+    case 'url':
+      validatorResult = v.validateUrl(rawValue);
+      break;
+    case 'email':
+      validatorResult = v.validateEmail(rawValue);
+      break;
+    case 'port':
+      validatorResult = v.validatePort(rawValue);
+      if (validatorResult.valid) {
+        return { success: true, value: Number(rawValue) };
+      }
+      break;
+    case 'json':
+      validatorResult = v.validateJson(rawValue);
+      if (validatorResult.valid) {
+        return { success: true, value: JSON.parse(rawValue) };
+      }
+      break;
+    case 'date':
+      validatorResult = v.validateDate(rawValue);
+      break;
+    case 'timestamp':
+      validatorResult = v.validateTimestamp(rawValue);
+      if (validatorResult.valid) {
+        return { success: true, value: Number(rawValue) };
+      }
+      break;
+    default:
+      return { success: false, error: `Unknown type: ${type}` };
+  }
+
+  if (!validatorResult.valid) {
+    return { success: false, error: `${key}: ${validatorResult.error}` };
+  }
+
+  return { success: true, value: rawValue };
+}
+
+/**
+ * Advanced validation using lazy-loaded validators (sync)
+ */
+function validateAdvancedTypeSync(
+  key: string,
+  def: EnvDefinition,
+  rawValue: string | undefined
+): ValidationResult {
+  const type = def.type || 'string';
+
+  // Handle missing values
+  if (rawValue === undefined || rawValue === '') {
+    if (def.default !== undefined) {
+      return { success: true, value: def.default };
+    }
+    if (def.optional) {
+      return { success: true, value: undefined };
+    }
+    return { success: false, error: `Missing required environment variable: ${key}` };
+  }
+
+  try {
+    const v = loadValidatorsSync();
+
+    // Call appropriate validator based on type
+    let validatorResult;
+    switch (type) {
+      case 'postgres':
+      case 'postgresql':
+        validatorResult = v.validatePostgres(rawValue);
+        break;
+      case 'mysql':
+        validatorResult = v.validateMysql(rawValue);
+        break;
+      case 'mongodb':
+        validatorResult = v.validateMongodb(rawValue);
+        break;
+      case 'redis':
+        validatorResult = v.validateRedis(rawValue);
+        break;
+      case 'http':
+        validatorResult = v.validateHttp(rawValue);
+        break;
+      case 'https':
+        validatorResult = v.validateHttps(rawValue);
+        break;
+      case 'url':
+        validatorResult = v.validateUrl(rawValue);
+        break;
+      case 'email':
+        validatorResult = v.validateEmail(rawValue);
+        break;
+      case 'port':
+        validatorResult = v.validatePort(rawValue);
+        if (validatorResult.valid) {
+          return { success: true, value: Number(rawValue) };
+        }
+        break;
+      case 'json':
+        validatorResult = v.validateJson(rawValue);
+        if (validatorResult.valid) {
+          return { success: true, value: JSON.parse(rawValue) };
+        }
+        break;
+      case 'date':
+        validatorResult = v.validateDate(rawValue);
+        break;
+      case 'timestamp':
+        validatorResult = v.validateTimestamp(rawValue);
+        if (validatorResult.valid) {
+          return { success: true, value: Number(rawValue) };
+        }
+        break;
+      default:
+        return { success: false, error: `Unknown type: ${type}` };
+    }
+
+    if (!validatorResult.valid) {
+      return { success: false, error: `${key}: ${validatorResult.error}` };
+    }
+
+    return { success: true, value: rawValue };
+  } catch {
+    return { 
+      success: false, 
+      error: `${key}: Advanced type '${type}' requires async validation. Use resolve.with() or preload validators.`
+    };
+  }
 }
 
 /**
@@ -627,11 +766,15 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       const type = def.type || 'string';
       let validationResult: ValidationResult;
 
-      // Use inline validation for basic types, standard-schema for advanced types
-      if (needsAdvancedValidation(type)) {
+      // Check if type needs advanced validation
+      if (ADVANCED_TYPES.has(type)) {
         validationResult = await validateAdvancedTypeAsync(key, def, rawValue);
       } else {
         validationResult = validateBasicType(key, def, rawValue);
+        // If basic validation says it needs advanced validation, try that
+        if (!validationResult.success && validationResult.error === 'NEEDS_ADVANCED_VALIDATION') {
+          validationResult = await validateAdvancedTypeAsync(key, def, rawValue);
+        }
       }
 
       if (!validationResult.success) {
@@ -745,11 +888,16 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       const type = def.type || 'string';
       let validationResult: ValidationResult;
 
-      // Use inline validation for basic types, standard-schema for advanced types
-      if (needsAdvancedValidation(type)) {
+      // Check if type needs advanced validation
+      if (ADVANCED_TYPES.has(type)) {
+        // In sync context, try to use pre-loaded validators
         validationResult = validateAdvancedTypeSync(key, def, rawValue);
       } else {
         validationResult = validateBasicType(key, def, rawValue);
+        // If basic validation says it needs advanced validation, try sync version
+        if (!validationResult.success && validationResult.error === 'NEEDS_ADVANCED_VALIDATION') {
+          validationResult = validateAdvancedTypeSync(key, def, rawValue);
+        }
       }
 
       if (!validationResult.success) {

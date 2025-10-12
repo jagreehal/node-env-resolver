@@ -4,7 +4,32 @@
 
 // Core types
 export interface EnvDefinition {
-  type?: 'string' | 'number' | 'boolean' | 'url' | 'email' | 'json' | 'port' | 'postgres' | 'postgresql' | 'mysql' | 'mongodb' | 'redis' | 'http' | 'https' | 'date' | 'timestamp' | 'custom';
+  /**
+   * Type of the environment variable
+   * 
+   * Basic types (inline validation, ~2KB core):
+   * - 'string': Any string value (default)
+   * - 'number': Coerced to number
+   * - 'boolean': Coerced to boolean
+   * - 'custom': Custom validator function
+   * 
+   * Advanced types (lazy-loaded validators, tree-shakeable):
+   * - 'postgres'/'postgresql': PostgreSQL connection URL
+   * - 'mysql': MySQL connection URL
+   * - 'mongodb': MongoDB connection URL (supports replica sets)
+   * - 'redis': Redis connection URL
+   * - 'http': HTTP or HTTPS URL
+   * - 'https': HTTPS-only URL
+   * - 'url': Generic URL
+   * - 'email': Email address
+   * - 'port': Port number 1-65535
+   * - 'json': JSON value (returns parsed object)
+   * - 'date': ISO 8601 date
+   * - 'timestamp': Unix timestamp (seconds)
+   */
+  type?: 'string' | 'number' | 'boolean' | 'custom' |
+        'postgres' | 'postgresql' | 'mysql' | 'mongodb' | 'redis' |
+        'http' | 'https' | 'url' | 'email' | 'port' | 'json' | 'date' | 'timestamp';
   enum?: readonly string[];
   default?: string | number | boolean;
   optional?: boolean;
@@ -98,11 +123,9 @@ export type InferType<T extends EnvDefinition> =
   T['enum'] extends readonly (infer U)[] ? U :
   T['type'] extends 'number' ? number :
   T['type'] extends 'boolean' ? boolean :
-  T['type'] extends 'url' ? string :
   T['type'] extends 'port' ? number :
   T['type'] extends 'timestamp' ? number :
-  T['type'] extends 'json' ? unknown :
-  T['type'] extends 'postgres' | 'postgresql' | 'mysql' | 'mongodb' | 'redis' | 'http' | 'https' | 'date' ? string :
+  T['type'] extends 'custom' ? unknown :
   string;
 
 export type InferSchema<T extends EnvSchema> = {

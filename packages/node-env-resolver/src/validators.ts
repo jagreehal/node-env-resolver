@@ -1,6 +1,9 @@
 /**
- * Shared validation functions for environment variable types
- * Used by both standard-schema.ts and web.ts
+ * Shared validation functions for advanced environment variable types
+ * Import these when you need advanced validation beyond basic string/number/boolean
+ * 
+ * These validators are tree-shakeable - only included if you use advanced types like:
+ * 'postgres', 'mysql', 'mongodb', 'redis', 'http', 'https', 'url', 'email', 'port', 'json', 'date', 'timestamp'
  */
 
 export interface ValidationResult {

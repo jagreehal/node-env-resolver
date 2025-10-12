@@ -18,9 +18,9 @@
       "import": "./dist/zod.js",
       "types": "./dist/zod.d.ts"
     },
-    "./standard-schema": {
-      "import": "./dist/standard-schema.js",
-      "types": "./dist/standard-schema.d.ts"
+    "./valibot": {
+      "import": "./dist/valibot.js",
+      "types": "./dist/valibot.d.ts"
     },
     "./web": {
       "import": "./dist/web.js",
@@ -94,12 +94,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
-    "@standard-schema/spec": "^1.0.0",
-    "@types/node": "^24.7.0",
+    "@types/node": "^24.7.2",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
     "eslint": "^9.37.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import-zod": "^1.2.0",
     "prettier": "^3.6.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",

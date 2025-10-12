@@ -4,7 +4,7 @@ Type-safe environment variable resolution with zero dependencies and ultra-small
 
 [![npm version](https://img.shields.io/npm/v/node-env-resolver)](https://www.npmjs.com/package/node-env-resolver)
 
-**Bundle Size:** ~6KB gzipped (includes all validators)
+**Bundle Size:** ~3.6KB gzipped (optimized core with code splitting and lazy-loaded validators)
 
 ## Install
 
@@ -19,14 +19,14 @@ import { resolve } from 'node-env-resolver';
 
 const config = resolve({
   PORT: 3000,
-  DATABASE_URL: 'postgres',
+  NODE_ENV: ['development', 'production', 'test'] as const,
   DEBUG: false,
   API_KEY: 'string?'
 });
 
 // config is fully typed
 config.PORT;         // number
-config.DATABASE_URL; // verified postgres connection string
+config.NODE_ENV;     // 'development' | 'production' | 'test'
 config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
@@ -35,17 +35,18 @@ config.API_KEY;      // string | undefined
 
 ```ts
 import { resolve } from 'node-env-resolver';
+import { dotenv } from 'node-env-resolver/resolvers';
 
-const config = await resolve.with([asyncEnvProvider(),{
+const config = await resolve.with([dotenv(), {
   PORT: 3000,
-  DATABASE_URL: 'postgres',
+  NODE_ENV: ['development', 'production', 'test'] as const,
   DEBUG: false,
   API_KEY: 'string?'
 }]);
 
 // config is fully typed
 config.PORT;         // number
-config.DATABASE_URL; // verified postgres connection string
+config.NODE_ENV;     // 'development' | 'production' | 'test'
 config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
@@ -58,8 +59,8 @@ If an environment variable is missing and has no default, validation fails:
 
 ```ts
 const config = resolve({
-  DATABASE_URL: 'url',  // Required
-  API_KEY: 'string'     // Required
+  DATABASE_URL: 'postgres',  // Required PostgreSQL URL
+  API_KEY: 'string'          // Required
 });
 ```
 
@@ -104,24 +105,24 @@ config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
 
 ## Performance & Bundle Size
 
-**Ultra-lightweight and optimized.** The library is ~6KB gzipped and supports all validator types synchronously.
+**Lightweight with powerful features.** The core library is **~3.6KB gzipped** with comprehensive validation and resolver capabilities - **38% smaller** than previous versions while maintaining all features.
 
 ### Efficient validation architecture
 
-The library uses a two-tier validation strategy:
+The library uses a two-tier validation strategy with lazy-loaded validators:
 
-**Basic types** use inline validation with zero external dependencies:
+**Basic types** (~3.6KB core - inline validation):
 - `string`, `number`, `boolean` (with min/max validation)
 - `enum` (array validation)
 - `pattern` (regex validation)
 - `custom` (validator functions)
 
-**Advanced types** use specialized validators:
+**Advanced types** (+1KB when used - lazy-loaded):
 - Database URLs: `postgres`, `mysql`, `mongodb`, `redis`
 - Web types: `http`, `https`, `url`, `email`
 - Format types: `json`, `date`, `timestamp`, `port`
 
-All types work both synchronously and asynchronously:
+Advanced validators are lazy-loaded only when you use them, keeping the base bundle minimal. All types work both synchronously and asynchronously:
 
 ```ts
 // Synchronous - works with all types
@@ -139,6 +140,22 @@ const config = await resolve.with([
 ]);
 ```
 
+### What's in the 3.6KB core?
+- Core resolver logic (async/sync resolution)
+- Schema normalization & type coercion
+- Basic validation (string, number, boolean, enum, pattern, custom)
+- Interpolation & policy checking
+- Provenance tracking & error handling
+
+### Code Splitting Architecture
+The library uses intelligent code splitting to keep the core minimal:
+- **Advanced validators** (~1KB): Lazy-loaded when using types like `url`, `email`, `postgres`
+- **Audit logging** (~150 bytes): Lazy-loaded when `enableAudit: true`
+- **dotenv parser** (~1.6KB): Separate import from `'node-env-resolver/resolvers'`
+- **Utility functions** (~1KB): Separate import from `'node-env-resolver/utils'`
+
+Only the code you actually use gets loaded!
+
 ### Audit Logging (Lazy Loaded)
 
 Audit logging is lazy-loaded only when enabled, keeping the base bundle minimal:
@@ -151,18 +168,30 @@ const config = resolve({ PORT: 3000 });
 const config = resolve({ PORT: 3000 }, { enableAudit: true });
 ```
 
-### Tree-Shaking Friendly
+### Optimized Module Structure
 
-The library uses ES modules for optimal tree-shaking:
+Import only what you need for optimal bundle size:
 
 ```ts
-// Core functionality
-import { resolve } from 'node-env-resolver';
+// Core (~3.6KB) - Main API
+import { resolve, safeResolve, processEnv } from 'node-env-resolver';
 
-// Optional integrations (separate chunks)
+// Resolvers (separate chunk) - .env file parsing
+import { dotenv } from 'node-env-resolver/resolvers';
+
+// Utils (separate chunk) - caching & retry logic
+import { cached, retry, TTL, awsCache } from 'node-env-resolver/utils';
+
+// Validators (separate chunk) - reusable validation functions
+import { validateUrl, validateEmail } from 'node-env-resolver/validators';
+
+// Integrations (separate packages)
 import { resolveZod } from 'node-env-resolver/zod';
+import { resolveValibot } from 'node-env-resolver/valibot';
 import { awsSecrets } from 'node-env-resolver-aws';
 ```
+
+**Most apps only need the core (~3.6KB)!**
 
 ## Built-in validators
 
@@ -185,24 +214,24 @@ Advanced validators provide specialized validation and parsing:
 
 **Network types:**
 
-- `'url'` - Valid URL (returns URL object)
-- `'http'` - HTTP or HTTPS URL
-- `'https'` - HTTPS-only URL (strict)
-- `'email'` - Email address
+- `'url'` - Valid URL (returns string)
+- `'http'` - HTTP or HTTPS URL (returns string)
+- `'https'` - HTTPS-only URL (returns string)
+- `'email'` - Email address (returns string)
 
 **Database connection strings:**
 
-- `'postgres'` or `'postgresql'` - PostgreSQL connection string
-- `'mysql'` - MySQL connection string
-- `'mongodb'` - MongoDB connection string
-- `'redis'` - Redis connection string
+- `'postgres'` or `'postgresql'` - PostgreSQL connection string (returns string)
+- `'mysql'` - MySQL connection string (returns string)
+- `'mongodb'` - MongoDB connection string (returns string)
+- `'redis'` - Redis connection string (returns string)
 
 **Format types:**
 
-- `'json'` - JSON value (parsed automatically)
-- `'port'` - Port number (1-65535)
-- `'date'` - ISO 8601 date string
-- `'timestamp'` - Unix timestamp
+- `'json'` - JSON value (returns parsed object/array)
+- `'port'` - Port number (returns number, 1-65535)
+- `'date'` - ISO 8601 date string (returns string)
+- `'timestamp'` - Unix timestamp (returns number)
 
 All validators automatically handle type coercion from environment variable strings.
 
@@ -232,12 +261,43 @@ const config = resolve({
 });
 ```
 
+### Reusing built-in validators
+
+For advanced use cases, you can import and compose the built-in validation functions:
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { validateUrl, validateEmail } from 'node-env-resolver/validators';
+
+const validateMarketingUrl = (value: string): string => {
+  // Reuse built-in URL validator
+  const result = validateUrl(value);
+  if (!result.valid) {
+    throw new Error(result.error || 'Invalid URL');
+  }
+  
+  // Add custom business logic
+  if (!value.includes('marketing.example.com')) {
+    throw new Error('Must be a marketing domain URL');
+  }
+  
+  return value;
+};
+
+const config = resolve({
+  MARKETING_URL: validateMarketingUrl
+});
+```
+
+Available validation functions: `validatePostgres`, `validateMysql`, `validateMongodb`, `validateRedis`, `validateHttp`, `validateHttps`, `validateUrl`, `validateEmail`, `validatePort`, `validateNumber`, `validateBoolean`, `validateJson`, `validateDate`, `validateTimestamp`.
+
 ## Multiple sources
 
 Load configuration from multiple sources. By default, later sources override earlier ones:
 
 ```ts
-import { resolve, processEnv, dotenv } from 'node-env-resolver';
+import { resolve, processEnv } from 'node-env-resolver';
+import { dotenv } from 'node-env-resolver/resolvers';
 
 const config = await resolve.with(
   [processEnv(), {
@@ -245,7 +305,7 @@ const config = await resolve.with(
     NODE_ENV: ['development', 'production'] as const,
   }],
   [dotenv(), {
-    DATABASE_URL: 'url',
+    DATABASE_URL: 'postgres',
     API_KEY: 'string',
   }]
 );
@@ -258,15 +318,15 @@ Use `priority` to control how resolvers merge values:
 ```ts
 // priority: 'last' (default) - later resolvers override earlier ones
 const config = await resolve.with(
-  [processEnv(), { DATABASE_URL: 'url' }],
-  [awsSecrets(), { DATABASE_URL: 'url' }]
+  [processEnv(), { DATABASE_URL: 'postgres' }],
+  [awsSecrets(), { DATABASE_URL: 'postgres' }]
   // AWS wins
 );
 
 // priority: 'first' - earlier resolvers take precedence
 const config = await resolve.with(
-  [dotenv(), { DATABASE_URL: 'url' }],
-  [awsSecrets(), { DATABASE_URL: 'url' }],
+  [dotenv(), { DATABASE_URL: 'postgres' }],
+  [awsSecrets(), { DATABASE_URL: 'postgres' }],
   { priority: 'first' }
   // dotenv wins
 );
@@ -284,9 +344,9 @@ When using `priority: 'first'`, resolvers are called sequentially, but execution
 
 ```ts
 const config = await resolve.with(
-  [dotenv(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-  [awsSecrets(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-  [gcpSecrets(), { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+  [dotenv(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
+  [awsSecrets(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
+  [gcpSecrets(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
   { priority: 'first' }
 );
 // If dotenv() provides all required keys, awsSecrets() and gcpSecrets() are never called!
@@ -309,7 +369,7 @@ When using `priority: 'last'` (the default), all resolvers are called **in paral
 
 ```ts
 const config = await resolve.with(
-  [awsSecrets(), { DATABASE_URL: 'url' }],      // 100ms
+  [awsSecrets(), { DATABASE_URL: 'postgres' }],      // 100ms
   [awsParameterStore(), { API_KEY: 'string' }], // 100ms
   [gcpSecrets(), { JWT_SECRET: 'string' }]      // 100ms
   // Default: priority: 'last'
@@ -334,7 +394,7 @@ import { safeResolve } from 'node-env-resolver';
 
 const result = safeResolve({
   PORT: 'number',
-  DATABASE_URL: 'url'
+  DATABASE_URL: 'postgres'
 });
 
 if (result.success) {
@@ -384,11 +444,11 @@ const config = await resolve.with(
 
 ### Zod integration
 
-Use Zod schemas directly:
+Use Zod schemas for powerful validation:
 
 ```ts
 import { resolveZod } from 'node-env-resolver/zod';
-import { z } from 'zod';
+import * as z from 'zod';  // ✅ Recommended import pattern (better tree-shaking)
 
 const schema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -398,12 +458,90 @@ const schema = z.object({
 });
 
 const config = await resolveZod(schema);
+// config.PORT is number, config.DATABASE_URL is string, etc.
 ```
 
-Available functions:
+**Safe error handling** with field-level errors:
+
+```ts
+import { safeResolveZod } from 'node-env-resolver/zod';
+import * as z from 'zod';
+
+const schema = z.object({
+  PORT: z.coerce.number(),
+  DATABASE_URL: z.string().url()
+});
+
+const result = await safeResolveZod(schema);
+
+if (result.success) {
+  console.log(result.data.PORT);
+} else {
+  console.error(result.error);  // Summary message
+  result.issues.forEach(issue => {
+    // Field-level details: path, message, code
+    console.log(`${issue.path.join('.')}: ${issue.message}`);
+  });
+}
+```
+
+**Available functions:**
 
 - `resolveZod()` - Async, throws on error
-- `safeResolveZod()` - Async, returns result object
+- `safeResolveZod()` - Async, returns `{ success, data/error, issues }`
+- `resolveSyncZod()` - Sync, throws on error
+- `safeResolveSyncZod()` - Sync, returns `{ success, data/error, issues }`
+
+### Valibot integration
+
+Use Valibot for lightweight, modular validation:
+
+```ts
+import { resolveValibot } from 'node-env-resolver/valibot';
+import * as v from 'valibot';  // User imports valibot separately
+
+const schema = v.object({
+  PORT: v.pipe(v.string(), v.transform(Number)),
+  DATABASE_URL: v.pipe(v.string(), v.url()),
+  NODE_ENV: v.picklist(['development', 'production', 'test']),
+  DEBUG: v.optional(v.pipe(v.string(), v.transform(Boolean))),
+});
+
+const config = await resolveValibot(schema);
+```
+
+**Safe error handling** with unified error format:
+
+```ts
+import { safeResolveValibot } from 'node-env-resolver/valibot';
+import * as v from 'valibot';
+
+const schema = v.object({
+  PORT: v.pipe(v.string(), v.transform(Number)),
+  DATABASE_URL: v.pipe(v.string(), v.url())
+});
+
+const result = await safeResolveValibot(schema);
+
+if (result.success) {
+  console.log(result.data.PORT);
+} else {
+  console.error(result.error);  // Summary message
+  result.issues.forEach(issue => {
+    // Same format as Zod - consistent across validators!
+    console.log(`${issue.path.join('.')}: ${issue.message}`);
+  });
+}
+```
+
+**Available functions:**
+
+- `resolveValibot()` - Async, throws on error
+- `safeResolveValibot()` - Async, returns `{ success, data/error, issues }`
+- `resolveSyncValibot()` - Sync, throws on error
+- `safeResolveSyncValibot()` - Sync, returns `{ success, data/error, issues }`
+
+**Why unified errors?** Switch between Zod and Valibot without changing error handling code!
 
 ### Custom resolvers
 
@@ -442,7 +580,7 @@ import { resolveSecrets } from 'node-env-resolver-aws';
 const config = await resolveSecrets({
   secretId: 'myapp/secrets'
 }, {
-  DATABASE_URL: 'url',
+  DATABASE_URL: 'postgres',
   API_KEY: 'string'
 });
 ```
@@ -455,7 +593,7 @@ import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve.with(
   [processEnv(), { PORT: 3000 }],
-  [awsSecrets({ secretId: 'app/secrets' }), { DATABASE_URL: 'url' }],
+  [awsSecrets({ secretId: 'app/secrets' }), { DATABASE_URL: 'postgres' }],
   [awsSsm({ path: '/app/config' }), { FEATURE_FLAGS: 'json' }]
 );
 ```
@@ -467,7 +605,8 @@ See the [AWS package documentation](../node-env-resolver-aws/README.md) for deta
 Cache expensive operations like AWS API calls:
 
 ```ts
-import { resolve, cached, TTL } from 'node-env-resolver';
+import { resolve } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 export const getConfig = async () => {
@@ -476,7 +615,7 @@ export const getConfig = async () => {
       awsSecrets({ secretId: 'app/secrets' }),
       { ttl: TTL.minutes5 }
     ), {
-      DATABASE_URL: 'url',
+      DATABASE_URL: 'postgres',
       API_KEY: 'string',
     }]
   );
@@ -513,15 +652,17 @@ Performance:
 |--------|------|-------------|
 | `'string'` | `string` | Required string |
 | `'string?'` | `string \| undefined` | Optional string |
-| `'number'` | `number` | Required number |
+| `'number'` | `number` | Required number (coerced from string) |
 | `'number?'` | `number \| undefined` | Optional number |
-| `'boolean'` | `boolean` | Required boolean |
+| `'boolean'` | `boolean` | Required boolean (coerced from string) |
 | `'boolean?'` | `boolean \| undefined` | Optional boolean |
-| `'url'` | `string` | Valid URL |
-| `'email'` | `string` | Email address |
-| `'port'` | `number` | Port (1-65535) |
-| `'json'` | `unknown` | Parsed JSON |
-| `'postgres'` | `string` | PostgreSQL connection string |
+| `'url'` | `string` | Validated URL (returns string) |
+| `'email'` | `string` | Validated email address |
+| `'port'` | `number` | Validated port number (1-65535) |
+| `'json'` | `unknown` | Parsed JSON (returns object/array) |
+| `'postgres'` | `string` | Validated PostgreSQL URL |
+| `'date'` | `string` | Validated ISO 8601 date |
+| `'timestamp'` | `number` | Validated Unix timestamp |
 | `3000` | `number` | Number with default |
 | `false` | `boolean` | Boolean with default |
 | `['a', 'b']` | `'a' \| 'b'` | Enum (requires `as const`) |
@@ -637,15 +778,15 @@ await resolve.with(
 ```ts
 // Production: AWS secrets override process.env
 await resolve.with(
-  [processEnv(), { DATABASE_URL: 'url' }],
-  [awsSecrets(), { DATABASE_URL: 'url' }]
+  [processEnv(), { DATABASE_URL: 'postgres' }],
+  [awsSecrets(), { DATABASE_URL: 'postgres' }]
   // priority: 'last' (default) - AWS wins
 );
 
 // Development: Local .env overrides cloud
 await resolve.with(
-  [dotenv(), { DATABASE_URL: 'url' }],
-  [awsSecrets(), { DATABASE_URL: 'url' }],
+  [dotenv(), { DATABASE_URL: 'postgres' }],
+  [awsSecrets(), { DATABASE_URL: 'postgres' }],
   { priority: 'first' }  // dotenv wins
 );
 ```
@@ -756,7 +897,7 @@ import { resolve } from 'node-env-resolver/nextjs';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'url',
+    DATABASE_URL: 'postgres',
     API_SECRET: 'string',
   },
   client: {
@@ -768,7 +909,8 @@ export const env = resolve({
 ### AWS Lambda
 
 ```ts
-import { resolve, cached, TTL } from 'node-env-resolver';
+import { resolve } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
@@ -777,7 +919,7 @@ const getConfig = async () => {
       awsSecrets({ secretId: 'lambda/config' }),
       { ttl: TTL.minutes5 }
     ), {
-      DATABASE_URL: 'url',
+      DATABASE_URL: 'postgres',
     }]
   );
 };
@@ -802,7 +944,7 @@ By default, `.env` files are **completely blocked in production** for security. 
 // In production (NODE_ENV=production)
 const config = await resolve.with(
   [dotenv(), {
-    DATABASE_URL: 'url',
+    DATABASE_URL: 'postgres',
   }]
 );
 // ❌ Throws: "DATABASE_URL cannot be sourced from .env files in production"
@@ -813,7 +955,7 @@ const config = await resolve.with(
 ```ts
 const config = await resolve.with(
   [dotenv(), {
-    DATABASE_URL: 'url',
+    DATABASE_URL: 'postgres',
   }],
   {
     policies: {
@@ -829,7 +971,7 @@ const config = await resolve.with(
 const config = await resolve.with(
   [dotenv(), {
     PORT: 3000,
-    DATABASE_URL: 'url',
+    DATABASE_URL: 'postgres',
   }],
   {
     policies: {
@@ -871,7 +1013,8 @@ const config = await resolve.with(
 **Use case:** Ensure production secrets only come from AWS Secrets Manager, never from `.env` or `process.env`:
 
 ```ts
-import { resolve, processEnv, cached, TTL } from 'node-env-resolver';
+import { resolve, processEnv } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve.with(
@@ -931,7 +1074,7 @@ import { resolve, getAuditLog, clearAuditLog } from 'node-env-resolver';
 
 // Option 1: Explicitly enable (works in any environment)
 const config = resolve({
-  DATABASE_URL: 'url',
+  DATABASE_URL: 'postgres',
   API_KEY: 'string',
 }, {
   enableAudit: true  // ← Enable audit logging
@@ -953,7 +1096,7 @@ clearAuditLog();
 process.env.NODE_ENV = 'production';
 
 const config = resolve({
-  DATABASE_URL: 'url',
+  DATABASE_URL: 'postgres',
 });
 
 // Audit automatically enabled in production
@@ -975,12 +1118,13 @@ console.log(getAuditLog());
 Audit logs include cache metadata to help monitor performance:
 
 ```ts
-import { resolve, cached, getAuditLog } from 'node-env-resolver';
+import { resolve, getAuditLog } from 'node-env-resolver';
+import { cached } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve.with(
   [cached(awsSecrets({ secretId: 'prod/db' }), { ttl: 300000 }), {
-    DATABASE_URL: 'url',
+    DATABASE_URL: 'postgres',
   }],
   { enableAudit: true }
 );
