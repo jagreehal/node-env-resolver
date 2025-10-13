@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cached, retry, TTL, awsCache } from './utils';
+import { cached, retry, TTL, awsCache, withPrefix, withAliases } from './utils';
+import type { Resolver } from './types';
 describe('resolvers', () => {
   // Removed tests for deprecated dotenvExpand
 
@@ -309,10 +310,245 @@ describe('resolvers', () => {
       };
 
       const retryProvider = retry(mockProvider, 3, 10);
-      
+
       const result = await retryProvider.load();
       expect(result).toEqual({ TEST: 'success' });
       expect(mockLoad).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('withPrefix', () => {
+    it('should strip prefix from environment variable names', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {
+            APP_PORT: '3000',
+            APP_DATABASE_URL: 'postgres://localhost',
+            APP_DEBUG: 'true',
+            OTHER_VAR: 'value'
+          };
+        },
+        loadSync() {
+          return {
+            APP_PORT: '3000',
+            APP_DATABASE_URL: 'postgres://localhost',
+            APP_DEBUG: 'true',
+            OTHER_VAR: 'value'
+          };
+        }
+      };
+
+      const prefixedResolver = withPrefix(mockResolver, 'APP_');
+      const env = await prefixedResolver.load();
+
+      expect(env.PORT).toBe('3000');
+      expect(env.DATABASE_URL).toBe('postgres://localhost');
+      expect(env.DEBUG).toBe('true');
+      expect(env.OTHER_VAR).toBe('value'); // Keys without prefix remain unchanged
+    });
+
+    it('should work with sync resolver', () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return { MYAPP_PORT: '8080' };
+        },
+        loadSync() {
+          return { MYAPP_PORT: '8080' };
+        }
+      };
+
+      const prefixedResolver = withPrefix(mockResolver, 'MYAPP_');
+      const env = prefixedResolver.loadSync!();
+
+      expect(env.PORT).toBe('8080');
+    });
+
+    it('should be case-insensitive for prefix matching', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {
+            app_port: '3000',
+            APP_HOST: 'localhost',
+            ApP_Debug: 'true'
+          };
+        }
+      };
+
+      const prefixedResolver = withPrefix(mockResolver, 'app_');
+      const env = await prefixedResolver.load();
+
+      expect(env.port).toBe('3000');
+      expect(env.HOST).toBe('localhost');
+      expect(env.Debug).toBe('true');
+    });
+
+    it('should throw if sync not supported', () => {
+      const mockResolver: Resolver = {
+        name: 'async-only',
+        async load() {
+          return { APP_PORT: '3000' };
+        }
+      };
+
+      const prefixedResolver = withPrefix(mockResolver, 'APP_');
+      expect(() => prefixedResolver.loadSync!()).toThrow('does not support sync loading');
+    });
+
+    it('should set correct resolver name', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {};
+        }
+      };
+
+      const prefixedResolver = withPrefix(mockResolver, 'PREFIX_');
+      expect(prefixedResolver.name).toBe('withPrefix(test-resolver, PREFIX_)');
+    });
+  });
+
+  describe('withAliases', () => {
+    it('should map aliases to canonical keys', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {
+            HTTP_PORT: '3000',
+            DB_URL: 'postgres://localhost',
+            JWT_SECRET: 'secret123'
+          };
+        },
+        loadSync() {
+          return {
+            HTTP_PORT: '3000',
+            DB_URL: 'postgres://localhost',
+            JWT_SECRET: 'secret123'
+          };
+        }
+      };
+
+      const aliasedResolver = withAliases(mockResolver, {
+        PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT'],
+        DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL'],
+        API_SECRET: ['API_SECRET', 'JWT_SECRET', 'TOKEN_SECRET']
+      });
+
+      const env = await aliasedResolver.load();
+
+      expect(env.PORT).toBe('3000'); // From HTTP_PORT
+      expect(env.DATABASE_URL).toBe('postgres://localhost'); // From DB_URL
+      expect(env.API_SECRET).toBe('secret123'); // From JWT_SECRET
+    });
+
+    it('should use first matching alias', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {
+            PORT: '3000',
+            HTTP_PORT: '8080',
+            SERVER_PORT: '9000'
+          };
+        }
+      };
+
+      const aliasedResolver = withAliases(mockResolver, {
+        PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT']
+      });
+
+      const env = await aliasedResolver.load();
+      expect(env.PORT).toBe('3000'); // First alias wins
+    });
+
+    it('should preserve original env vars', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {
+            HTTP_PORT: '3000',
+            DEBUG: 'true',
+            NODE_ENV: 'development'
+          };
+        }
+      };
+
+      const aliasedResolver = withAliases(mockResolver, {
+        PORT: ['PORT', 'HTTP_PORT']
+      });
+
+      const env = await aliasedResolver.load();
+      expect(env.PORT).toBe('3000'); // Mapped from alias
+      expect(env.HTTP_PORT).toBe('3000'); // Original still exists
+      expect(env.DEBUG).toBe('true'); // Untouched
+      expect(env.NODE_ENV).toBe('development'); // Untouched
+    });
+
+    it('should work with sync resolver', () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return { DB_URL: 'postgres://localhost' };
+        },
+        loadSync() {
+          return { DB_URL: 'postgres://localhost' };
+        }
+      };
+
+      const aliasedResolver = withAliases(mockResolver, {
+        DATABASE_URL: ['DATABASE_URL', 'DB_URL']
+      });
+
+      const env = aliasedResolver.loadSync!();
+      expect(env.DATABASE_URL).toBe('postgres://localhost');
+    });
+
+    it('should handle undefined aliases gracefully', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {
+            PORT: '3000'
+          };
+        }
+      };
+
+      const aliasedResolver = withAliases(mockResolver, {
+        DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL']
+      });
+
+      const env = await aliasedResolver.load();
+      expect(env.PORT).toBe('3000');
+      expect(env.DATABASE_URL).toBeUndefined(); // No alias matched
+    });
+
+    it('should throw if sync not supported', () => {
+      const mockResolver: Resolver = {
+        name: 'async-only',
+        async load() {
+          return { PORT: '3000' };
+        }
+      };
+
+      const aliasedResolver = withAliases(mockResolver, {
+        PORT: ['PORT']
+      });
+
+      expect(() => aliasedResolver.loadSync!()).toThrow('does not support sync loading');
+    });
+
+    it('should set correct resolver name', async () => {
+      const mockResolver: Resolver = {
+        name: 'test-resolver',
+        async load() {
+          return {};
+        }
+      };
+
+      const aliasedResolver = withAliases(mockResolver, {});
+      expect(aliasedResolver.name).toBe('withAliases(test-resolver)');
     });
   });
 });

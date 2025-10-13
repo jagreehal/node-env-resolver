@@ -192,7 +192,9 @@ export interface Resolver {
 ### Built-in resolvers
 
 ```ts
-import { processEnv, dotenv } from 'node-env-resolver';
+import { processEnv } from 'node-env-resolver';
+import { dotenv, secrets } from 'node-env-resolver/resolvers';
+import { cliArgs } from 'node-env-resolver/cli';
 
 // Load from process.env
 processEnv()
@@ -204,6 +206,13 @@ dotenv({ path: '.env.production' })
 // Load with expand mode (multiple .env files)
 dotenv({ path: '.env', expand: true })
 // Loads: .env.defaults, .env, .env.local, .env.${NODE_ENV}, .env.${NODE_ENV}.local
+
+// Load from CLI arguments
+cliArgs()  // Parses process.argv (--port 8080 → PORT=8080)
+cliArgs({ argv: ['--port', '8080', '--verbose'] })
+
+// Load from Docker/K8s secrets directory
+secrets('/run/secrets')  // Reads all files in directory
 ```
 
 ### AWS resolvers
@@ -389,22 +398,36 @@ app.get('/api/data', (req, res) => {
 
 ### Shorthand types
 
-* `'string'` - Required string
-* `'string?'` - Optional string
+**Basic types:**
+* `'string'` - Required string (empty strings rejected by default for security)
+* `'string?'` - Optional string (empty → undefined)
 * `'number'` - Required number (coerced from string)
 * `'number?'` - Optional number
-* `'boolean'` - Required boolean (coerced from 'true'/'false')
+* `'boolean'` - Required boolean (coerced from 'true'/'false'/'1'/'0'/'yes'/'no')
 * `'boolean?'` - Optional boolean
+
+**Array types:**
+* `'string[]'` - Array of strings (comma-separated: `'a,b,c'` → `['a','b','c']`)
+* `'number[]'` - Array of numbers (comma-separated: `'1,2,3'` → `[1,2,3]`)
+* `'url[]'` - Array of validated URLs (comma-separated, each validated)
+
+**Network types:**
 * `'url'` - Validated URL string
 * `'http'` - HTTP URL
 * `'https'` - HTTPS URL
 * `'email'` - Validated email
-* `'port'` - Port number (1-65535)
-* `'json'` - Parsed JSON (typed as `unknown`, narrow manually)
+
+**Database types:**
 * `'postgres'` or `'postgresql'` - PostgreSQL connection string
 * `'mysql'` - MySQL connection string
 * `'mongodb'` - MongoDB connection string
 * `'redis'` - Redis connection string
+
+**Utility types:**
+* `'port'` - Port number (1-65535)
+* `'json'` - Parsed JSON (typed as `unknown`, narrow manually)
+* `'duration'` - Time duration (`'5s'`, `'2m'`, `'1h'`, `'2h30m'` → milliseconds as number)
+* `'file'` - Read content from file path (Docker/K8s secrets)
 
 ### Pattern matching
 
@@ -516,6 +539,12 @@ Environment validation failed:
 * Document provider **order** explicitly in code reviews and PRs.
 * Use `cached()` wrapper for expensive operations (AWS API calls, database queries).
 * Call `resolve()` every time in handlers - let `cached()` make it fast.
+* Use `'string[]'` for comma-separated values (feature flags, origins, tags).
+* Use `'duration'` for timeouts, TTLs, and time-based configs (Go-style: `'5s'`, `'2m'`).
+* Use `secretsDir` option for Docker/K8s secrets (auto kebab-case conversion).
+* Use `withComputed()` to derive URLs, connection strings, and feature flags from config.
+* Use `cliArgs()` for CLI tools that need argument parsing.
+* Empty strings are rejected by default - use `'string?'` for optional or defaults for fallback.
 
 **Don't**
 
@@ -524,6 +553,10 @@ Environment validation failed:
 * Don't mix overlapping keys across resolvers unless there's an explicit override reason.
 * Don't cache the result of `resolve()` - cache the resolver instead.
 * Don't forget `as const` for enum arrays.
+* Don't use `{ type: 'string', notEmpty: true }` - empty rejection is the default.
+* Don't manually parse comma-separated values - use `'string[]'` or `'number[]'`.
+* Don't manually parse durations - use `'duration'` type.
+* Don't hardcode file paths when using Docker/K8s - use `secretsDir` option.
 
 ---
 
@@ -741,6 +774,184 @@ if (flags.newUI) {
 }
 ```
 
+### 10) CLI arguments for build tools
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { cliArgs } from 'node-env-resolver/cli';
+
+// $ node build.js --input ./src --output ./dist --minify --workers 4
+
+const config = await resolve.with(
+  [processEnv(), { INPUT: 'string', OUTPUT: 'string', MINIFY: false, WORKERS: 'number' }],
+  [cliArgs(), { INPUT: 'string', OUTPUT: 'string', MINIFY: false, WORKERS: 'number' }]
+);
+
+// config.INPUT === './src' (from CLI)
+// config.OUTPUT === './dist' (from CLI)
+// config.MINIFY === true (boolean flag)
+// config.WORKERS === 4 (parsed as number)
+```
+
+**CLI arg formats:**
+- `--port 8080` → `PORT='8080'`
+- `--port=8080` → `PORT='8080'`
+- `--verbose` → `VERBOSE='true'` (boolean flag)
+- `--database-url postgres://...` → `DATABASE_URL='postgres://...'` (kebab→SNAKE)
+
+### 11) Array types (feature flags, CORS origins, ports)
+
+```ts
+// Feature flags
+process.env.FEATURES = 'analytics,caching,monitoring';
+
+const config = resolve({
+  FEATURES: 'string[]'  // ['analytics', 'caching', 'monitoring']
+});
+
+// CORS origins
+process.env.ALLOWED_ORIGINS = 'https://app.com,https://api.com,http://localhost:3000';
+
+const config = await resolve.with([processEnv(), {
+  ALLOWED_ORIGINS: 'url[]'  // Each URL is validated
+}]);
+
+// Multiple ports
+process.env.PORTS = '3000,8080,9000';
+
+const config = resolve({
+  PORTS: 'number[]',  // [3000, 8080, 9000]
+  TAGS: { type: 'string[]', separator: '|' }  // Custom separator
+});
+```
+
+### 12) Duration parsing (Go-style)
+
+```ts
+process.env.TIMEOUT = '30s';
+process.env.CACHE_TTL = '5m';
+process.env.SESSION_DURATION = '2h30m';
+process.env.RETRY_BACKOFF = '500ms';
+
+const config = await resolve.with([processEnv(), {
+  TIMEOUT: 'duration',          // 30000 ms
+  CACHE_TTL: 'duration',        // 300000 ms
+  SESSION_DURATION: 'duration', // 9000000 ms
+  RETRY_BACKOFF: 'duration'     // 500 ms
+}]);
+
+// Supported formats: 5s, 2m, 1h, 7d, 500ms, 2h30m, 1h30m15s
+```
+
+### 13) Docker/Kubernetes secrets from files
+
+```ts
+import { resolve, processEnv } from 'node-env-resolver';
+
+// K8s mounts secrets to /run/secrets/db-password, /run/secrets/api-key
+
+// Method 1: Using secretsDir (recommended, zero config)
+const config = await resolve.with([
+  processEnv(),
+  {
+    DB_PASSWORD: 'file',  // Reads /run/secrets/db-password (auto kebab-case)
+    API_KEY: 'file'       // Reads /run/secrets/api-key
+  }
+], { secretsDir: '/run/secrets' });
+
+// Method 2: Explicit file path in env var (Go ecosystem pattern)
+process.env.DB_PASSWORD_FILE = '/run/secrets/db_password';
+const config = await resolve.with([processEnv(), {
+  DB_PASSWORD_FILE: 'file'  // Reads file at that path
+}]);
+
+// Method 3: Per-field secretsDir override
+const config = await resolve.with([processEnv(), {
+  DB_PASSWORD: { type: 'file', secretsDir: '/custom/secrets' },
+  API_KEY: 'file'  // Uses global secretsDir
+}], { secretsDir: '/run/secrets' });
+```
+
+**Auto kebab-case conversion:**
+- `DB_PASSWORD` → reads `db-password` file
+- `API_KEY` → reads `api-key` file
+- `MY_SECRET_KEY` → reads `my-secret-key` file
+
+### 14) Computed/derived fields
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { withComputed } from 'node-env-resolver/utils';
+
+const config = resolve({
+  HOST: 'localhost',
+  PORT: 3000,
+  SSL_ENABLED: false,
+  NODE_ENV: ['development', 'production'] as const,
+  DB_HOST: 'localhost',
+  DB_PORT: 5432,
+  DB_USER: 'admin',
+  DB_PASSWORD: 'secret',
+  DB_NAME: 'myapp'
+});
+
+// Add computed properties (lazy getters)
+const appConfig = withComputed(config, {
+  // Build server URL
+  url: (c) => `${c.SSL_ENABLED ? 'https' : 'http'}://${c.HOST}:${c.PORT}`,
+  
+  // Environment checks
+  isProd: (c) => c.NODE_ENV === 'production',
+  isDev: (c) => c.NODE_ENV === 'development',
+  
+  // Build database connection URL
+  databaseUrl: (c) => 
+    `postgres://${c.DB_USER}:${c.DB_PASSWORD}@${c.DB_HOST}:${c.DB_PORT}/${c.DB_NAME}`,
+  
+  // Compute server options
+  serverOptions: (c) => ({
+    host: c.HOST,
+    port: c.PORT,
+    cors: c.NODE_ENV !== 'production',
+    compression: c.NODE_ENV === 'production'
+  })
+});
+
+// Use computed properties
+console.log(appConfig.url);         // 'http://localhost:3000'
+console.log(appConfig.databaseUrl); // 'postgres://admin:secret@localhost:5432/myapp'
+console.log(appConfig.isProd);      // false
+```
+
+### 15) Custom separators and validation
+
+```ts
+// Semicolon separator
+process.env.ITEMS = 'item1;item2;item3';
+
+const config = resolve({
+  ITEMS: { type: 'string[]', separator: ';' }
+});
+
+// Empty string handling (secure by default)
+process.env.API_KEY = '';  // Empty!
+
+// ❌ This throws: "API_KEY cannot be empty"
+const config = resolve({
+  API_KEY: 'string'  // Required, empty rejected
+});
+
+// ✅ Use optional to allow empty → undefined
+const config = resolve({
+  API_KEY: 'string?'  // Empty becomes undefined
+});
+
+// ✅ Or explicitly allow empty strings (rare)
+const config = resolve({
+  ALLOW_EMPTY: { type: 'string', allowEmpty: true }  // '' is valid
+});
+```
+
 ---
 
 ## Minimal Signature Cheatsheet
@@ -780,9 +991,14 @@ dotenv(path?: string | { path?: string, expand?: boolean }): Resolver
 awsSecrets(options: { secretId: string, region?: string, parseJson?: boolean }): Resolver
 awsSsm(options: { path: string, region?: string, recursive?: boolean }): Resolver
 
-// Utilities
+// Utilities (node-env-resolver/utils)
 cached(resolver: Resolver, opts: { ttl: number, maxAge?: number, staleWhileRevalidate?: boolean }): Resolver
 retry(resolver: Resolver, opts: { attempts: number, delay?: number }): Resolver
+withPrefix(resolver: Resolver, prefix: string): Resolver  // Strip prefix from keys
+withNamespace(resolver: Resolver, namespace: string): Resolver  // Filter by namespace
+withAliases(resolver: Resolver, aliases: Record<string, string[]>): Resolver  // Support multiple names
+withTransform(resolver: Resolver, transforms: Record<string, (val: string) => string>): Resolver
+withComputed<T>(config: T, computed: Record<string, (c: T) => any>): T & ComputedFields  // Add derived properties
 TTL.minute, TTL.minutes5, TTL.minutes15, TTL.hour, TTL.hours6, TTL.day  // Constants
 
 // Options (single source)
@@ -790,6 +1006,7 @@ interface ResolveOptions {
   interpolate?: boolean;        // ${VAR} expansion (default: true)
   strict?: boolean;             // Fail on validation errors (default: true)
   enableAudit?: boolean;        // Enable audit logging (default: false)
+  secretsDir?: string;          // Base dir for 'file' type (Docker/K8s secrets)
 }
 
 // Options (multiple sources - .with)
@@ -798,6 +1015,7 @@ interface ResolveOptions {
   interpolate?: boolean;        // ${VAR} expansion (default: true)
   strict?: boolean;             // Fail on resolver errors (default: true)
   enableAudit?: boolean;        // Enable audit logging (default: false)
+  secretsDir?: string;          // Base dir for 'file' type (Docker/K8s secrets)
   policies?: {
     enforceAllowedSources?: Record<string, string[]>; // key → allowed provider names
   };
@@ -861,6 +1079,12 @@ const env = await resolveZod.with(
 * Integration: simulate provider order & conflicts; assert **last-wins** or **first-wins** based on priority.
 * Priority tests: verify `priority: 'first'` only overwrites `undefined` values.
 * Security: ensure `.env` is ignored unless `dotenv()` present; assert source enforcement errors.
+* Empty strings: verify empty strings are rejected by default for required fields.
+* Arrays: test comma-separated parsing, custom separators, invalid items.
+* Duration: test various formats (`5s`, `2m`, `1h`, `2h30m`), ensure milliseconds returned.
+* File reading: test with secretsDir (auto kebab-case), explicit paths, and missing files.
+* CLI args: test `--key value`, `--key=value`, `--flag`, and kebab→SNAKE conversion.
+* Computed fields: test lazy evaluation, type inference, and complex derivations.
 * JSON schema: ensure `'json'` parses and is typed `unknown`.
 * Caching: verify cache hits/misses in metadata; test TTL expiry.
 * AWS: mock AWS SDK calls; test credential provider chain.

@@ -66,7 +66,7 @@ function loadValidatorsSync() {
  */
 const ADVANCED_TYPES = new Set([
   'postgres', 'postgresql', 'mysql', 'mongodb', 'redis',
-  'http', 'https', 'url', 'email', 'port', 'json', 'date', 'timestamp'
+  'http', 'https', 'url', 'email', 'port', 'json', 'date', 'timestamp', 'duration', 'file', 'url[]'
 ]);
 
 /**
@@ -170,19 +170,37 @@ interface ValidationResult {
 function validateBasicType(
   key: string,
   def: EnvDefinition,
-  rawValue: string | undefined
+  rawValue: string | undefined,
+  validateDefaults = false
 ): ValidationResult {
   const type = def.type || 'string';
 
   // Handle missing values
-  if (rawValue === undefined || rawValue === '') {
+  if (rawValue === undefined) {
     if (def.default !== undefined) {
+      // If validateDefaults is true, validate the default value
+      if (validateDefaults) {
+        // Convert default to string for validation (except for custom validators)
+        const defaultAsString = String(def.default);
+        return validateBasicType(key, { ...def, default: undefined }, defaultAsString, false);
+      }
       return { success: true, value: def.default };
     }
     if (def.optional) {
       return { success: true, value: undefined };
     }
     return { success: false, error: `Missing required environment variable: ${key}` };
+  }
+  
+  // Handle empty strings - reject by default unless allowEmpty is true
+  if (rawValue === '' && !def.allowEmpty) {
+    if (def.default !== undefined) {
+      return { success: true, value: def.default };
+    }
+    if (def.optional) {
+      return { success: true, value: undefined };
+    }
+    return { success: false, error: `${key} cannot be empty` };
   }
 
   // Handle enum validation
@@ -255,6 +273,26 @@ function validateBasicType(
       return { success: true, value: boolValue };
     }
 
+    case 'string[]': {
+      const separator = def.separator || ',';
+      const items = rawValue.split(separator).map(s => s.trim()).filter(s => s.length > 0);
+      return { success: true, value: items };
+    }
+
+    case 'number[]': {
+      const separator = def.separator || ',';
+      const items = rawValue.split(separator).map(s => s.trim()).filter(s => s.length > 0);
+      const numbers: number[] = [];
+      for (const item of items) {
+        const num = Number(item);
+        if (isNaN(num)) {
+          return { success: false, error: `${key}: Invalid number in array: "${item}"` };
+        }
+        numbers.push(num);
+      }
+      return { success: true, value: numbers };
+    }
+
     case 'custom': {
       if (!def.validator) {
         return {
@@ -285,72 +323,124 @@ function validateBasicType(
 async function validateAdvancedTypeAsync(
   key: string,
   def: EnvDefinition,
-  rawValue: string | undefined
+  rawValue: string | undefined,
+  validateDefaults = false,
+  options?: ResolveOptions
 ): Promise<ValidationResult> {
   const type = def.type || 'string';
 
-  // Handle missing values
+  // Handle missing values (except for 'file' type with secretsDir)
   if (rawValue === undefined || rawValue === '') {
-    if (def.default !== undefined) {
+    // Special case: 'file' type with secretsDir can construct path without env var
+    if (type === 'file' && (def.secretsDir || options?.secretsDir)) {
+      // Continue to file handling below
+    } else if (def.default !== undefined) {
+      // If validateDefaults is true, validate the default value
+      if (validateDefaults) {
+        // Convert default to string for validation
+        const defaultAsString = String(def.default);
+        return await validateAdvancedTypeAsync(key, { ...def, default: undefined }, defaultAsString, false, options);
+      }
       return { success: true, value: def.default };
-    }
-    if (def.optional) {
+    } else if (def.optional) {
       return { success: true, value: undefined };
+    } else {
+      return { success: false, error: `Missing required environment variable: ${key}` };
     }
-    return { success: false, error: `Missing required environment variable: ${key}` };
   }
 
   const v = await loadValidators();
+
+  // At this point, rawValue is guaranteed to be a string (or we handle it specially in file case)
+  // TypeScript needs assertion for validators that don't handle undefined
+  const valueToValidate = rawValue!;
 
   // Call appropriate validator based on type
   let validatorResult;
   switch (type) {
     case 'postgres':
     case 'postgresql':
-      validatorResult = v.validatePostgres(rawValue);
+      validatorResult = v.validatePostgres(valueToValidate);
       break;
     case 'mysql':
-      validatorResult = v.validateMysql(rawValue);
+      validatorResult = v.validateMysql(valueToValidate);
       break;
     case 'mongodb':
-      validatorResult = v.validateMongodb(rawValue);
+      validatorResult = v.validateMongodb(valueToValidate);
       break;
     case 'redis':
-      validatorResult = v.validateRedis(rawValue);
+      validatorResult = v.validateRedis(valueToValidate);
       break;
     case 'http':
-      validatorResult = v.validateHttp(rawValue);
+      validatorResult = v.validateHttp(valueToValidate);
       break;
     case 'https':
-      validatorResult = v.validateHttps(rawValue);
+      validatorResult = v.validateHttps(valueToValidate);
       break;
     case 'url':
-      validatorResult = v.validateUrl(rawValue);
+      validatorResult = v.validateUrl(valueToValidate);
       break;
     case 'email':
-      validatorResult = v.validateEmail(rawValue);
+      validatorResult = v.validateEmail(valueToValidate);
       break;
     case 'port':
-      validatorResult = v.validatePort(rawValue);
+      validatorResult = v.validatePort(valueToValidate);
       if (validatorResult.valid) {
-        return { success: true, value: Number(rawValue) };
+        return { success: true, value: Number(valueToValidate) };
       }
       break;
     case 'json':
-      validatorResult = v.validateJson(rawValue);
+      validatorResult = v.validateJson(valueToValidate);
       if (validatorResult.valid) {
-        return { success: true, value: JSON.parse(rawValue) };
+        return { success: true, value: JSON.parse(valueToValidate) };
       }
       break;
     case 'date':
-      validatorResult = v.validateDate(rawValue);
+      validatorResult = v.validateDate(valueToValidate);
       break;
     case 'timestamp':
-      validatorResult = v.validateTimestamp(rawValue);
+      validatorResult = v.validateTimestamp(valueToValidate);
       if (validatorResult.valid) {
-        return { success: true, value: Number(rawValue) };
+        return { success: true, value: Number(valueToValidate) };
       }
       break;
+    case 'duration':
+      validatorResult = v.validateDuration(valueToValidate);
+      if (validatorResult.valid) {
+        return { success: true, value: validatorResult.value };
+      }
+      break;
+    case 'file': {
+      // Handle secretsDir: construct path if rawValue is missing
+      let filePath = rawValue;
+      if (!filePath) {
+        const secretsDir = def.secretsDir || options?.secretsDir;
+        if (secretsDir) {
+          // Convert SCREAMING_SNAKE_CASE to kebab-case (K8s convention)
+          // DB_PASSWORD → db-password
+          const fileName = key.toLowerCase().replace(/_/g, '-');
+          filePath = `${secretsDir}/${fileName}`;
+        }
+      }
+      if (!filePath) {
+        return { success: false, error: `${key}: No file path provided and no secretsDir configured` };
+      }
+      validatorResult = v.validateFile(filePath, key);
+      break;
+    }
+    case 'url[]': {
+      const separator = def.separator || ',';
+      const items = valueToValidate.split(separator).map(s => s.trim()).filter(s => s.length > 0);
+      const urls: string[] = [];
+      for (const item of items) {
+        const urlResult = v.validateUrl(item);
+        if (!urlResult.valid) {
+          return { success: false, error: `${key}: Invalid URL in array: "${item}" - ${urlResult.error}` };
+        }
+        urls.push(item);
+      }
+      return { success: true, value: urls };
+    }
     default:
       return { success: false, error: `Unknown type: ${type}` };
   }
@@ -359,7 +449,12 @@ async function validateAdvancedTypeAsync(
     return { success: false, error: `${key}: ${validatorResult.error}` };
   }
 
-  return { success: true, value: rawValue };
+  // Some validators return a transformed value (e.g., file content, parsed duration)
+  const finalValue = 'value' in validatorResult && validatorResult.value !== undefined 
+    ? validatorResult.value 
+    : rawValue;
+    
+  return { success: true, value: finalValue };
 }
 
 /**
@@ -368,73 +463,125 @@ async function validateAdvancedTypeAsync(
 function validateAdvancedTypeSync(
   key: string,
   def: EnvDefinition,
-  rawValue: string | undefined
+  rawValue: string | undefined,
+  validateDefaults = false,
+  options?: ResolveOptions
 ): ValidationResult {
   const type = def.type || 'string';
 
-  // Handle missing values
+  // Handle missing values (except for 'file' type with secretsDir)
   if (rawValue === undefined || rawValue === '') {
-    if (def.default !== undefined) {
+    // Special case: 'file' type with secretsDir can construct path without env var
+    if (type === 'file' && (def.secretsDir || options?.secretsDir)) {
+      // Continue to file handling below
+    } else if (def.default !== undefined) {
+      // If validateDefaults is true, validate the default value
+      if (validateDefaults) {
+        // Convert default to string for validation
+        const defaultAsString = String(def.default);
+        return validateAdvancedTypeSync(key, { ...def, default: undefined }, defaultAsString, false, options);
+      }
       return { success: true, value: def.default };
-    }
-    if (def.optional) {
+    } else if (def.optional) {
       return { success: true, value: undefined };
+    } else {
+      return { success: false, error: `Missing required environment variable: ${key}` };
     }
-    return { success: false, error: `Missing required environment variable: ${key}` };
   }
 
   try {
     const v = loadValidatorsSync();
+
+    // At this point, rawValue is guaranteed to be a string (or we handle it specially in file case)
+    // TypeScript needs assertion for validators that don't handle undefined
+    const valueToValidate = rawValue!;
 
     // Call appropriate validator based on type
     let validatorResult;
     switch (type) {
       case 'postgres':
       case 'postgresql':
-        validatorResult = v.validatePostgres(rawValue);
-        break;
+        validatorResult = v.validatePostgres(valueToValidate);
+      break;
       case 'mysql':
-        validatorResult = v.validateMysql(rawValue);
-        break;
+        validatorResult = v.validateMysql(valueToValidate);
+      break;
       case 'mongodb':
-        validatorResult = v.validateMongodb(rawValue);
-        break;
+        validatorResult = v.validateMongodb(valueToValidate);
+      break;
       case 'redis':
-        validatorResult = v.validateRedis(rawValue);
-        break;
+        validatorResult = v.validateRedis(valueToValidate);
+      break;
       case 'http':
-        validatorResult = v.validateHttp(rawValue);
-        break;
+        validatorResult = v.validateHttp(valueToValidate);
+      break;
       case 'https':
-        validatorResult = v.validateHttps(rawValue);
-        break;
+        validatorResult = v.validateHttps(valueToValidate);
+      break;
       case 'url':
-        validatorResult = v.validateUrl(rawValue);
-        break;
+        validatorResult = v.validateUrl(valueToValidate);
+      break;
       case 'email':
-        validatorResult = v.validateEmail(rawValue);
-        break;
+        validatorResult = v.validateEmail(valueToValidate);
+      break;
       case 'port':
-        validatorResult = v.validatePort(rawValue);
+        validatorResult = v.validatePort(valueToValidate);
         if (validatorResult.valid) {
-          return { success: true, value: Number(rawValue) };
+          return { success: true, value: Number(valueToValidate) };
         }
         break;
       case 'json':
-        validatorResult = v.validateJson(rawValue);
+        validatorResult = v.validateJson(valueToValidate);
         if (validatorResult.valid) {
-          return { success: true, value: JSON.parse(rawValue) };
+          return { success: true, value: JSON.parse(valueToValidate) };
         }
         break;
       case 'date':
-        validatorResult = v.validateDate(rawValue);
-        break;
+        validatorResult = v.validateDate(valueToValidate);
+      break;
       case 'timestamp':
-        validatorResult = v.validateTimestamp(rawValue);
+        validatorResult = v.validateTimestamp(valueToValidate);
         if (validatorResult.valid) {
-          return { success: true, value: Number(rawValue) };
+          return { success: true, value: Number(valueToValidate) };
         }
         break;
+      case 'duration':
+        validatorResult = v.validateDuration(valueToValidate);
+        if (validatorResult.valid) {
+          return { success: true, value: validatorResult.value };
+        }
+        break;
+      case 'file': {
+        // Handle secretsDir: construct path if rawValue is missing
+        let filePath = rawValue;
+        if (!filePath) {
+          const secretsDir = def.secretsDir || options?.secretsDir;
+          if (secretsDir) {
+            // Convert SCREAMING_SNAKE_CASE to kebab-case (K8s convention)
+            // DB_PASSWORD → db-password
+            const fileName = key.toLowerCase().replace(/_/g, '-');
+            filePath = `${secretsDir}/${fileName}`;
+          }
+        }
+        if (!filePath) {
+          return { success: false, error: `${key}: No file path provided and no secretsDir configured` };
+        }
+        validatorResult = v.validateFile(filePath, key);
+        break;
+      }
+      case 'url[]': {
+        const separator = def.separator || ',';
+        const items = valueToValidate.split(separator).map(s => s.trim()).filter(s => s.length > 0);
+        const urls: string[] = [];
+        for (const item of items) {
+          const urlResult = v.validateUrl(item);
+          if (!urlResult.valid) {
+            return { success: false, error: `${key}: Invalid URL in array: "${item}" - ${urlResult.error}` };
+          }
+          urls.push(item);
+        }
+        return { success: true, value: urls };
+      }
       default:
         return { success: false, error: `Unknown type: ${type}` };
     }
@@ -443,7 +590,12 @@ function validateAdvancedTypeSync(
       return { success: false, error: `${key}: ${validatorResult.error}` };
     }
 
-    return { success: true, value: rawValue };
+    // Some validators return a transformed value (e.g., file content, parsed duration)
+    const finalValue = 'value' in validatorResult && validatorResult.value !== undefined 
+      ? validatorResult.value 
+      : rawValue;
+      
+    return { success: true, value: finalValue };
   } catch {
     return { 
       success: false, 
@@ -699,6 +851,44 @@ function validateEnvVarNames(schema: EnvSchema): string[] {
 }
 
 /**
+ * Transform flat object with delimited keys into nested object
+ * Example: { 'DATABASE__HOST': 'localhost' } → { database: { host: 'localhost' } }
+ */
+function applyNestedDelimiter(
+  flat: Record<string, unknown>,
+  delimiter: string
+): Record<string, unknown> {
+  const nested: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(flat)) {
+    if (!key.includes(delimiter)) {
+      // No delimiter in key, keep as-is
+      nested[key] = value;
+      continue;
+    }
+
+    // Split key by delimiter and build nested structure
+    const parts = key.split(delimiter);
+    let current: Record<string, unknown> = nested;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i]!.toLowerCase(); // Lowercase for nested keys
+      if (!(part in current)) {
+        current[part] = {};
+      }
+      // Type assertion: we know it's an object because we just created it
+      current = current[part] as Record<string, unknown>;
+    }
+
+    // Set the final value
+    const lastPart = parts[parts.length - 1]!.toLowerCase();
+    current[lastPart] = value;
+  }
+
+  return nested;
+}
+
+/**
  * Internal resolver - used by both old resolve() and new env() APIs
  */
 export async function resolveEnvInternal<T extends EnvSchema>(
@@ -768,12 +958,12 @@ export async function resolveEnvInternal<T extends EnvSchema>(
 
       // Check if type needs advanced validation
       if (ADVANCED_TYPES.has(type)) {
-        validationResult = await validateAdvancedTypeAsync(key, def, rawValue);
+        validationResult = await validateAdvancedTypeAsync(key, def, rawValue, options.validateDefaults, options);
       } else {
-        validationResult = validateBasicType(key, def, rawValue);
+        validationResult = validateBasicType(key, def, rawValue, options.validateDefaults);
         // If basic validation says it needs advanced validation, try that
         if (!validationResult.success && validationResult.error === 'NEEDS_ADVANCED_VALIDATION') {
-          validationResult = await validateAdvancedTypeAsync(key, def, rawValue);
+          validationResult = await validateAdvancedTypeAsync(key, def, rawValue, options.validateDefaults, options);
         }
       }
 
@@ -836,6 +1026,11 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     });
   }
 
+  // Apply nested delimiter transformation if specified
+  if (options.nestedDelimiter) {
+    return applyNestedDelimiter(result, options.nestedDelimiter);
+  }
+
   return result;
 }
 
@@ -891,12 +1086,12 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       // Check if type needs advanced validation
       if (ADVANCED_TYPES.has(type)) {
         // In sync context, try to use pre-loaded validators
-        validationResult = validateAdvancedTypeSync(key, def, rawValue);
+        validationResult = validateAdvancedTypeSync(key, def, rawValue, options.validateDefaults, options);
       } else {
-        validationResult = validateBasicType(key, def, rawValue);
+        validationResult = validateBasicType(key, def, rawValue, options.validateDefaults);
         // If basic validation says it needs advanced validation, try sync version
         if (!validationResult.success && validationResult.error === 'NEEDS_ADVANCED_VALIDATION') {
-          validationResult = validateAdvancedTypeSync(key, def, rawValue);
+          validationResult = validateAdvancedTypeSync(key, def, rawValue, options.validateDefaults, options);
         }
       }
 
@@ -913,6 +1108,11 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
 
   if (errors.length > 0) {
     throw new Error(`Environment validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+  }
+
+  // Apply nested delimiter transformation if specified
+  if (options.nestedDelimiter) {
+    return applyNestedDelimiter(result, options.nestedDelimiter);
   }
 
   return result;

@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/web.ts', 'src/zod.ts', 'src/valibot.ts', 'src/utils.ts', 'src/validators.ts', 'src/audit.ts', 'src/builder.ts', 'src/resolvers.ts', 'src/resolver.ts', 'src/types.ts', 'src/validation-types.ts'],
+  entry: ['src/index.ts', 'src/web.ts', 'src/zod.ts', 'src/valibot.ts', 'src/utils.ts', 'src/validators.ts', 'src/cli.ts', 'src/audit.ts', 'src/builder.ts', 'src/resolvers.ts', 'src/resolver.ts', 'src/types.ts', 'src/validation-types.ts'],
   outDir: './dist/',
   clean: false,
   format: ['esm'],

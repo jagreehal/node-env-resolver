@@ -13,6 +13,11 @@ export interface EnvDefinition {
    * - 'boolean': Coerced to boolean
    * - 'custom': Custom validator function
    * 
+   * Array types (comma-separated by default):
+   * - 'string[]': Array of strings (e.g., 'a,b,c' → ['a', 'b', 'c'])
+   * - 'number[]': Array of numbers (e.g., '1,2,3' → [1, 2, 3])
+   * - 'url[]': Array of URLs
+   * 
    * Advanced types (lazy-loaded validators, tree-shakeable):
    * - 'postgres'/'postgresql': PostgreSQL connection URL
    * - 'mysql': MySQL connection URL
@@ -26,18 +31,27 @@ export interface EnvDefinition {
    * - 'json': JSON value (returns parsed object)
    * - 'date': ISO 8601 date
    * - 'timestamp': Unix timestamp (seconds)
+   * - 'duration': Time duration (e.g., '5s', '2h', '30m' → milliseconds)
+   * - 'file': Read content from file path
    */
   type?: 'string' | 'number' | 'boolean' | 'custom' |
+        'string[]' | 'number[]' | 'url[]' |
         'postgres' | 'postgresql' | 'mysql' | 'mongodb' | 'redis' |
-        'http' | 'https' | 'url' | 'email' | 'port' | 'json' | 'date' | 'timestamp';
+        'http' | 'https' | 'url' | 'email' | 'port' | 'json' | 'date' | 'timestamp' | 'duration' | 'file';
   enum?: readonly string[];
-  default?: string | number | boolean;
+  default?: string | number | boolean | string[] | number[];
   optional?: boolean;
   description?: string;
   pattern?: string;
   min?: number;
   max?: number;
   validator?: (value: string) => unknown;
+  /** Allow empty strings (default: false - empty strings are rejected) */
+  allowEmpty?: boolean;
+  /** Separator for array types (default: ',') */
+  separator?: string;
+  /** Per-field secrets directory (overrides global secretsDir option) */
+  secretsDir?: string;
 }
 
 export interface EnvSchema {
@@ -79,6 +93,61 @@ export interface ResolveOptions {
    * );
    */
   priority?: 'first' | 'last';
+  /**
+   * Transform flat environment variables into nested objects using a delimiter.
+   *
+   * When specified, keys like `DATABASE__HOST` become nested as `{ database: { host: '...' } }`
+   *
+   * @example
+   * ```ts
+   * // With delimiter '__'
+   * process.env.DATABASE__HOST = 'localhost';
+   * process.env.DATABASE__PORT = '5432';
+   *
+   * const config = resolve({
+   *   'DATABASE__HOST': 'string',
+   *   'DATABASE__PORT': 'port'
+   * }, { nestedDelimiter: '__' });
+   *
+   * // Result: { database: { host: 'localhost', port: 5432 } }
+   * ```
+   */
+  nestedDelimiter?: string;
+  /**
+   * Validate default values using the same validators as environment values.
+   *
+   * When `true`, default values are validated to ensure they match the specified type.
+   * This catches configuration errors at startup instead of runtime.
+   *
+   * @default false
+   *
+   * @example
+   * ```ts
+   * const config = resolve({
+   *   PORT: 99999, // Invalid port number!
+   *   DATABASE_URL: 'not-a-url' // Invalid URL!
+   * }, { validateDefaults: true });
+   * // Throws: Port must be between 1 and 65535
+   * ```
+   */
+  validateDefaults?: boolean;
+  /**
+   * Global secrets directory for file reading (type: 'file').
+   *
+   * When specified, variables with `type: 'file'` will read from `secretsDir/lowercase_key_name`
+   * if no env var value is provided. Useful for Docker/Kubernetes secrets.
+   *
+   * Can be overridden per-field using the `secretsDir` property in EnvDefinition.
+   *
+   * @example
+   * ```ts
+   * const config = resolve({
+   *   DB_PASSWORD: 'file',  // Reads from /run/secrets/db_password
+   *   API_KEY: 'file'       // Reads from /run/secrets/api_key
+   * }, { secretsDir: '/run/secrets' });
+   * ```
+   */
+  secretsDir?: string;
 }
 
 export interface Provenance {
@@ -125,6 +194,10 @@ export type InferType<T extends EnvDefinition> =
   T['type'] extends 'boolean' ? boolean :
   T['type'] extends 'port' ? number :
   T['type'] extends 'timestamp' ? number :
+  T['type'] extends 'duration' ? number :
+  T['type'] extends 'string[]' ? string[] :
+  T['type'] extends 'number[]' ? number[] :
+  T['type'] extends 'url[]' ? string[] :
   T['type'] extends 'custom' ? unknown :
   string;
 
@@ -148,10 +221,16 @@ type InferSimpleValue<V> =
     ? boolean
     : V extends readonly (infer U)[]
     ? U
-    : V extends 'number' | `number?` | `number:${string}` | 'port' | `port?` | `port:${string}` | 'timestamp' | `timestamp?` | `timestamp:${string}`
+    : V extends 'number' | `number?` | `number:${string}` | 'port' | `port?` | `port:${string}` | 'timestamp' | `timestamp?` | `timestamp:${string}` | 'duration' | `duration?` | `duration:${string}`
     ? number
     : V extends 'boolean' | `boolean?` | `boolean:${string}`
     ? boolean
+    : V extends 'string[]' | `string[]?` | `string[]:${string}`
+    ? string[]
+    : V extends 'number[]' | `number[]?` | `number[]:${string}`
+    ? number[]
+    : V extends 'url[]' | `url[]?` | `url[]:${string}`
+    ? string[]
     : V extends string
     ? string
     : never;

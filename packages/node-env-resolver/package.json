@@ -38,6 +38,10 @@
       "import": "./dist/validators.js",
       "types": "./dist/validators.d.ts"
     },
+    "./cli": {
+      "import": "./dist/cli.js",
+      "types": "./dist/cli.d.ts"
+    },
     "./audit": {
       "import": "./dist/audit.js",
       "types": "./dist/audit.d.ts"
