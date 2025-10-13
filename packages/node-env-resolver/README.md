@@ -50,6 +50,30 @@ config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
 
+## Table of Contents
+
+- [Install](#install)
+- [Quick start](#quick-start-uses-processenv)
+- [Basic usage](#basic-usage)
+  - [Required values](#required-values)
+  - [Default values](#default-values)
+  - [Optional values](#optional-values)
+  - [Enums](#enums)
+- [Performance & Bundle Size](#performance--bundle-size)
+- [Built-in validators](#built-in-validators)
+- [Custom validators](#custom-validators)
+- [Multiple sources](#multiple-sources)
+- [Safe error handling](#safe-error-handling)
+- [Synchronous resolution](#synchronous-resolution)
+- [Advanced features](#advanced-features)
+- [API Reference](#api-reference)
+- [Configuration Options](#configuration-options)
+- [Framework examples](#framework-examples)
+- [Security Policies](#security-policies)
+- [Audit Logging](#audit-logging)
+- [Error messages](#error-messages)
+- [Licence](#licence)
+
 ## Basic usage
 
 ### Required values
@@ -231,6 +255,62 @@ Advanced validators provide specialized validation and parsing:
 - `'port'` - Port number (returns number, 1-65535)
 - `'date'` - ISO 8601 date string (returns string)
 - `'timestamp'` - Unix timestamp (returns number)
+- `'duration'` - Time duration like `'5s'`, `'2m'`, `'1h'` (returns milliseconds as number)
+- `'file'` - Read content from file path (returns trimmed file content as string)
+
+**Array types:**
+
+- `'string[]'` - Array of strings from comma-separated values (returns `string[]`)
+- `'number[]'` - Array of numbers from comma-separated values (returns `number[]`)
+- `'url[]'` - Array of validated URLs from comma-separated values (returns `string[]`)
+
+```ts
+// Array examples
+process.env.TAGS = 'frontend,backend,mobile';
+process.env.PORTS = '3000,8080,9000';
+process.env.ALLOWED_ORIGINS = 'https://app.com,https://api.com';
+
+const config = resolve({
+  TAGS: 'string[]',           // ['frontend', 'backend', 'mobile']
+  PORTS: 'number[]',          // [3000, 8080, 9000]
+  ALLOWED_ORIGINS: 'url[]'    // ['https://app.com', 'https://api.com']
+});
+
+// Custom separator
+const config = resolve({
+  TAGS: { type: 'string[]', separator: '|' }  // Use pipe instead of comma
+});
+
+// Duration parsing
+process.env.TIMEOUT = '30s';
+process.env.CACHE_TTL = '5m';
+process.env.SESSION_DURATION = '24h';
+
+const config = await resolve.with([processEnv(), {
+  TIMEOUT: 'duration',         // 30000 (milliseconds)
+  CACHE_TTL: 'duration',       // 300000
+  SESSION_DURATION: 'duration' // 86400000
+}]);
+
+// File reading (useful for Docker/Kubernetes secrets)
+// Method 1: Explicit path in env var
+process.env.DB_PASSWORD_FILE = '/run/secrets/db_password';
+const config = await resolve.with([processEnv(), {
+  DB_PASSWORD_FILE: 'file'  // 'my-secret-password' (file content, trimmed)
+}]);
+
+// Method 2: Using secretsDir (cleaner for Docker/K8s)
+// Reads from /run/secrets/db_password automatically (key name lowercased)
+const config = await resolve.with([processEnv(), {
+  DB_PASSWORD: 'file'  // Reads /run/secrets/db_password
+}], { secretsDir: '/run/secrets' });
+
+// Per-field secretsDir (overrides global)
+const config = await resolve.with([processEnv(), {
+  DB_PASSWORD: { type: 'file', secretsDir: '/custom/secrets' },
+  API_KEY: 'file'  // Uses global secretsDir
+}], { secretsDir: '/run/secrets' });
+```
 
 All validators automatically handle type coercion from environment variable strings.
 
@@ -441,6 +521,107 @@ const config = await resolve.with(
 
 ## Advanced features
 
+### CLI arguments
+
+Parse command-line arguments as environment variables - perfect for CLI tools:
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { cliArgs } from 'node-env-resolver/cli';
+
+// $ node app.js --port 8080 --database-url postgres://localhost --verbose
+
+const config = await resolve.with(
+  [processEnv(), {
+    PORT: 3000,
+    DATABASE_URL: 'postgres',
+    VERBOSE: false
+  }],
+  [cliArgs(), {
+    PORT: 3000,
+    DATABASE_URL: 'postgres',
+    VERBOSE: false
+  }]
+);
+
+// config.PORT === 8080 (from CLI)
+// config.DATABASE_URL === 'postgres://localhost' (from CLI)
+// config.VERBOSE === true (from CLI flag)
+```
+
+**Supported formats:**
+- `--key value` → `KEY=value`
+- `--key=value` → `KEY=value`  
+- `--flag` → `FLAG=true` (boolean flags)
+- `--kebab-case` → `KEBAB_CASE` (auto-normalization)
+
+**Bundle size:** ~500 bytes (lazy-loaded)
+
+### Computed fields
+
+Derive properties from resolved configuration:
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { withComputed } from 'node-env-resolver/utils';
+
+const config = resolve({
+  HOST: 'localhost',
+  PORT: 3000,
+  SSL_ENABLED: false,
+  NODE_ENV: ['development', 'production'] as const
+});
+
+// Add computed properties
+const appConfig = withComputed(config, {
+  // Build URLs from components
+  url: (c) => `${c.SSL_ENABLED ? 'https' : 'http'}://${c.HOST}:${c.PORT}`,
+  
+  // Environment checks
+  isProd: (c) => c.NODE_ENV === 'production',
+  isDev: (c) => c.NODE_ENV === 'development',
+  
+  // Complex derived config
+  serverOptions: (c) => ({
+    host: c.HOST,
+    port: c.PORT,
+    cors: c.NODE_ENV !== 'production',
+    compression: c.NODE_ENV === 'production'
+  })
+});
+
+console.log(appConfig.url);           // 'http://localhost:3000'
+console.log(appConfig.isProd);        // false
+console.log(appConfig.serverOptions); // { host: 'localhost', ... }
+```
+
+**Common patterns:**
+```ts
+// Build database connection URLs
+withComputed(config, {
+  databaseUrl: (c) => 
+    `postgres://${c.DB_USER}:${c.DB_PASSWORD}@${c.DB_HOST}:${c.DB_PORT}/${c.DB_NAME}`
+});
+
+// Derive API endpoints
+withComputed(config, {
+  endpoints: (c) => ({
+    users: `${c.API_BASE_URL}/${c.API_VERSION}/users`,
+    posts: `${c.API_BASE_URL}/${c.API_VERSION}/posts`
+  })
+});
+
+// Feature flags based on environment
+withComputed(config, {
+  features: (c) => ({
+    analytics: c.ENABLE_ANALYTICS && c.NODE_ENV === 'production',
+    debug: c.NODE_ENV === 'development'
+  })
+});
+```
+
+**Bundle size:** ~200 bytes (included in utils)
+
 ### Zod integration
 
 Use Zod schemas for powerful validation:
@@ -649,12 +830,15 @@ Performance:
 
 | Syntax | Type | Description |
 |--------|------|-------------|
-| `'string'` | `string` | Required string |
+| `'string'` | `string` | Required string (empty strings rejected by default) |
 | `'string?'` | `string \| undefined` | Optional string |
 | `'number'` | `number` | Required number (coerced from string) |
 | `'number?'` | `number \| undefined` | Optional number |
 | `'boolean'` | `boolean` | Required boolean (coerced from string) |
 | `'boolean?'` | `boolean \| undefined` | Optional boolean |
+| `'string[]'` | `string[]` | Array of strings (comma-separated) |
+| `'number[]'` | `number[]` | Array of numbers (comma-separated) |
+| `'url[]'` | `string[]` | Array of validated URLs |
 | `'url'` | `string` | Validated URL (returns string) |
 | `'email'` | `string` | Validated email address |
 | `'port'` | `number` | Validated port number (1-65535) |
@@ -662,6 +846,8 @@ Performance:
 | `'postgres'` | `string` | Validated PostgreSQL URL |
 | `'date'` | `string` | Validated ISO 8601 date |
 | `'timestamp'` | `number` | Validated Unix timestamp |
+| `'duration'` | `number` | Time duration (`5s`, `2m`, `1h` → milliseconds) |
+| `'file'` | `string` | Read content from file path |
 | `3000` | `number` | Number with default |
 | `false` | `boolean` | Boolean with default |
 | `['a', 'b']` | `'a' \| 'b'` | Enum (requires `as const`) |
@@ -862,6 +1048,7 @@ interface ResolveOptions {
   priority?: 'first' | 'last';         // Merge strategy (default: 'last')
   policies?: PolicyOptions;            // Security policies (default: undefined)
   enableAudit?: boolean;               // Audit logging (default: auto in production)
+  secretsDir?: string;                 // Base directory for file secrets (Docker/K8s)
 }
 
 interface PolicyOptions {

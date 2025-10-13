@@ -1163,4 +1163,138 @@ describe('Connection String Types', () => {
       expect(config.PORT).toBe(3000);
     });
   });
+
+  describe('validateDefaults option', () => {
+    it('should validate default values when validateDefaults is true', async () => {
+      // Invalid port default (too high)
+      await expect(resolve.with(
+        [mockProvider({}), {
+          PORT: 'port:99999'  // Invalid port number
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/Invalid port/);
+    });
+
+    it('should not validate defaults when validateDefaults is false (default)', async () => {
+      // With validateDefaults false (default), invalid defaults are allowed
+      const config = await resolve.with(
+        [mockProvider({}), {
+          PORT: 'port:99999'  // Invalid port, but not validated
+        }],
+        { validateDefaults: false }
+      );
+
+      expect(config.PORT).toBe(99999);  // Returns invalid default without validation
+    });
+
+    it('should validate string defaults with min/max', async () => {
+      // String too short
+      await expect(resolve.with(
+        [mockProvider({}), {
+          NAME: { type: 'string', default: 'x', min: 3 }
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/must be at least 3 characters/);
+    });
+
+    it('should validate number defaults with min/max', async () => {
+      // Number too large
+      await expect(resolve.with(
+        [mockProvider({}), {
+          SCORE: { type: 'number', default: 150, max: 100 }
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/must be at most 100/);
+    });
+
+    it('should validate enum defaults', async () => {
+      // Invalid enum default
+      await expect(resolve.with(
+        [mockProvider({}), {
+          NODE_ENV: { type: 'string', enum: ['dev', 'prod'], default: 'staging' }
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/must be one of: dev, prod/);
+    });
+
+    it('should validate pattern defaults', async () => {
+      // Invalid pattern default
+      await expect(resolve.with(
+        [mockProvider({}), {
+          CODE: { type: 'string', pattern: '^[A-Z]{3}$', default: 'AB' }  // Too short
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/does not match required pattern/);
+    });
+
+    it('should validate advanced type defaults (email)', async () => {
+      // Invalid email default
+      await expect(resolve.with(
+        [mockProvider({}), {
+          ADMIN_EMAIL: 'email:not-an-email'
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/Invalid email/);
+    });
+
+    it('should validate advanced type defaults (postgres URL)', async () => {
+      // Invalid postgres URL default
+      await expect(resolve.with(
+        [mockProvider({}), {
+          DATABASE_URL: 'postgres:http://localhost'  // Wrong protocol
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/Invalid PostgreSQL URL/);
+    });
+
+    it('should allow valid defaults when validateDefaults is true', async () => {
+      const config = await resolve.with(
+        [mockProvider({}), {
+          PORT: 'port:8080',                    // Valid port
+          EMAIL: 'email:admin@example.com',      // Valid email
+          NODE_ENV: { type: 'string', enum: ['dev', 'prod'], default: 'dev' },  // Valid enum
+          NAME: { type: 'string', default: 'test', min: 3, max: 10 }            // Valid string
+        }],
+        { validateDefaults: true }
+      );
+
+      expect(config.PORT).toBe(8080);
+      expect(config.EMAIL).toBe('admin@example.com');
+      expect(config.NODE_ENV).toBe('dev');
+      expect(config.NAME).toBe('test');
+    });
+
+    it('should work with sync resolution', async () => {
+      // Invalid timestamp default (synchronous)
+      await expect(resolve.with(
+        [mockProvider({}), {
+          EXPIRY: 'timestamp:999999999999'  // Too large
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/Timestamp too large/);
+    });
+
+    it('should validate boolean defaults', async () => {
+      const config = await resolve.with(
+        [mockProvider({}), {
+          DEBUG: { type: 'boolean', default: true }
+        }],
+        { validateDefaults: true }
+      );
+
+      expect(config.DEBUG).toBe(true);
+    });
+
+    it('should catch configuration errors at startup', async () => {
+      // This is the main use case - catching bad config early
+      await expect(resolve.with(
+        [mockProvider({}), {
+          PORT: 'port:0',  // Port 0 is invalid
+          HOST: { type: 'string', default: '', min: 1 },  // Empty string with min length
+          TIMEOUT: 'timestamp:-1'  // Negative timestamp
+        }],
+        { validateDefaults: true }
+      )).rejects.toThrow(/Environment validation failed/);
+    });
+  });
 });

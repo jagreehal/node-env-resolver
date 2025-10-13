@@ -55,6 +55,31 @@ config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
 
+## Table of Contents
+
+- [Install](#install)
+- [Quick start](#quick-start-uses-processenv)
+- [Basic usage](#basic-usage)
+  - [Required values](#required-values)
+  - [Default values](#default-values)
+  - [Optional values](#optional-values)
+  - [Enums](#enums)
+- [Performance & Bundle Size](#performance--bundle-size)
+- [Built-in validators](#built-in-validators)
+- [Custom validators](#custom-validators)
+- [Multiple sources](#multiple-sources)
+- [Composable Utilities](#composable-utilities)
+- [Safe error handling](#safe-error-handling)
+- [Synchronous resolution](#synchronous-resolution)
+- [Advanced features](#advanced-features)
+- [API Reference](#api-reference)
+- [Configuration Options](#configuration-options)
+- [Framework examples](#framework-examples)
+- [Security Policies](#security-policies)
+- [Audit Logging](#audit-logging)
+- [Error messages](#error-messages)
+- [Licence](#licence)
+
 ## Basic usage
 
 ### Required values
@@ -236,8 +261,57 @@ Advanced validators provide specialized validation and parsing:
 - `'port'` - Port number (returns number, 1-65535)
 - `'date'` - ISO 8601 date string (returns string)
 - `'timestamp'` - Unix timestamp (returns number)
+- `'duration'` - Time duration like `'5s'`, `'2m'`, `'1h'` (returns milliseconds as number)
+- `'file'` - Read content from file path (returns trimmed file content as string)
+
+**Array types:**
+
+- `'string[]'` - Array of strings from comma-separated values (returns `string[]`)
+- `'number[]'` - Array of numbers from comma-separated values (returns `number[]`)
+- `'url[]'` - Array of validated URLs from comma-separated values (returns `string[]`)
 
 All validators automatically handle type coercion from environment variable strings.
+
+**Usage examples:**
+
+```ts
+// Arrays
+process.env.TAGS = 'frontend,backend,mobile';
+process.env.PORTS = '3000,8080,9000';
+process.env.ALLOWED_ORIGINS = 'https://app.com,https://api.com';
+
+const config = resolve({
+  TAGS: 'string[]',           // ['frontend', 'backend', 'mobile']
+  PORTS: 'number[]',          // [3000, 8080, 9000]
+  ALLOWED_ORIGINS: 'url[]',   // ['https://app.com', 'https://api.com']
+  FEATURES: { type: 'string[]', separator: '|' }  // Custom separator
+});
+
+// Duration parsing
+process.env.TIMEOUT = '30s';
+process.env.CACHE_TTL = '5m';
+process.env.SESSION_DURATION = '2h30m';
+
+const config = await resolve.with([processEnv(), {
+  TIMEOUT: 'duration',          // 30000 (milliseconds)
+  CACHE_TTL: 'duration',        // 300000
+  SESSION_DURATION: 'duration'  // 9000000 (2.5 hours)
+}]);
+
+// File reading (Docker/Kubernetes secrets)
+// Method 1: Explicit path in env var
+process.env.DB_PASSWORD_FILE = '/run/secrets/db_password';
+const config = await resolve.with([processEnv(), {
+  DB_PASSWORD_FILE: 'file'  // Reads file content
+}]);
+
+// Method 2: Using secretsDir (auto kebab-case conversion)
+// Reads /run/secrets/db-password, /run/secrets/api-key
+const config = await resolve.with([processEnv(), {
+  DB_PASSWORD: 'file',  // No env var needed!
+  API_KEY: 'file'
+}], { secretsDir: '/run/secrets' });
+```
 
 ## Custom validators
 
@@ -388,6 +462,321 @@ Since `priority: 'last'` means "last write wins", the order doesn't matter for c
 - Production environments loading from multiple remote secret stores
 - Fetching different variables from different sources
 - Significant speedup when resolvers have network latency
+
+## Composable Utilities
+
+Powerful, tree-shakeable utilities that wrap resolvers for advanced configuration patterns.
+
+### Configuration File Resolvers
+
+Load config from JSON, YAML, or TOML files with automatic nested object flattening:
+
+```ts
+import { json, yaml, toml } from 'node-env-resolver/resolvers';
+
+// JSON config
+const config = await resolve.with([
+  json('config.json'),
+  { PORT: 3000, DATABASE_URL: 'postgres' }
+]);
+
+// YAML config (requires: pnpm add js-yaml)
+const config = await resolve.with([
+  yaml('config.yaml'),
+  { PORT: 3000, API_KEY: 'string' }
+]);
+
+// TOML config (requires: pnpm add smol-toml)
+const config = await resolve.with([
+  toml('config.toml'),
+  { PORT: 3000, DEBUG: false }
+]);
+```
+
+**Nested object flattening** - Files with nested structure work automatically:
+```yaml
+# config.yaml
+database:
+  host: localhost
+  port: 5432
+api:
+  key: secret123
+```
+```ts
+const config = await resolve.with([yaml('config.yaml'), {
+  DATABASE_HOST: 'string',    // From database.host
+  DATABASE_PORT: 'port',       // From database.port
+  API_KEY: 'string'            // From api.key
+}]);
+```
+
+### Secrets Directory Resolver
+
+Load Docker/Kubernetes secrets from a directory:
+
+```ts
+import { secrets } from 'node-env-resolver/resolvers';
+
+// Reads all files in /run/secrets, filename → env var name
+const config = await resolve.with([
+  secrets('/run/secrets'),
+  { DB_PASSWORD: 'string', API_KEY: 'string' }
+]);
+```
+
+File `db-password` becomes `DB_PASSWORD`, `api.key` becomes `API_KEY`, etc.
+
+### Prefix Scoping
+
+Strip prefixes from environment variable names:
+
+```ts
+import { withPrefix, processEnv } from 'node-env-resolver/utils';
+
+// APP_PORT → PORT, APP_DEBUG → DEBUG
+const config = await resolve.with([
+  withPrefix(processEnv(), 'APP_'),
+  { PORT: 3000, DEBUG: false }
+]);
+```
+
+### Namespace Scoping
+
+Scope config to a specific namespace (better for grouping related settings):
+
+```ts
+import { withNamespace, processEnv } from 'node-env-resolver/utils';
+
+// Reads DATABASE_HOST, DATABASE_PORT from env
+// But schema only needs HOST, PORT
+const dbConfig = await resolve.with([
+  withNamespace(processEnv(), 'DATABASE'),
+  { HOST: 'string', PORT: 'port' }
+]);
+// Result: { HOST: 'localhost', PORT: 5432 }
+```
+
+### Field Aliases
+
+Support multiple names for the same configuration value:
+
+```ts
+import { withAliases, processEnv } from 'node-env-resolver/utils';
+
+// Tries PORT, then HTTP_PORT, then SERVER_PORT (first found wins)
+const config = await resolve.with([
+  withAliases(processEnv(), {
+    PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT'],
+    DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL']
+  }),
+  { PORT: 3000, DATABASE_URL: 'postgres' }
+]);
+```
+
+### CLI Arguments
+
+Parse command-line arguments as environment variables - perfect for CLI tools:
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { cliArgs } from 'node-env-resolver/cli';
+
+// $ node app.js --port 8080 --database-url postgres://localhost --verbose
+
+const config = await resolve.with(
+  [processEnv(), { PORT: 3000, DATABASE_URL: 'postgres', VERBOSE: false }],
+  [cliArgs(), { PORT: 3000, DATABASE_URL: 'postgres', VERBOSE: false }]
+);
+
+// config.PORT === 8080 (from CLI)
+// config.DATABASE_URL === 'postgres://localhost'
+// config.VERBOSE === true (boolean flag)
+```
+
+**Supported formats:**
+- `--key value` → `KEY=value`
+- `--key=value` → `KEY=value`
+- `--flag` → `FLAG=true` (boolean flags)
+- `--kebab-case` → `KEBAB_CASE` (auto-normalization)
+
+### Computed Fields
+
+Derive properties from resolved configuration:
+
+```ts
+import { withComputed } from 'node-env-resolver/utils';
+
+const config = resolve({
+  HOST: 'localhost',
+  PORT: 3000,
+  SSL_ENABLED: false,
+  NODE_ENV: ['development', 'production'] as const
+});
+
+const appConfig = withComputed(config, {
+  url: (c) => `${c.SSL_ENABLED ? 'https' : 'http'}://${c.HOST}:${c.PORT}`,
+  isProd: (c) => c.NODE_ENV === 'production',
+  serverOptions: (c) => ({
+    host: c.HOST,
+    port: c.PORT,
+    cors: c.NODE_ENV !== 'production'
+  })
+});
+
+console.log(appConfig.url); // 'http://localhost:3000'
+```
+
+### Custom Transformations
+
+Apply custom transformations to values before validation:
+
+```ts
+import { withTransform, processEnv } from 'node-env-resolver/utils';
+
+const config = await resolve.with([
+  withTransform(processEnv(), {
+    // Parse comma-separated values
+    TAGS: (val) => val.split(',').map(s => s.trim()),
+    // Convert to URL object
+    API_URL: (val) => new URL(val).toString(),
+    // Custom parsing
+    MAX_RETRIES: (val) => Math.min(parseInt(val, 10), 10)
+  }),
+  { TAGS: 'string', API_URL: 'url', MAX_RETRIES: 'number' }
+]);
+```
+
+### Nested Delimiter
+
+Transform flat keys with delimiters into nested objects:
+
+```ts
+process.env.DATABASE__HOST = 'localhost';
+process.env.DATABASE__PORT = '5432';
+
+const config = resolve({
+  DATABASE__HOST: 'string',
+  DATABASE__PORT: 'port'
+}, { nestedDelimiter: '__' });
+
+// Result: { database: { host: 'localhost', port: 5432 } }
+```
+
+### Package.json Integration
+
+Load version, name, and config from package.json:
+
+```ts
+import { packageJson } from 'node-env-resolver/resolvers';
+
+// Reads VERSION, NAME, CONFIG_* from package.json
+const config = await resolve.with([
+  packageJson(),
+  { VERSION: 'string', NAME: 'string' }
+]);
+```
+
+```json
+// package.json
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "config": {
+    "api": {
+      "key": "secret123"
+    }
+  }
+}
+```
+Results in: `{ NAME: "my-app", VERSION: "1.0.0", CONFIG_API_KEY: "secret123" }`
+
+### Remote HTTP Config
+
+Fetch configuration from remote HTTP/HTTPS endpoints:
+
+```ts
+import { http } from 'node-env-resolver/resolvers';
+
+// Fetch from remote endpoint (with timeout)
+const config = await resolve.with([
+  http('https://config.example.com/app.json', { timeout: 5000 }),
+  { PORT: 3000, API_KEY: 'string' }
+]);
+```
+
+Perfect for:
+- Centralized configuration services
+- Consul/etcd HTTP APIs
+- Remote JSON endpoints
+
+### Hot Reload (Development)
+
+Watch files and auto-reload configuration:
+
+```ts
+import { watch } from 'node-env-resolver/utils';
+import { dotenv } from 'node-env-resolver/resolvers';
+
+// Auto-reload when .env changes
+const { getConfig, stop } = watch([
+  dotenv(),
+  { PORT: 3000, DEBUG: false }
+], {
+  onChange: (config) => console.log('Config reloaded!'),
+  files: ['.env', '.env.local']
+});
+
+app.get('/config', () => getConfig());
+
+// Cleanup
+process.on('SIGINT', () => stop());
+```
+
+### CLI Arguments
+
+Parse command-line arguments as environment variables:
+
+```ts
+import { cliArgs } from 'node-env-resolver/cli';
+
+// node app.js --port 3000 --debug --api-key secret
+const config = await resolve.with([
+  cliArgs(),
+  { PORT: 3000, DEBUG: false, API_KEY: 'string' }
+]);
+// Result: { PORT: 3000, DEBUG: true, API_KEY: 'secret' }
+```
+
+**Composition Example** - Stack utilities for powerful config loading:
+
+```ts
+import { resolve, processEnv } from 'node-env-resolver';
+import { dotenv, json, secrets } from 'node-env-resolver/resolvers';
+import { withNamespace, withAliases, cached, TTL } from 'node-env-resolver/utils';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+const config = await resolve.with(
+  // 1. Load from .env files
+  [dotenv(), schema],
+
+  // 2. Load database config from namespace
+  [withNamespace(processEnv(), 'DATABASE'), dbSchema],
+
+  // 3. Load from JSON with aliases
+  [withAliases(json('config.json'), {
+    PORT: ['PORT', 'HTTP_PORT']
+  }), schema],
+
+  // 4. Load secrets (Docker/K8s)
+  [secrets('/run/secrets'), secretsSchema],
+
+  // 5. Load from AWS (cached)
+  [cached(awsSecrets({ secretId: 'prod/app' }), { ttl: TTL.minutes5 }), awsSchema],
+
+  // Priority: later sources override earlier ones
+  { priority: 'last' }
+);
+```
 
 ## Safe error handling
 
@@ -654,12 +1043,15 @@ Performance:
 
 | Syntax | Type | Description |
 |--------|------|-------------|
-| `'string'` | `string` | Required string |
+| `'string'` | `string` | Required string (empty strings rejected by default) |
 | `'string?'` | `string \| undefined` | Optional string |
 | `'number'` | `number` | Required number (coerced from string) |
 | `'number?'` | `number \| undefined` | Optional number |
 | `'boolean'` | `boolean` | Required boolean (coerced from string) |
 | `'boolean?'` | `boolean \| undefined` | Optional boolean |
+| `'string[]'` | `string[]` | Array of strings (comma-separated) |
+| `'number[]'` | `number[]` | Array of numbers (comma-separated) |
+| `'url[]'` | `string[]` | Array of validated URLs |
 | `'url'` | `string` | Validated URL (returns string) |
 | `'email'` | `string` | Validated email address |
 | `'port'` | `number` | Validated port number (1-65535) |
@@ -667,6 +1059,8 @@ Performance:
 | `'postgres'` | `string` | Validated PostgreSQL URL |
 | `'date'` | `string` | Validated ISO 8601 date |
 | `'timestamp'` | `number` | Validated Unix timestamp |
+| `'duration'` | `number` | Time duration (`5s`, `2m`, `1h` → milliseconds) |
+| `'file'` | `string` | Read content from file path |
 | `3000` | `number` | Number with default |
 | `false` | `boolean` | Boolean with default |
 | `['a', 'b']` | `'a' \| 'b'` | Enum (requires `as const`) |
@@ -867,6 +1261,7 @@ interface ResolveOptions {
   priority?: 'first' | 'last';         // Merge strategy (default: 'last')
   policies?: PolicyOptions;            // Security policies (default: undefined)
   enableAudit?: boolean;               // Audit logging (default: auto in production)
+  secretsDir?: string;                 // Base directory for file secrets (Docker/K8s)
 }
 
 interface PolicyOptions {

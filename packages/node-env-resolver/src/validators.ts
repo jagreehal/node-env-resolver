@@ -9,6 +9,7 @@
 export interface ValidationResult {
   valid: boolean;
   error?: string;
+  value?: unknown;
 }
 
 /**
@@ -231,4 +232,70 @@ export function validateTimestamp(value: string): ValidationResult {
     return { valid: false, error: 'Timestamp too large' };
   }
   return { valid: true };
+}
+
+/**
+ * Validate and parse time duration (Go-style: 5s, 2h, 30m, etc.)
+ * Returns milliseconds
+ */
+export function validateDuration(value: string): ValidationResult & { value?: number } {
+  // Match patterns like: 5s, 2h, 30m, 1.5h, 2h30m, etc.
+  const durationRegex = /^(\d+(?:\.\d+)?)(ms|s|m|h|d)$/;
+  const combinedRegex = /^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?(?:(\d+(?:\.\d+)?)ms)?$/;
+  
+  // Try simple format first (e.g., "5s", "2h")
+  const simpleMatch = value.match(durationRegex);
+  if (simpleMatch) {
+    const amount = parseFloat(simpleMatch[1]);
+    const unit = simpleMatch[2];
+    
+    const multipliers: Record<string, number> = {
+      ms: 1,
+      s: 1000,
+      m: 60 * 1000,
+      h: 60 * 60 * 1000,
+      d: 24 * 60 * 60 * 1000
+    };
+    
+    return { valid: true, value: Math.floor(amount * multipliers[unit]) };
+  }
+  
+  // Try combined format (e.g., "2h30m", "1h30m15s")
+  const combinedMatch = value.match(combinedRegex);
+  if (combinedMatch && combinedMatch[0]) {
+    let totalMs = 0;
+    if (combinedMatch[1]) totalMs += parseFloat(combinedMatch[1]) * 60 * 60 * 1000; // hours
+    if (combinedMatch[2]) totalMs += parseFloat(combinedMatch[2]) * 60 * 1000; // minutes
+    if (combinedMatch[3]) totalMs += parseFloat(combinedMatch[3]) * 1000; // seconds
+    if (combinedMatch[4]) totalMs += parseFloat(combinedMatch[4]); // milliseconds
+    
+    if (totalMs > 0) {
+      return { valid: true, value: Math.floor(totalMs) };
+    }
+  }
+  
+  return { valid: false, error: 'Duration must be in format: 5s, 2h, 30m, 1h30m, etc.' };
+}
+
+/**
+ * Read and validate file content
+ * Reads the file at the path specified in the value
+ *
+ * @param value - File path to read
+ * @param key - Optional env var key name (for error messages)
+ * @returns ValidationResult with file content or error
+ */
+export function validateFile(value: string, key?: string): ValidationResult {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    const content = fs.readFileSync(value, 'utf8').trim();
+    return { valid: true, value: content };
+  } catch (error) {
+    const keyInfo = key ? ` for ${key}` : '';
+    return {
+      valid: false,
+      error: `Failed to read file${keyInfo}: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
 }
