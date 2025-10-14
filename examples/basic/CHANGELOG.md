@@ -1,5 +1,13 @@
 # node-env-resolver-examples
 
+## 1.0.8
+
+### Patch Changes
+
+- Updated dependencies [7e1a295]
+  - node-env-resolver-aws@5.0.0
+  - node-env-resolver@4.0.0
+
 ## 1.0.7
 
 ### Patch Changes
