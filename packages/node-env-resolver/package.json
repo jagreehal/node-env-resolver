@@ -7,52 +7,64 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
     "./builder": {
+      "types": "./dist/builder.d.ts",
       "import": "./dist/builder.js",
-      "types": "./dist/builder.d.ts"
+      "require": "./dist/builder.cjs"
     },
     "./zod": {
+      "types": "./dist/zod.d.ts",
       "import": "./dist/zod.js",
-      "types": "./dist/zod.d.ts"
+      "require": "./dist/zod.cjs"
     },
     "./valibot": {
+      "types": "./dist/valibot.d.ts",
       "import": "./dist/valibot.js",
-      "types": "./dist/valibot.d.ts"
+      "require": "./dist/valibot.cjs"
     },
     "./web": {
+      "types": "./dist/web.d.ts",
       "import": "./dist/web.js",
-      "types": "./dist/web.d.ts"
+      "require": "./dist/web.cjs"
     },
     "./resolvers": {
+      "types": "./dist/resolvers.d.ts",
       "import": "./dist/resolvers.js",
-      "types": "./dist/resolvers.d.ts"
+      "require": "./dist/resolvers.cjs"
     },
     "./utils": {
+      "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js",
-      "types": "./dist/utils.d.ts"
+      "require": "./dist/utils.cjs"
     },
     "./validators": {
+      "types": "./dist/validators.d.ts",
       "import": "./dist/validators.js",
-      "types": "./dist/validators.d.ts"
+      "require": "./dist/validators.cjs"
     },
     "./cli": {
+      "types": "./dist/cli.d.ts",
       "import": "./dist/cli.js",
-      "types": "./dist/cli.d.ts"
+      "require": "./dist/cli.cjs"
     },
     "./audit": {
+      "types": "./dist/audit.d.ts",
       "import": "./dist/audit.js",
-      "types": "./dist/audit.d.ts"
+      "require": "./dist/audit.cjs"
     },
     "./resolver": {
+      "types": "./dist/resolver.d.ts",
       "import": "./dist/resolver.js",
-      "types": "./dist/resolver.d.ts"
+      "require": "./dist/resolver.cjs"
     },
     "./types": {
+      "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
-      "types": "./dist/types.d.ts"
+      "require": "./dist/types.cjs"
     }
   },
   "files": [
@@ -99,8 +111,8 @@
   "devDependencies": {
     "@eslint/js": "^9.37.0",
     "@types/node": "^24.7.2",
-    "@typescript-eslint/eslint-plugin": "^8.46.0",
-    "@typescript-eslint/parser": "^8.46.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "@typescript-eslint/parser": "^8.46.1",
     "eslint": "^9.37.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-zod": "^1.2.0",

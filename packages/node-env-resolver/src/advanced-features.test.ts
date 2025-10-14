@@ -121,12 +121,11 @@ describe('Advanced Features', () => {
     it('should parse and validate multiple URLs', async () => {
       process.env.URLS = 'https://api.example.com,https://cdn.example.com,http://localhost:3000';
       
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           URLS: 'url[]'
-        }
-      ]);
+        }]
+      );
       
       expect(config.URLS).toEqual([
         'https://api.example.com',
@@ -139,12 +138,11 @@ describe('Advanced Features', () => {
       process.env.URLS = 'https://valid.com,not-a-url,https://another.com';
       
       try {
-        await resolve.with([
-          { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-          {
+        await resolve.async(
+          [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
             URLS: 'url[]'
-          }
-        ]);
+          }]
+        );
         throw new Error('Should have thrown');
       } catch (error) {
         expect((error as Error).message).toContain('Invalid URL in array');
@@ -156,12 +154,11 @@ describe('Advanced Features', () => {
     it('should parse seconds', async () => {
       process.env.TIMEOUT = '5s';
       
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           TIMEOUT: 'duration'
-        }
-      ]);
+        }]
+      );
       
       expect(config.TIMEOUT).toBe(5000);
     });
@@ -169,12 +166,11 @@ describe('Advanced Features', () => {
     it('should parse minutes', async () => {
       process.env.TIMEOUT = '2m';
       
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           TIMEOUT: 'duration'
-        }
-      ]);
+        }]
+      );
       
       expect(config.TIMEOUT).toBe(120000);
     });
@@ -182,12 +178,11 @@ describe('Advanced Features', () => {
     it('should parse hours', async () => {
       process.env.TIMEOUT = '1h';
       
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           TIMEOUT: 'duration'
-        }
-      ]);
+        }]
+      );
       
       expect(config.TIMEOUT).toBe(3600000);
     });
@@ -199,12 +194,11 @@ describe('Advanced Features', () => {
       fs.writeFileSync(secretFile, 'my-secret-value');
       process.env.SECRET_PATH = secretFile;
       
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           SECRET_PATH: 'file'
-        }
-      ]);
+        }]
+      );
       
       expect(config.SECRET_PATH).toBe('my-secret-value');
     });
@@ -214,12 +208,11 @@ describe('Advanced Features', () => {
       fs.writeFileSync(secretFile, '  my-secret-value  \n');
       process.env.SECRET_PATH = secretFile;
       
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           SECRET_PATH: 'file'
-        }
-      ]);
+        }]
+      );
       
       expect(config.SECRET_PATH).toBe('my-secret-value');
     });
@@ -297,13 +290,12 @@ describe('Advanced Features', () => {
       process.env.DB_PASSWORD_FILE = path.join(secretsDir, 'db_password');
       process.env.API_KEY_FILE = path.join(secretsDir, 'api_key');
 
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           DB_PASSWORD_FILE: 'file',
           API_KEY_FILE: 'file'
-        }
-      ]);
+        }]
+      );
 
       expect(config.DB_PASSWORD_FILE).toBe('super-secret-password');
       expect(config.API_KEY_FILE).toBe('api-key-value');
@@ -316,7 +308,7 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'db-password'), 'password-from-secrets-dir');
 
-      const config = await resolve.with([
+      const config = await resolve.async([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           DB_PASSWORD: 'file'
@@ -331,7 +323,7 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'api-key'), 'api-key-from-secrets-dir');
 
-      const config = await resolve.with([
+      const config = await resolve.async([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           API_KEY: { type: 'file', secretsDir }
@@ -351,19 +343,18 @@ describe('Advanced Features', () => {
 
       process.env.DB_PASSWORD_FILE = customFile;
 
-      const config = await resolve.with([
-        { name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) },
-        {
+      const config = await resolve.async(
+        [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           DB_PASSWORD_FILE: 'file'
-        }
-      ], { secretsDir });
+        }],
+        { secretsDir });
 
       expect(config.DB_PASSWORD_FILE).toBe('custom-password');
     });
 
     it('should error when no path provided and no secretsDir configured', async () => {
       try {
-        await resolve.with([
+        await resolve.async([
           { name: 'test', load: () => Promise.resolve({}) },
           {
             DB_PASSWORD: 'file'
@@ -384,7 +375,7 @@ describe('Advanced Features', () => {
       fs.writeFileSync(path.join(globalSecretsDir, 'api-key'), 'global-key');
       fs.writeFileSync(path.join(fieldSecretsDir, 'api-key'), 'field-key');
 
-      const config = await resolve.with([
+      const config = await resolve.async([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           API_KEY: { type: 'file', secretsDir: fieldSecretsDir }
@@ -399,7 +390,7 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'my-secret-key'), 'kebab-case-file-name');
 
-      const config = await resolve.with([
+      const config = await resolve.async([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           MY_SECRET_KEY: 'file'

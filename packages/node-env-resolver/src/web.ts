@@ -89,9 +89,9 @@ export async function resolveClientEnv<
     }
   }
 
-  // Use resolve.with() to handle multiple resolvers
-  const tuples = resolvers.map(resolver => [resolver, clientSchema as SimpleEnvSchema] as const);
-  const result = await resolve.with(...tuples, { strict });
+  // Use resolve.async() to handle multiple resolvers
+  const tuples = resolvers.map(resolver => [resolver, clientSchema as SimpleEnvSchema] as [Resolver, SimpleEnvSchema]);
+  const result = await resolve.async(tuples[0]!, ...tuples.slice(1), { strict });
 
   return result as InferClientSchema<TSchema, TPrefix>;
 }
@@ -138,13 +138,13 @@ export async function resolveEnvSplit<
     );
   }
 
-  // Create server environment (full access) using resolve.with()
-  const serverTuples = resolvers.map(resolver => [resolver, schema.server] as const);
-  const server = await resolve.with(...serverTuples, { policies, interpolate, strict });
+  // Create server environment (full access) using resolve.async()
+  const serverTuples = resolvers.map(resolver => [resolver, schema.server] as [Resolver, TServerSchema]);
+  const server = await resolve.async(serverTuples[0]!, ...serverTuples.slice(1), { policies, interpolate, strict });
 
   // Create client environment (filtered)
-  const clientTuples = resolvers.map(resolver => [resolver, schema.client] as const);
-  const client = await resolve.with(...clientTuples, { strict });
+  const clientTuples = resolvers.map(resolver => [resolver, schema.client] as [Resolver, TClientSchema]);
+  const client = await resolve.async(clientTuples[0]!, ...clientTuples.slice(1), { strict });
 
   return { server, client } as {
     server: InferSimpleSchema<TServerSchema>;

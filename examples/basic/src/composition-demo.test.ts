@@ -2,7 +2,7 @@
  * Resolver Composition Demo Tests
  *
  * Shows how to explicitly compose environment variables from multiple resolvers
- * using the new resolve.with() tuple API
+ * using the new resolve.async() tuple API
  */
 import { describe, it, expect, vi } from 'vitest';
 import { resolve, processEnv } from 'node-env-resolver';
@@ -57,7 +57,7 @@ describe('Resolver Composition Demo', () => {
         DATABASE_PORT: '5432',
       });
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           // Local variables (from .env or process.env)
           PORT: 3000,
@@ -82,7 +82,7 @@ describe('Resolver Composition Demo', () => {
         DATABASE_PORT: '5432',
       });
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production', 'test'] as const,
@@ -113,7 +113,7 @@ describe('Resolver Composition Demo', () => {
 
       const apiResolver = await createAPIConfigResolver();
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           // Local has API_KEY set
           API_KEY: 'string', // secret
@@ -152,7 +152,7 @@ describe('Resolver Composition Demo', () => {
         }
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           TEST_VAR: 'string'
         }],
@@ -190,7 +190,7 @@ describe('Resolver Composition Demo', () => {
       // Set NODE_ENV explicitly for this test
       process.env.NODE_ENV = 'development';
       
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           // Base local config
           PORT: 3000,
@@ -238,7 +238,7 @@ describe('Resolver Composition Demo', () => {
       // Set NODE_ENV explicitly for this test
       process.env.NODE_ENV = 'development';
       
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production'] as const,
@@ -292,7 +292,7 @@ describe('Resolver Composition Demo', () => {
       // Set up process.env for testing
       process.env.FOO = 'from-process-env';
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           FOO: 'string'  // ← from processEnv
         }],
@@ -322,7 +322,7 @@ describe('Resolver Composition Demo', () => {
       // Set up process.env for testing
       process.env.FOO = 'from-process-env';
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           FOO: 'string'  // ← from processEnv
         }],
@@ -346,7 +346,7 @@ describe('Resolver Composition Demo', () => {
         }
       }));
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           TEST_VAR: 'string'
         }],
@@ -364,7 +364,7 @@ describe('Resolver Composition Demo', () => {
     it('should work with API config resolver', async () => {
       const apiResolver = await createAPIConfigResolver();
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           API_KEY: 'string',
           FEATURE_FLAG_NEW_UI: 'boolean',
@@ -389,7 +389,7 @@ describe('Resolver Composition Demo', () => {
         DATABASE_NAME: 'test-db'
       });
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           DATABASE_HOST: 'string',
           DATABASE_PORT: 'number',
@@ -418,7 +418,7 @@ describe('Resolver Composition Demo', () => {
         }
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           SYNC_VAR: 'string'
         }],
@@ -440,7 +440,7 @@ describe('Resolver Composition Demo', () => {
         }
       };
 
-      await expect(resolve.with(
+      await expect(resolve.async(
         [processEnv(), {
           TEST_VAR: 'string'
         }],
@@ -451,7 +451,7 @@ describe('Resolver Composition Demo', () => {
     });
 
     it('should handle missing required variables', async () => {
-      await expect(resolve.with(
+      await expect(resolve.async(
         [processEnv(), {
           REQUIRED_VAR: 'string'
         }]

@@ -26,7 +26,7 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -71,7 +71,7 @@ describe('Simple Demo', () => {
         DATABASE_PORT: testCase.port,
       });
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production', 'test'] as const,
@@ -93,7 +93,7 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -123,7 +123,7 @@ describe('Simple Demo', () => {
       // Set environment variable
       process.env.NODE_ENV = env;
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production', 'test'] as const,
@@ -150,7 +150,7 @@ describe('Simple Demo', () => {
     // Set invalid environment variable
     process.env.NODE_ENV = 'invalid';
 
-    await expect(resolve.with(
+    await expect(resolve.async(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -174,7 +174,7 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -198,7 +198,7 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -222,7 +222,7 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -251,7 +251,7 @@ describe('Simple Demo', () => {
       }
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         SYNC_VAR: 'string'
       }],

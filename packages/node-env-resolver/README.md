@@ -31,34 +31,45 @@ config.DEBUG;        // boolean
 config.API_KEY;      // string | undefined
 ```
 
-## Quick start (async)
+## Quick start (with custom resolvers)
 
 ```ts
 import { resolve, processEnv } from 'node-env-resolver';
+import { dotenv } from 'node-env-resolver/resolvers';
 
-const config = await resolve.with([processEnv(), {
-  PORT: 3000,
-  NODE_ENV: ['development', 'production', 'test'] as const,
-  DEBUG: false,
-  API_KEY: 'string?'
-}]);
+// Synchronous with custom resolver (array syntax)
+const config = resolve([
+  dotenv(),  // Resolver must support loadSync()
+  {
+    PORT: 3000,
+    NODE_ENV: ['development', 'production', 'test'] as const,
+    DEBUG: false,
+    API_KEY: 'string?'
+  }
+]);
 
-// config is fully typed
-config.PORT;         // number
-config.NODE_ENV;     // 'development' | 'production' | 'test'
-config.DEBUG;        // boolean
-config.API_KEY;      // string | undefined
+// Asynchronous with any resolvers (both sync and async work!)
+const config = await resolve.async([
+  dotenv(),  {
+    PORT: 3000,
+    NODE_ENV: ['development', 'production', 'test'] as const,
+    DEBUG: false,
+    API_KEY: 'string?'
+  }],
+  [awsSecrets(), { DATABASE_URL: 'url' }]);
 ```
 
 ## Table of Contents
 
 - [Install](#install)
 - [Quick start](#quick-start-uses-processenv)
+- [Quick start (with custom resolvers)](#quick-start-with-custom-resolvers)
 - [Basic usage](#basic-usage)
   - [Required values](#required-values)
   - [Default values](#default-values)
   - [Optional values](#optional-values)
   - [Enums](#enums)
+- [Variable Naming Conventions](#variable-naming-conventions)
 - [Performance & Bundle Size](#performance--bundle-size)
 - [Built-in validators](#built-in-validators)
 - [Custom validators](#custom-validators)
@@ -126,9 +137,49 @@ config.NODE_ENV;  // 'development' | 'production' | 'test'
 config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
 ```
 
+## Variable Naming Conventions
+
+The library validates environment variable names to prevent shell errors and ensure cross-platform compatibility.
+
+### Supported Name Formats
+
+Variable names can use:
+- **Letters** (both uppercase and lowercase): `A-Z`, `a-z`
+- **Numbers** (not as first character): `0-9`
+- **Underscores**: `_`
+
+### Valid Examples
+
+```ts
+const config = resolve({
+  PORT: 3000,              // ✅ SCREAMING_SNAKE_CASE (traditional)
+  port: 3000,              // ✅ lowercase
+  myApiKey: 'string',      // ✅ camelCase
+  my_api_key: 'string',    // ✅ snake_case
+  API_KEY_V2: 'string',    // ✅ with numbers (not first char)
+  _PRIVATE: 'string'       // ✅ starting with underscore
+});
+```
+
+### Invalid Examples
+
+```ts
+const config = resolve({
+  '123PORT': 3000,         // ❌ Starts with number
+  'API-KEY': 'string',     // ❌ Contains hyphen
+  'API.KEY': 'string',     // ❌ Contains dot
+  'API KEY': 'string',     // ❌ Contains space
+  'API@KEY': 'string'      // ❌ Special characters
+});
+```
+
+**Recommendation:** While all formats are supported, **SCREAMING_SNAKE_CASE** (e.g., `DATABASE_URL`, `API_KEY`) is the most common convention for environment variables and ensures maximum compatibility with legacy systems.
+
+**Validation pattern:** `/^[A-Za-z_][A-Za-z0-9_]*$/`
+
 ## Performance & Bundle Size
 
-**Lightweight with powerful features.** The core library is **~3.6KB gzipped** with comprehensive validation and resolver capabilities - **38% smaller** than previous versions while maintaining all features.
+**Lightweight** The core library is **~3.6KB gzipped** with validation and resolver capabilities.
 
 ### Efficient validation architecture
 
@@ -157,7 +208,7 @@ const config = resolve({
 });
 
 // Also works with async resolvers
-const config = await resolve.with([
+const config = await resolve.async([
   awsSecrets(),
   { DATABASE_URL: 'postgres', API_URL: 'url' }
 ]);
@@ -286,7 +337,7 @@ process.env.TIMEOUT = '30s';
 process.env.CACHE_TTL = '5m';
 process.env.SESSION_DURATION = '24h';
 
-const config = await resolve.with([processEnv(), {
+const config = await resolve.async([processEnv(), {
   TIMEOUT: 'duration',         // 30000 (milliseconds)
   CACHE_TTL: 'duration',       // 300000
   SESSION_DURATION: 'duration' // 86400000
@@ -295,18 +346,18 @@ const config = await resolve.with([processEnv(), {
 // File reading (useful for Docker/Kubernetes secrets)
 // Method 1: Explicit path in env var
 process.env.DB_PASSWORD_FILE = '/run/secrets/db_password';
-const config = await resolve.with([processEnv(), {
+const config = await resolve.async([processEnv(), {
   DB_PASSWORD_FILE: 'file'  // 'my-secret-password' (file content, trimmed)
 }]);
 
 // Method 2: Using secretsDir (cleaner for Docker/K8s)
 // Reads from /run/secrets/db_password automatically (key name lowercased)
-const config = await resolve.with([processEnv(), {
+const config = await resolve.async([processEnv(), {
   DB_PASSWORD: 'file'  // Reads /run/secrets/db_password
 }], { secretsDir: '/run/secrets' });
 
 // Per-field secretsDir (overrides global)
-const config = await resolve.with([processEnv(), {
+const config = await resolve.async([processEnv(), {
   DB_PASSWORD: { type: 'file', secretsDir: '/custom/secrets' },
   API_KEY: 'file'  // Uses global secretsDir
 }], { secretsDir: '/run/secrets' });
@@ -376,9 +427,10 @@ Load configuration from multiple sources. By default, later sources override ear
 
 ```ts
 import { resolve, processEnv } from 'node-env-resolver';
-import { dotenv } from 'node-env-resolver/resolvers';
+import { dotenv, json } from 'node-env-resolver/resolvers';
 
-const config = await resolve.with(
+// Async mode - supports both sync and async resolvers
+const config = await resolve.async(
   [processEnv(), {
     PORT: 3000,
     NODE_ENV: ['development', 'production'] as const,
@@ -388,24 +440,39 @@ const config = await resolve.with(
     API_KEY: 'string',
   }]
 );
+
+// Sync mode - supports multiple SYNC resolvers (NEW!)
+const config = resolve(
+  [dotenv(), { PORT: 3000 }],
+  [json('config.json'), { DATABASE_URL: 'postgres' }]
+  // Both resolvers must have loadSync() method
+);
 ```
 
 ### Controlling merge behaviour
 
-Use `priority` to control how resolvers merge values:
+Use `priority` to control how resolvers merge values (works with both sync and async modes):
 
 ```ts
 // priority: 'last' (default) - later resolvers override earlier ones
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), { DATABASE_URL: 'postgres' }],
   [awsSecrets(), { DATABASE_URL: 'postgres' }]
   // AWS wins
 );
 
 // priority: 'first' - earlier resolvers take precedence
-const config = await resolve.with(
+const config = await resolve.async(
   [dotenv(), { DATABASE_URL: 'postgres' }],
   [awsSecrets(), { DATABASE_URL: 'postgres' }],
+  { priority: 'first' }
+  // dotenv wins
+);
+
+// Also works with sync resolve() (NEW!)
+const config = resolve(
+  [dotenv(), { DATABASE_URL: 'postgres' }],
+  [json('config.json'), { DATABASE_URL: 'postgres' }],
   { priority: 'first' }
   // dotenv wins
 );
@@ -422,7 +489,7 @@ The library includes two automatic performance optimizations:
 When using `priority: 'first'`, resolvers are called sequentially, but execution **stops early** once all required environment variables are satisfied:
 
 ```ts
-const config = await resolve.with(
+const config = await resolve.async(
   [dotenv(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
   [awsSecrets(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
   [gcpSecrets(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
@@ -447,7 +514,7 @@ This is particularly valuable in development where:
 When using `priority: 'last'` (the default), all resolvers are called **in parallel** for maximum performance:
 
 ```ts
-const config = await resolve.with(
+const config = await resolve.async(
   [awsSecrets(), { DATABASE_URL: 'postgres' }],      // 100ms
   [awsParameterStore(), { API_KEY: 'string' }], // 100ms
   [gcpSecrets(), { JWT_SECRET: 'string' }]      // 100ms
@@ -489,7 +556,7 @@ if (result.success) {
 All functions have safe variants:
 
 - `resolve()` → `safeResolve()` (both synchronous)
-- `resolve.with()` → `safeResolve.with()` (both async)
+- `resolve.async()` → `safeResolve.async()` (both async)
 
 ## Synchronous resolution
 
@@ -509,11 +576,11 @@ const config = resolve({
 });
 ```
 
-`resolve.with()` is **async** when using custom resolvers:
+`resolve.async()` is **async** when using custom resolvers:
 
 ```ts
 // Async - await required when using custom resolvers
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), { PORT: 3000 }],
   [dotenv(), { DATABASE_URL: 'postgres', API_URL: 'url' }]
 );
@@ -531,7 +598,7 @@ import { cliArgs } from 'node-env-resolver/cli';
 
 // $ node app.js --port 8080 --database-url postgres://localhost --verbose
 
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), {
     PORT: 3000,
     DATABASE_URL: 'postgres',
@@ -738,7 +805,7 @@ const databaseResolver: Resolver = {
   }
 };
 
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), { PORT: 3000 }],
   [databaseResolver, { API_KEY: 'string' }]
 );
@@ -771,7 +838,7 @@ Multiple sources:
 import { resolve } from 'node-env-resolver';
 import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), { PORT: 3000 }],
   [awsSecrets({ secretId: 'app/secrets' }), { DATABASE_URL: 'postgres' }],
   [awsSsm({ path: '/app/config' }), { API_KEY: 'string' }]
@@ -790,7 +857,7 @@ import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 export const getConfig = async () => {
-  return await resolve.with(
+  return await resolve.async(
     [cached(
       awsSecrets({ secretId: 'app/secrets' }),
       { ttl: TTL.minutes5 }
@@ -823,8 +890,8 @@ Performance:
 |----------|-----------|----------|
 | `resolve()` | Sync, throws on error | Most applications (reading from process.env) |
 | `safeResolve()` | Sync, returns result object | Graceful error handling |
-| `resolve.with()` | Async, throws on error | Multiple sources (dotenv, AWS, etc.) |
-| `safeResolve.with()` | Async, returns result object | Multiple sources with error handling |
+| `resolve.async()` | Async, throws on error | Multiple sources (dotenv, AWS, etc.) |
+| `safeResolve.async()` | Async, returns result object | Multiple sources with error handling |
 
 ### Shorthand syntax
 
@@ -865,8 +932,8 @@ const config = resolve(schema, {
   enableAudit: true
 });
 
-// Multiple sources - options as last parameter to resolve.with()
-const config = await resolve.with(
+// Multiple sources - options as last parameter to resolve.async()
+const config = await resolve.async(
   [resolver1, schema],
   [resolver2, schema],
   {
@@ -879,7 +946,7 @@ const config = await resolve.with(
 );
 ```
 
-**Note:** The `resolvers` option has been removed. For single source resolution, use `resolve()` directly (defaults to `process.env`). For multiple sources, use `resolve.with()` syntax.
+**Note:** The `resolvers` option has been removed. For single source resolution, use `resolve()` directly (defaults to `process.env`). For multiple sources, use `resolve.async()` syntax.
 
 ### `interpolate`
 
@@ -889,7 +956,7 @@ const config = await resolve.with(
 
 **Why:** Keeps configuration DRY and maintainable.
 
-**Default:** `true` in `resolve.with()`, `false` in `resolve()`
+**Default:** `true` in `resolve.async()`, `false` in `resolve()`
 
 ```ts
 // With interpolation
@@ -931,14 +998,14 @@ const flakyResolver = {
 };
 
 // ❌ Throws immediately
-await resolve.with(
+await resolve.async(
   [flakyResolver, schema],
   [processEnv(), schema],
   { strict: true }  // default
 );
 
 // ✅ Continues with processEnv()
-await resolve.with(
+await resolve.async(
   [flakyResolver, schema],
   [processEnv(), schema],
   { strict: false }  // graceful degradation
@@ -962,14 +1029,14 @@ await resolve.with(
 
 ```ts
 // Production: AWS secrets override process.env
-await resolve.with(
+await resolve.async(
   [processEnv(), { DATABASE_URL: 'postgres' }],
   [awsSecrets(), { DATABASE_URL: 'postgres' }]
   // priority: 'last' (default) - AWS wins
 );
 
 // Development: Local .env overrides cloud
-await resolve.with(
+await resolve.async(
   [dotenv(), { DATABASE_URL: 'postgres' }],
   [awsSecrets(), { DATABASE_URL: 'postgres' }],
   { priority: 'first' }  // dotenv wins
@@ -989,7 +1056,7 @@ await resolve.with(
 **Default:** `undefined` (no policies enforced)
 
 ```ts
-await resolve.with(
+await resolve.async(
   [processEnv(), schema],
   [awsSecrets(), schema],
   {
@@ -1024,7 +1091,7 @@ await resolve.with(
 **Default:** `false` (disabled in development), automatically `true` in production (`NODE_ENV === 'production'`)
 
 ```ts
-await resolve.with(
+await resolve.async(
   [processEnv(), schema],
   [awsSecrets(), schema],
   { enableAudit: true }  // Explicitly enable in development
@@ -1043,7 +1110,7 @@ const logs = getAuditLog();
 
 ```ts
 interface ResolveOptions {
-  interpolate?: boolean;               // Variable interpolation (default: true in .with())
+  interpolate?: boolean;               // Variable interpolation (default: true in .async())
   strict?: boolean;                    // Fail-fast behaviour (default: true)
   priority?: 'first' | 'last';         // Merge strategy (default: 'last')
   policies?: PolicyOptions;            // Security policies (default: undefined)
@@ -1100,7 +1167,7 @@ import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
-  return await resolve.with(
+  return await resolve.async(
     [cached(
       awsSecrets({ secretId: 'lambda/config' }),
       { ttl: TTL.minutes5 }
@@ -1128,7 +1195,7 @@ By default, `.env` files are **completely blocked in production** for security. 
 
 ```ts
 // In production (NODE_ENV=production)
-const config = await resolve.with(
+const config = await resolve.async(
   [dotenv(), {
     DATABASE_URL: 'postgres',
   }]
@@ -1139,7 +1206,7 @@ const config = await resolve.with(
 **Allow all .env variables (NOT recommended):**
 
 ```ts
-const config = await resolve.with(
+const config = await resolve.async(
   [dotenv(), {
     DATABASE_URL: 'postgres',
   }],
@@ -1154,7 +1221,7 @@ const config = await resolve.with(
 **Allow specific variables only (recommended if needed):**
 
 ```ts
-const config = await resolve.with(
+const config = await resolve.async(
   [dotenv(), {
     PORT: 3000,
     DATABASE_URL: 'postgres',
@@ -1176,7 +1243,7 @@ Restrict sensitive variables to specific resolvers (e.g., force secrets to come 
 import { resolve, processEnv } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), {
     PORT: 3000,
   }],
@@ -1203,7 +1270,7 @@ import { resolve, processEnv } from 'node-env-resolver';
 import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), {}],
   [cached(awsSecrets({ secretId: 'prod/db' }), { ttl: TTL.minutes5 }), {
     DATABASE_PASSWORD: 'string',
@@ -1269,7 +1336,7 @@ const config = resolve({
 console.log(getAuditLog());
 // [
 //   { type: 'env_loaded', key: 'DATABASE_URL', source: 'process.env', timestamp: ... },
-//   { type: 'env_loaded', key: 'API_KEY', source: 'aws-secrets', timestamp: ... },
+//   { type: 'env_loaded', key: 'API_KEY', source: 'process.env', timestamp: ... },
 //   { type: 'validation_success', metadata: { variableCount: 2 }, timestamp: ... }
 // ]
 
@@ -1288,6 +1355,51 @@ const config = resolve({
 // Audit automatically enabled in production
 console.log(getAuditLog());
 ```
+
+### Per-Config Audit Tracking
+
+When you have multiple `resolve()` calls, you can now get audit logs **specific to each config object**:
+
+```ts
+import { resolve, getAuditLog } from 'node-env-resolver';
+
+const appConfig = resolve({
+  PORT: 3000,
+  API_KEY: 'string'
+}, { enableAudit: true });
+
+const dbConfig = resolve({
+  DATABASE_URL: 'postgres',
+  DB_POOL_SIZE: 10
+}, { enableAudit: true });
+
+// Get audit logs for specific config (NEW!)
+const appAudit = getAuditLog(appConfig);   // Only PORT and API_KEY events
+const dbAudit = getAuditLog(dbConfig);     // Only DATABASE_URL and DB_POOL_SIZE events
+
+// Still works: get ALL audit events (backward compatible)
+const allAudit = getAuditLog();            // All events from both configs
+
+console.log('App config audit:', appAudit);
+// [
+//   { type: 'env_loaded', key: 'PORT', source: 'process.env', ... },
+//   { type: 'env_loaded', key: 'API_KEY', source: 'process.env', ... },
+//   { type: 'validation_success', ... }
+// ]
+
+console.log('DB config audit:', dbAudit);
+// [
+//   { type: 'env_loaded', key: 'DATABASE_URL', source: 'process.env', ... },
+//   { type: 'env_loaded', key: 'DB_POOL_SIZE', source: 'process.env', ... },
+//   { type: 'validation_success', ... }
+// ]
+```
+
+**Use cases:**
+- Multi-tenant applications with separate configs per tenant
+- Microservices with different config sources
+- Testing/debugging specific configuration loads
+- Isolating audit trails in complex applications
 
 ### Audit Event Types
 
@@ -1308,7 +1420,7 @@ import { resolve, getAuditLog } from 'node-env-resolver';
 import { cached } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [cached(awsSecrets({ secretId: 'prod/db' }), { ttl: 300000 }), {
     DATABASE_URL: 'postgres',
   }],
@@ -1336,7 +1448,7 @@ import { resolve, processEnv, getAuditLog } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 // In production
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), {}],
   [awsSecrets(), {
     DATABASE_PASSWORD: 'string',

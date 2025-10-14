@@ -4,7 +4,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve as resolvePath } from 'path';
-import type { Resolver } from './types';
+import type { Resolver, SyncResolver } from './types';
 export interface DotenvOptions {
   path?: string;
   expand?: boolean;
@@ -112,7 +112,7 @@ export function dotenv(options?: string | DotenvOptions): Resolver {
   };
 }
 
-export function processEnv(): Resolver {
+export function processEnv(): SyncResolver {
   return {
     name: 'process.env',
     async load() {
@@ -136,7 +136,7 @@ export function processEnv(): Resolver {
  * import { packageJson } from 'node-env-resolver/resolvers';
  *
  * // Loads: VERSION, NAME, CONFIG_* from package.json
- * const config = await resolve.with([
+ * const config = await resolve.async([
  *   packageJson(),
  *   { VERSION: 'string', NAME: 'string' }
  * ]);
@@ -246,7 +246,7 @@ export function packageJson(options?: {
  * import { http } from 'node-env-resolver/resolvers';
  *
  * // Fetch config from remote endpoint
- * const config = await resolve.with([
+ * const config = await resolve.async([
  *   http('https://config.example.com/app.json'),
  *   { PORT: 3000, API_KEY: 'string' }
  * ]);
@@ -315,7 +315,7 @@ export function http(
  * import { resolve } from 'node-env-resolver';
  * import { json } from 'node-env-resolver/resolvers';
  *
- * const config = await resolve.with(
+ * const config = await resolve.async(
  *   [json('config.json'), { PORT: 3000 }]
  * );
  * ```
@@ -396,7 +396,7 @@ export function json(path: string = 'config.json'): Resolver {
  * import { resolve } from 'node-env-resolver';
  * import { secrets } from 'node-env-resolver/resolvers';
  *
- * const config = await resolve.with(
+ * const config = await resolve.async(
  *   [secrets('/run/secrets'), { DB_PASSWORD: 'string' }]
  * );
  * ```
@@ -486,7 +486,7 @@ export interface YamlOptions {
  * import { resolve } from 'node-env-resolver';
  * import { yaml } from 'node-env-resolver/resolvers';
  *
- * const config = await resolve.with(
+ * const config = await resolve.async(
  *   [yaml('config.yaml'), { PORT: 3000 }]
  * );
  * ```
@@ -599,7 +599,7 @@ export interface TomlOptions {
  * import { resolve } from 'node-env-resolver';
  * import { toml } from 'node-env-resolver/resolvers';
  *
- * const config = await resolve.with(
+ * const config = await resolve.async(
  *   [toml('config.toml'), { PORT: 3000 }]
  * );
  * ```

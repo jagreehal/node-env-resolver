@@ -63,7 +63,7 @@ describe('Safe Resolve Demo', () => {
     delete process.env.PORT;
   });
 
-  it('should demonstrate safeResolve.with with multiple resolvers', async () => {
+  it('should demonstrate safeResolve.async with multiple resolvers', async () => {
     process.env.NODE_ENV = 'production';
     process.env.PORT = '3000';
 
@@ -77,7 +77,7 @@ describe('Safe Resolve Demo', () => {
       },
     };
 
-    const result = await safeResolve.with(
+    const result = await safeResolve.async(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,

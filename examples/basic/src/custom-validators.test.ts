@@ -42,7 +42,7 @@ describe('Custom Validator Functions', () => {
         REGULAR_URL: 'url'  // Mix with built-in validators
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           CUSTOM_PORT: '8080',
           CUSTOM_NAME: 'hello',
@@ -71,7 +71,7 @@ describe('Custom Validator Functions', () => {
         USER_DATA: customValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           USER_DATA: '123:john'
         }), schema]
@@ -98,13 +98,13 @@ describe('Custom Validator Functions', () => {
         SCORE: strictNumber
       };
 
-      await expect(resolve.with(
+      await expect(resolve.async(
         [mockProvider({
           SCORE: '150'  // Invalid: too high
         }), schema]
       )).rejects.toThrow('Number must be between 0 and 100');
 
-      await expect(resolve.with(
+      await expect(resolve.async(
         [mockProvider({
           SCORE: 'invalid'  // Invalid: not a number
         }), schema]
@@ -120,7 +120,7 @@ describe('Custom Validator Functions', () => {
         ENABLED: customValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           ENABLED: 'true'
         }), schema]
@@ -154,7 +154,7 @@ describe('Custom Validator Functions', () => {
         APP_CONFIG: configValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           APP_CONFIG: '{"host": "localhost", "port": 5432, "ssl": true}'
         }), schema]
@@ -179,7 +179,7 @@ describe('Custom Validator Functions', () => {
         TAGS: tagsValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           TAGS: 'react,typescript,node,api'
         }), schema]
@@ -201,7 +201,7 @@ describe('Custom Validator Functions', () => {
         ENVIRONMENT: environmentValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           ENVIRONMENT: 'PRODUCTION'  // Should be transformed to lowercase
         }), schema]
@@ -233,7 +233,7 @@ describe('Custom Validator Functions', () => {
         API_KEY: apiKeyValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           API_KEY: 'sk_1234567890abcdef1234567890abcdef'
         }), schema]
@@ -251,7 +251,7 @@ describe('Custom Validator Functions', () => {
         return value.split(',').map(s => s.trim());
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({ TAGS: 'react,typescript,node' }), {
           TAGS: customValidator
         }]
@@ -277,7 +277,7 @@ describe('Custom Validator Functions', () => {
         NODE_ENV: 'string'
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), schema]
       );
 
@@ -310,7 +310,7 @@ describe('Custom Validator Functions', () => {
         DATABASE_URL: 'url'  // Mix with built-in validators
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           APP_CONFIG: '{"theme": "dark", "size": "16"}',
           DATABASE_URL: 'postgres://localhost:5432/mydb'
@@ -337,7 +337,7 @@ describe('Custom Validator Functions', () => {
         EMAIL: emailValidator
       };
 
-      await expect(resolve.with(
+      await expect(resolve.async(
         [mockProvider({
           EMAIL: 'invalid-email'
         }), schema]
@@ -364,7 +364,7 @@ describe('Custom Validator Functions', () => {
         VALUE2: strictValidator
       };
 
-      await expect(resolve.with(
+      await expect(resolve.async(
         [mockProvider({
           VALUE1: 'invalid',
           VALUE2: '2000'
@@ -393,7 +393,7 @@ describe('Custom Validator Functions', () => {
         DATABASE_CONNECTION: dbConnectionValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           DATABASE_CONNECTION: 'postgres://user:pass@localhost:5432/mydb?ssl=true'
         }), schema]
@@ -426,7 +426,7 @@ describe('Custom Validator Functions', () => {
         JWT_SECRET: jwtSecretValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           JWT_SECRET: 'super-secret-jwt-key-that-is-long-enough-and-secure'
         }), schema]
@@ -461,7 +461,7 @@ describe('Custom Validator Functions', () => {
         FEATURE_FLAG: featureFlagValidator
       };
 
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           FEATURE_FLAG: 'new-ui:true:25'
         }), schema]

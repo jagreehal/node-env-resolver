@@ -2,7 +2,7 @@
  * Tests for environment variable name validation and resolvers
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, safeResolve } from './index';
+import { resolve, safeResolve, type SimpleEnvSchema } from './index';
 import { json, secrets, toml } from './resolvers';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -11,8 +11,8 @@ describe('Environment Variable Name Validation', () => {
   it('should validate environment variable names in resolve', () => {
     // Test invalid variable name (should throw)
     expect(() => resolve({
-      'PORxxxT': 3000, // Invalid variable name
-    })).toThrow('Invalid environment variable name: "PORxxxT"');
+      '123INVALID': 3000, // Invalid variable name - starts with number
+    })).toThrow('Invalid environment variable name: "123INVALID"');
 
     // Test valid variable name (should work) - use default value to avoid "missing required" error
     const result = resolve({
@@ -24,12 +24,12 @@ describe('Environment Variable Name Validation', () => {
   it('should validate environment variable names in safeResolve', () => {
     // Test invalid variable name (should return error result)
     const safeResult = safeResolve({
-      'PORxxxT': 3000, // Invalid variable name
+      'PORT-INVALID': 3000, // Invalid variable name - contains dash
     });
 
     expect(safeResult.success).toBe(false);
     if (!safeResult.success) {
-      expect(safeResult.error).toContain('Invalid environment variable name: "PORxxxT"');
+      expect(safeResult.error).toContain('Invalid environment variable name: "PORT-INVALID"');
     }
 
     // Test valid variable name (should work) - use default value to avoid "missing required" error
@@ -51,15 +51,18 @@ describe('Environment Variable Name Validation', () => {
       'TEST_API_KEY',
       'MY_VAR_123',
       'VAR_WITH_UNDERSCORES',
+      'port', // lowercase
+      'myVar', // camelCase
+      'my_var_name', // snake_case lowercase
     ];
 
     for (const name of validNames) {
       const result = await safeResolve({
         [name]: { type: 'string', default: 'default-value' },
-      });
+      } as SimpleEnvSchema);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data[name]).toBe('default-value');
+        expect((result.data as Record<string, unknown>)[name]).toBe('default-value');
       }
     }
   });
@@ -67,9 +70,7 @@ describe('Environment Variable Name Validation', () => {
   it('should reject invalid environment variable names', async () => {
     // Test various invalid patterns
     const invalidNames = [
-      'PORxxxT', // Contains lowercase and 'xxx'
       '123PORT', // Starts with number
-      'port', // All lowercase
       'PORT-NAME', // Contains dash
       'PORT.NAME', // Contains dot
       'PORT NAME', // Contains space
@@ -85,6 +86,83 @@ describe('Environment Variable Name Validation', () => {
         expect(result.error).toContain(`Invalid environment variable name: "${name}"`);
       }
     }
+  });
+});
+
+describe('JSON Type Validation', () => {
+  it('should parse valid JSON strings', () => {
+    // Test JSON object
+    process.env.TEST_JSON_OBJ = '{"key": "value", "count": 42}';
+    const objResult = resolve({
+      TEST_JSON_OBJ: 'json'
+    });
+    expect(objResult.TEST_JSON_OBJ).toEqual({ key: 'value', count: 42 });
+
+    // Test JSON array
+    process.env.TEST_JSON_ARR = '[1, 2, 3, "test"]';
+    const arrResult = resolve({
+      TEST_JSON_ARR: 'json'
+    });
+    expect(arrResult.TEST_JSON_ARR).toEqual([1, 2, 3, 'test']);
+
+    // Test JSON primitives
+    process.env.TEST_JSON_NUM = '123';
+    process.env.TEST_JSON_BOOL = 'true';
+    process.env.TEST_JSON_NULL = 'null';
+    
+    const primResult = resolve({
+      TEST_JSON_NUM: 'json',
+      TEST_JSON_BOOL: 'json',
+      TEST_JSON_NULL: 'json'
+    });
+    
+    expect(primResult.TEST_JSON_NUM).toBe(123);
+    expect(primResult.TEST_JSON_BOOL).toBe(true);
+    expect(primResult.TEST_JSON_NULL).toBe(null);
+
+    // Cleanup
+    delete process.env.TEST_JSON_OBJ;
+    delete process.env.TEST_JSON_ARR;
+    delete process.env.TEST_JSON_NUM;
+    delete process.env.TEST_JSON_BOOL;
+    delete process.env.TEST_JSON_NULL;
+  });
+
+  it('should reject invalid JSON strings', () => {
+    process.env.TEST_INVALID_JSON = '{invalid json}';
+    
+    expect(() => {
+      resolve({
+        TEST_INVALID_JSON: 'json'
+      });
+    }).toThrow('Invalid JSON');
+
+    delete process.env.TEST_INVALID_JSON;
+  });
+
+  it('should return parsed value not string', () => {
+    process.env.TEST_JSON_PARSE = '{"nested": {"value": 123}}';
+    
+    const result = resolve({
+      TEST_JSON_PARSE: 'json'
+    });
+    
+    // Should be an object, not a string
+    expect(typeof result.TEST_JSON_PARSE).toBe('object');
+    expect(result.TEST_JSON_PARSE).toHaveProperty('nested');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.TEST_JSON_PARSE as any).nested).toEqual({ value: 123 });
+
+    delete process.env.TEST_JSON_PARSE;
+  });
+
+  it('should work with json type default values', () => {
+    const result = resolve({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      TEST_JSON_DEFAULT: { type: 'json', default: { fallback: true } } as any
+    });
+    
+    expect(result.TEST_JSON_DEFAULT).toEqual({ fallback: true });
   });
 });
 
@@ -113,7 +191,7 @@ describe('JSON Resolver', () => {
       DEBUG: 'true'
     }));
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [json(configFile), {
         PORT: 'port',
         NODE_ENV: 'string',
@@ -139,7 +217,7 @@ describe('JSON Resolver', () => {
       }
     }));
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [json(configPath), {
         DATABASE_HOST: 'string',
         DATABASE_PORT: 'port',
@@ -165,7 +243,7 @@ describe('JSON Resolver', () => {
     writeFileSync(configPath, '{invalid json}');
 
     await expect(async () => {
-      await resolve.with(
+      await resolve.async(
         [json(configPath), { PORT: 3000 }]
       );
     }).rejects.toThrow('Failed to parse JSON file');
@@ -203,7 +281,7 @@ describe('Secrets Directory Resolver', () => {
     writeFileSync(join(testDir, 'api-key'), 'key456');
     writeFileSync(join(testDir, 'jwt.secret'), 'jwt789');
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [secrets(testDir), {
         DB_PASSWORD: 'string',
         API_KEY: 'string',
@@ -220,7 +298,7 @@ describe('Secrets Directory Resolver', () => {
     writeFileSync(join(testDir, 'database-url'), 'postgres://localhost');
     writeFileSync(join(testDir, 'api.endpoint'), 'https://api.example.com');
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [secrets(testDir), {
         DATABASE_URL: 'string',
         API_ENDPOINT: 'string'
@@ -247,7 +325,7 @@ describe('Secrets Directory Resolver', () => {
   it('should trim whitespace from secret values', async () => {
     writeFileSync(join(testDir, 'secret'), '  secret-value\n\n  ');
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [secrets(testDir), { SECRET: 'string' }]
     );
 
@@ -293,7 +371,7 @@ debug = "true"
     `);
 
     try {
-      const config = await resolve.with(
+      const config = await resolve.async(
         [toml(configPath), {
           PORT: 'port',
           NODE_ENV: 'string',
@@ -327,7 +405,7 @@ url = "https://api.example.com"
     `);
 
     try {
-      const config = await resolve.with(
+      const config = await resolve.async(
         [toml(configPath), {
           DATABASE_HOST: 'string',
           DATABASE_PORT: 'port',
@@ -360,7 +438,7 @@ url = "https://api.example.com"
     writeFileSync(configPath, 'port = "3000"');
 
     try {
-      await resolve.with(
+      await resolve.async(
         [toml(configPath), { PORT: 3000 }]
       );
     } catch (error) {

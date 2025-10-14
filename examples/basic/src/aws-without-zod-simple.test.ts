@@ -29,7 +29,7 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
       LOG_LEVEL: 'info'
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         // Local config from .env or process.env
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -78,7 +78,7 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
       // API_KEY is missing (optional)
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
@@ -110,7 +110,7 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
 
     // First call - should load from provider
     process.env.NODE_ENV = 'development';
-    const config1 = await resolve.with(
+    const config1 = await resolve.async(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), {
@@ -129,7 +129,7 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
     expect(config1.ENCRYPTION_KEY).toBe('encryption-key');
 
     // Second call - should use cache
-    const config2 = await resolve.with(
+    const config2 = await resolve.async(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), {

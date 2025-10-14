@@ -154,8 +154,8 @@ describe('cliArgs resolver', () => {
   });
 
   describe('integration with resolve', () => {
-    it('should work with resolve.with() for CLI-based config', async () => {
-      const config = await resolve.with(
+    it('should work with resolve.async() for CLI-based config', async () => {
+      const config = await resolve.async(
         [cliArgs({
           argv: ['--port', '8080', '--database-url', 'postgres://localhost', '--verbose']
         }), {
@@ -173,7 +173,7 @@ describe('cliArgs resolver', () => {
     it('should handle optional CLI args', async () => {
       process.env.DATABASE_URL = 'postgres://localhost:5432/mydb';
       
-      const config = await resolve.with(
+      const config = await resolve.async(
         [processEnv(), {
           PORT: 3000,
           DATABASE_URL: 'postgres',
@@ -198,7 +198,7 @@ describe('cliArgs resolver', () => {
     it('should override process.env with CLI args when using priority: last', async () => {
       process.env.PORT = '3000';
       
-      const config = await resolve.with(
+      const config = await resolve.async(
         [cliArgs({
           argv: ['--port', '8080']
         }), {
@@ -215,7 +215,7 @@ describe('cliArgs resolver', () => {
 
   describe('real-world CLI patterns', () => {
     it('should handle typical CLI app config', async () => {
-      const config = await resolve.with(
+      const config = await resolve.async(
         [cliArgs({
           argv: [
             '--config', './config.json',
@@ -238,7 +238,7 @@ describe('cliArgs resolver', () => {
     });
 
     it('should handle database connection from CLI', async () => {
-      const config = await resolve.with(
+      const config = await resolve.async(
         [cliArgs({
           argv: [
             '--database-url', 'postgres://user:pass@localhost:5432/mydb',

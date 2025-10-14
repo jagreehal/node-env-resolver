@@ -34,13 +34,13 @@ const secrets = await resolveSecrets({
 });
 ```
 
-### Using with resolve.with() (for combining multiple sources)
+### Using with resolve.async() (for combining multiple sources)
 
 ```ts
 import { resolve } from 'node-env-resolver';
 import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [awsSecrets({ secretId: 'myapp/production/secrets' }), {
     DATABASE_URL: 'postgres',
     API_KEY: 'string',
@@ -86,9 +86,9 @@ export const handler = async (event) => {
 import { resolve, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-// Cache AWS calls - call resolve.with() every time, let cached() make it fast
+// Cache AWS calls - call resolve.async() every time, let cached() make it fast
 export const getConfig = async () => {
-  return await resolve.with(
+  return await resolve.async(
     [cached(
       awsSecrets({ secretId: 'myapp/secrets' }),
       {
@@ -117,7 +117,7 @@ import { resolve, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
-  return await resolve.with(
+  return await resolve.async(
     [cached(
       awsSecrets({ secretId: 'myapp/lambda' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
@@ -136,7 +136,7 @@ export const handler = async (event) => {
 ### Best Practices
 
 1. **Always use `cached()` wrapper** when accessing AWS Secrets Manager or SSM
-2. **Call `resolve.with()` every time** - don't cache the result in a variable
+2. **Call `resolve.async()` every time** - don't cache the result in a variable
 3. **Use `staleWhileRevalidate: true`** for zero-latency updates
 4. **Choose appropriate TTL** based on how often secrets change:
    - Frequently rotating: `TTL.minutes5`
@@ -247,11 +247,11 @@ if (result.success) {
 }
 ```
 
-### Resolver Functions (for use with `resolve.with()`)
+### Resolver Functions (for use with `resolve.async()`)
 
 #### `awsSsm(options)` and `awsSecrets(options)`
 
-These return resolver objects for use with `resolve.with()` when you need to combine multiple sources.
+These return resolver objects for use with `resolve.async()` when you need to combine multiple sources.
 
 ## AWS Secrets Manager
 
@@ -261,7 +261,7 @@ Load JSON secrets from Secrets Manager:
 import { resolve } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [awsSecrets({ secretId: 'myapp/secrets' }), {
     DATABASE_URL: 'postgres',
     API_KEY: 'string'
@@ -287,7 +287,7 @@ Load parameters from Parameter Store:
 import { resolve } from 'node-env-resolver';
 import { awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [awsSsm({ path: '/myapp/config' }), {
     API_ENDPOINT: 'string',
     TIMEOUT: 30
@@ -313,7 +313,7 @@ Add TTL caching to reduce AWS API calls:
 import { resolve, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [cached(
     awsSecrets({ secretId: 'myapp/secrets' }),
     {
@@ -414,13 +414,13 @@ const config = await resolveSsm({
 });
 ```
 
-### Production app with resolve.with() (combining sources)
+### Production app with resolve.async() (combining sources)
 
 ```ts
 import { resolve, processEnv } from 'node-env-resolver';
 import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolve.with(
+const config = await resolve.async(
   [processEnv(), {
     NODE_ENV: ['development', 'production'] as const,
     PORT: 3000,

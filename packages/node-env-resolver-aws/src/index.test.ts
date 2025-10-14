@@ -24,10 +24,10 @@ vi.mock('@aws-sdk/client-ssm', () => ({
 // Mock node-env-resolver
 vi.mock('node-env-resolver', () => ({
   resolve: {
-    with: mockResolveWith,
+    async: mockResolveWith,
   },
   safeResolve: {
-    with: mockSafeResolveWith,
+    async: mockSafeResolveWith,
   },
 }));
 

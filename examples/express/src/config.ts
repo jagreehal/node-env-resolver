@@ -41,7 +41,7 @@ export const config = await resolve({
 });
 
 // Note: In production, you can add AWS SSM provider:
-// export const config = await resolve.with(
+// export const config = await resolve.async(
 //   [processEnv(), { ... }],
 //   [awsSsm({ path: '/myapp/production' }), {}]
 // );

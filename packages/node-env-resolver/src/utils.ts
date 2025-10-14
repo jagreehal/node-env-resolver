@@ -158,7 +158,7 @@ export function retry(resolver: Resolver, maxRetries = 3, delayMs = 1000): Resol
  * import { withPrefix } from 'node-env-resolver/utils';
  *
  * // Maps APP_PORT → PORT, APP_DATABASE_URL → DATABASE_URL
- * const config = await resolve.with(
+ * const config = await resolve.async(
  *   [withPrefix(processEnv(), 'APP_'), { PORT: 3000, DATABASE_URL: 'postgres' }]
  * );
  * ```
@@ -274,7 +274,7 @@ export function withComputed<
  * import { withAliases } from 'node-env-resolver/utils';
  *
  * // Tries PORT, then HTTP_PORT, then SERVER_PORT (first found wins)
- * const config = await resolve.with(
+ * const config = await resolve.async(
  *   [withAliases(processEnv(), {
  *     PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT'],
  *     DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL']
@@ -338,7 +338,7 @@ function applyAliases(
  * import { resolve, processEnv } from 'node-env-resolver';
  * import { withTransform } from 'node-env-resolver/utils';
  *
- * const config = await resolve.with(
+ * const config = await resolve.async(
  *   [withTransform(processEnv(), {
  *     // Parse comma-separated values
  *     TAGS: (val) => val.split(',').map(s => s.trim()),
@@ -413,7 +413,7 @@ function applyTransforms(
  *
  * // Reads DATABASE_HOST, DATABASE_PORT from env
  * // But schema only needs HOST, PORT
- * const dbConfig = await resolve.with(
+ * const dbConfig = await resolve.async(
  *   [withNamespace(processEnv(), 'DATABASE'), {
  *     HOST: 'string',
  *     PORT: 'port'
@@ -470,21 +470,23 @@ export function withNamespace(
  * Watch configuration files and reload automatically
  * Perfect for development - auto-reload when .env files change
  *
- * @param resolvers Array of [resolver, schema] tuples or single config
+ * @param schema Environment schema definition
+ * @param resolvers Array of resolvers to use
  * @param options Watch options
  * @returns Function to get current config + cleanup function
  *
  * @example
  * ```ts
  * import { watch } from 'node-env-resolver/utils';
- * import { dotenv } from 'node-env-resolver/resolvers';
+ * import { dotenv, processEnv } from 'node-env-resolver/resolvers';
  *
- * const { getConfig, stop } = watch([
- *   dotenv(),
- *   { PORT: 3000, API_KEY: 'string' }
- * ], {
- *   onChange: (config) => console.log('Config reloaded!', config)
- * });
+ * const { getConfig, stop } = watch(
+ *   { PORT: 3000, API_KEY: 'string' },
+ *   [processEnv(), dotenv()],
+ *   {
+ *     onChange: (config) => console.log('Config reloaded!', config)
+ *   }
+ * );
  *
  * // Use in your app
  * app.get('/config', () => getConfig());
@@ -494,7 +496,8 @@ export function withNamespace(
  * ```
  */
 export function watch<T>(
-  config: Parameters<typeof import('./index').resolve.with>[0],
+  schema: Parameters<typeof import('./index').resolve.async>[0],
+  resolvers: Parameters<typeof import('./index').resolve.async>[1],
   options?: {
     /** Callback when config changes */
     onChange?: (config: T) => void;
@@ -508,7 +511,7 @@ export function watch<T>(
   stop: () => void;
 } {
   const { onChange, debounce = 100, files = ['.env'] } = options ?? {};
- 
+
   let currentConfig: T;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const watchers: Array<ReturnType<typeof import('fs').watch>> = [];
@@ -517,7 +520,7 @@ export function watch<T>(
   const loadConfig = async () => {
     try {
       const { resolve } = await import('./index');
-      currentConfig = await resolve.with(config as Parameters<typeof resolve.with>[0]) as T;
+      currentConfig = await resolve.async(schema, resolvers) as T;
       return currentConfig;
     } catch (error) {
       console.error('[watch] Failed to load config:', error);
