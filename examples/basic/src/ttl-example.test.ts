@@ -29,7 +29,7 @@ describe('TTL Caching Examples', () => {
       DATABASE_URL: 'url',
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [cached(
         mockSecretsProvider({ API_KEY: 'simple-key', DATABASE_URL: 'https://db.example.com' }),
         { ttl: 2 * 60 * 1000 } // 2 minutes
@@ -45,7 +45,7 @@ describe('TTL Caching Examples', () => {
       STRIPE_KEY: 'string',
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [cached(
         mockSecretsProvider({ JWT_SECRET: 'jwt-secret', STRIPE_KEY: 'stripe-key' }),
         {
@@ -67,7 +67,7 @@ describe('TTL Caching Examples', () => {
       EXTERNAL_API_KEY: 'string',
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [cached(
         mockSsmProvider({
           'DATABASE_PASSWORD': 'db-pass',
@@ -93,7 +93,7 @@ describe('TTL Caching Examples', () => {
       APP_VERSION: 'string',
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [cached(mockSecretsProvider({ USER_SESSION_TOKEN: 'session-token' }), { ttl: TTL.short, staleWhileRevalidate: true }), schema],
       [cached(mockSecretsProvider({ DATABASE_PASSWORD: 'db-pass-tiered' }), { ttl: TTL.minutes5, staleWhileRevalidate: true }), schema],
       [cached(mockSecretsProvider({ APP_VERSION: 'v1.2.3' }), { ttl: TTL.hour, staleWhileRevalidate: false }), schema]
@@ -113,7 +113,7 @@ describe('TTL Caching Examples', () => {
       SENDGRID_API_KEY: 'string',
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [cached(mockSecretsProvider({ JWT_SECRET: 'app-jwt', ENCRYPTION_KEY: 'app-enc' }), { ttl: TTL.hour, maxAge: TTL.day, staleWhileRevalidate: true, key: 'app-secrets' }), schema],
       [cached(mockSecretsProvider({ DATABASE_URL: 'https://prod-db.com', REDIS_URL: 'https://prod-redis.com' }), { ttl: TTL.minutes15, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-creds' }), schema],
       [cached(mockSecretsProvider({ STRIPE_SECRET_KEY: 'stripe-prod', SENDGRID_API_KEY: 'sendgrid-prod' }), { ttl: TTL.minutes5, maxAge: TTL.minutes15, staleWhileRevalidate: true, key: 'api-keys' }), schema],

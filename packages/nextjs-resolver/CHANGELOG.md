@@ -277,7 +277,7 @@
   const config = resolve({ PORT: 3000 });
   ```
 
-  ### `resolve.with()` now uses tuple syntax
+  ### `resolve.async()` now uses tuple syntax
 
   Custom providers are now specified using a cleaner tuple syntax instead of options:
 
@@ -288,13 +288,13 @@
   });
 
   // ✅ New
-  await resolve.with([customProvider(), schema]);
+  await resolve.async([customProvider(), schema]);
   ```
 
   Multiple providers can be chained:
 
   ```ts
-  await resolve.with(
+  await resolve.async(
     [awsSsm(), schema1],
     [processEnv(), schema2],
     { policies: { ... } }  // options last
@@ -326,7 +326,7 @@
 
   ### AWS package API updated
 
-  The AWS convenience functions now use the new `resolve.with()` API internally:
+  The AWS convenience functions now use the new `resolve.async()` API internally:
 
   ```ts
   // Your code doesn't need to change, but the implementation
@@ -341,13 +341,13 @@
 
   ## New Features (from previous release)
   - Added `safeResolve()` and `safeResolveSync()` for non-throwing error handling
-  - Support for custom async providers via `resolve.with()`
+  - Support for custom async providers via `resolve.async()`
   - Improved error messages with actionable hints
   - Enhanced type safety throughout the API
 
   ## Migration Guide
   1. **Simple schemas**: Remove `await` from `resolve()` calls
-  2. **Custom providers**: Change from `resolve(schema, { resolvers: [...] })` to `resolve.with([provider(), schema])`
+  2. **Custom providers**: Change from `resolve(schema, { resolvers: [...] })` to `resolve.async([provider(), schema])`
   3. **Next.js**: Change imports from `resolveSync` to `resolve`
   4. **AWS**: Update to latest version - API is compatible but implementation improved
 
@@ -355,7 +355,7 @@
   - **Simpler mental model**: Most environment resolution is synchronous (process.env, .env files)
   - **Better performance**: No unnecessary Promises for sync operations
   - **Cleaner syntax**: Tuple syntax is more intuitive than nested options
-  - **Explicit async**: When you need async providers, use `resolve.with()` - the async nature is clear from the API
+  - **Explicit async**: When you need async providers, use `resolve.async()` - the async nature is clear from the API
 
   ## Documentation
   - Completely rewritten README with examples for all use cases
@@ -377,7 +377,7 @@
   - Add `safeResolve()` and `safeResolveSync()` functions with Zod-like API pattern
     - Returns `{ success: true, data }` on success instead of throwing
     - Returns `{ success: false, error }` on validation failure
-    - Includes `.with()` methods for multiple resolvers
+    - Includes `.async()` methods for multiple resolvers
     - No try/catch needed, safer error handling
   - Add environment variable name validation
     - Validates names follow standard conventions (uppercase letters, numbers, underscores)

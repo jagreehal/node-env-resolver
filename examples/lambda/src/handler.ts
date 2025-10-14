@@ -7,7 +7,7 @@ import { resolve, processEnv } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 // Define environment once at module level for reuse across invocations
-const envPromise = resolve.with(
+const envPromise = resolve.async(
   [processEnv(), {
     // Runtime environment
     NODE_ENV: ['development', 'production'] as const,

@@ -54,7 +54,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       SESSION_TIMEOUT: { type: 'number', default: 3600, min: 60, max: 86400 },
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockDotenvProvider(mockDotenv), schema],
       [cached(
         mockAwsSecretsProvider(mockSecrets),
@@ -96,7 +96,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       API_KEY: 'string?',
     };
 
-    const devConfig = await resolve.with(
+    const devConfig = await resolve.async(
       [processEnv(), devSchema],
       [mockAwsSecretsProvider(mockSecrets), devSchema]
     );
@@ -115,7 +115,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       API_KEY: { type: 'string', secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' },
     };
 
-    const prodConfig = await resolve.with(
+    const prodConfig = await resolve.async(
       [processEnv(), prodSchema],
       [mockAwsSecretsProvider(mockSecrets), prodSchema],
       {
@@ -156,7 +156,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       },
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockAwsSecretsProvider(mockSecrets), schema]
     );
 

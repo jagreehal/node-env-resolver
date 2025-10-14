@@ -197,7 +197,7 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 // This is async and works in API routes
 export async function GET() {
-  const config = await resolve.with(
+  const config = await resolve.async(
     [awsSecrets({ secretId: 'prod/app/secrets' })],
     { DATABASE_URL: 'url', API_KEY: 'string' }
   );

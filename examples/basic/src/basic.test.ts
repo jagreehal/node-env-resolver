@@ -13,7 +13,7 @@ const mockProvider = (env: Record<string, string>) => ({
 
 describe('Basic Usage Examples', () => {
   it('should resolve basic configuration with defaults', async () => {
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'https://db.example.com'
@@ -35,7 +35,7 @@ describe('Basic Usage Examples', () => {
     // Set NODE_ENV explicitly for this test
     process.env.NODE_ENV = 'development';
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,                              // port with default
@@ -55,7 +55,7 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should validate enum values', async () => {
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockProvider({
         NODE_ENV: 'production',
         DATABASE_URL: 'https://db.example.com'
@@ -71,7 +71,7 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should throw error for invalid enum value', async () => {
-    await expect(resolve.with(
+    await expect(resolve.async(
       [mockProvider({
         NODE_ENV: 'invalid',
         DATABASE_URL: 'https://db.example.com'
@@ -85,7 +85,7 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should validate URL format', async () => {
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'https://api.example.com/v1'
@@ -101,7 +101,7 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should throw error for invalid URL', async () => {
-    await expect(resolve.with(
+    await expect(resolve.async(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'not-a-url'
@@ -115,7 +115,7 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should validate port numbers', async () => {
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockProvider({
         NODE_ENV: 'development',
         PORT: '8080',
@@ -133,7 +133,7 @@ describe('Basic Usage Examples', () => {
 
   it('should handle invalid port (currently not validated)', async () => {
     // Note: Port validation might not be implemented yet
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockProvider({
         NODE_ENV: 'development',
         PORT: '99999', // Invalid port - currently not validated
@@ -150,7 +150,7 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should validate boolean values', async () => {
-    const config = await resolve.with(
+    const config = await resolve.async(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'https://db.example.com',
@@ -179,7 +179,7 @@ describe('Basic Usage Examples', () => {
     ];
 
     for (const testCase of testCases) {
-      const config = await resolve.with(
+      const config = await resolve.async(
         [mockProvider({
           NODE_ENV: 'development',
           DATABASE_URL: 'https://db.example.com',

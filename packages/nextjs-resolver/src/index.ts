@@ -129,8 +129,8 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
 
   // Use resolveSync - Next.js config must be sync
   // Next.js already handles .env files via process.env, so no custom resolvers needed
-  const serverResult: InferSimpleSchema<TServer> = nodeEnvResolve(config.server);
-  const clientResult: InferSimpleSchema<TClient> = nodeEnvResolve(config.client);
+  const serverResult = nodeEnvResolve(config.server) as InferSimpleSchema<TServer>;
+  const clientResult = nodeEnvResolve(config.client) as InferSimpleSchema<TClient>;
 
   // Create protected environment object with runtime guards
   const isBrowser = () => typeof (globalThis as GlobalWithWindow).window !== 'undefined';

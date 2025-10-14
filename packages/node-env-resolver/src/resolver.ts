@@ -18,21 +18,33 @@ import type {
 import type { AuditEvent } from './audit';
 
 let auditLogger: ((event: AuditEvent) => void) | null = null;
+let attachAuditSession: ((config: object) => string) | null = null;
+
 async function logAuditEvent(event: AuditEvent): Promise<void> {
   if (!auditLogger) {
     const audit = await import('./audit');
     auditLogger = audit.logAuditEvent;
+    attachAuditSession = audit.attachAuditSession;
   }
   auditLogger(event);
 }
 
 function logAuditEventSync(event: AuditEvent): void {
   if (!auditLogger) {
-    // Sync context - use require for CommonJS compatibility or dynamic import with top-level handling
-    // For now, skip audit in sync mode if not already loaded
-    return;
+    // Sync context - load audit logger synchronously
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const audit = require('./audit');
+      auditLogger = audit.logAuditEvent;
+      attachAuditSession = audit.attachAuditSession;
+    } catch {
+      // If audit module can't be loaded, skip logging
+      return;
+    }
   }
-  auditLogger(event);
+  if (auditLogger) {
+    auditLogger(event);
+  }
 }
 
 /**
@@ -599,7 +611,7 @@ function validateAdvancedTypeSync(
   } catch {
     return { 
       success: false, 
-      error: `${key}: Advanced type '${type}' requires async validation. Use resolve.with() or preload validators.`
+      error: `${key}: Advanced type '${type}' requires async validation. Use resolve.async() or preload validators.`
     };
   }
 }
@@ -839,11 +851,11 @@ function applyPolicies(
  */
 function validateEnvVarNames(schema: EnvSchema): string[] {
   const errors: string[] = [];
-  const envVarRegex = /^[A-Z_][A-Z0-9_]*$/;
+  const envVarRegex = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
   for (const key of Object.keys(schema)) {
     if (!envVarRegex.test(key)) {
-      errors.push(`Invalid environment variable name: "${key}". Environment variable names must contain only uppercase letters, numbers, and underscores, and cannot start with a number.`);
+      errors.push(`Invalid environment variable name: "${key}". Environment variable names must contain only letters, numbers, and underscores, and cannot start with a number.`);
     }
   }
 
@@ -905,6 +917,22 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     priority = 'last'
   } = options;
 
+  // Create result object early and attach audit session if needed
+  const result: Record<string, unknown> = {};
+  let sessionId: string | undefined;
+  
+  if (enableAudit) {
+    // Ensure audit module is loaded
+    if (!attachAuditSession) {
+      const audit = await import('./audit');
+      auditLogger = audit.logAuditEvent;
+      attachAuditSession = audit.attachAuditSession;
+    }
+    if (attachAuditSession) {
+      sessionId = attachAuditSession(result);
+    }
+  }
+
   // Validate environment variable names first
   const nameValidationErrors = validateEnvVarNames(schema);
   if (nameValidationErrors.length > 0) {
@@ -912,7 +940,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       await logAuditEvent({
         type: 'validation_failure',
         timestamp: Date.now(),
-        error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`
+        error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`,
+        sessionId
       });
     }
     throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
@@ -930,7 +959,6 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     allSchemaKeys
   );
 
-  const result: Record<string, unknown> = {};
   const errors: string[] = [];
 
   for (const [key, def] of Object.entries(schema)) {
@@ -946,7 +974,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
           timestamp: Date.now(),
           key,
           source: provenance[key]?.source ?? 'unknown',
-          error: policyViolation
+          error: policyViolation,
+          sessionId
         });
       }
       continue;
@@ -974,7 +1003,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
             type: 'validation_failure',
             timestamp: Date.now(),
             key,
-            error: validationResult.error!
+            error: validationResult.error!,
+            sessionId
           });
         }
       } else {
@@ -986,7 +1016,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
             timestamp: Date.now(),
             key,
             source: provenance[key]?.source ?? 'unknown',
-            metadata: { cached: provenance[key]?.cached }
+            metadata: { cached: provenance[key]?.cached },
+            sessionId
           });
         }
       }
@@ -998,7 +1029,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
           type: 'validation_failure',
           timestamp: Date.now(),
           key,
-          error: message
+          error: message,
+          sessionId
         });
       }
     }
@@ -1010,7 +1042,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         type: 'validation_failure',
         timestamp: Date.now(),
         error: `${errors.length} validation error(s)`,
-        metadata: { errorCount: errors.length }
+        metadata: { errorCount: errors.length },
+        sessionId
       });
     }
     throw new Error(`Environment validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
@@ -1022,7 +1055,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       timestamp: Date.now(),
       metadata: {
         variableCount: Object.keys(schema).length
-      }
+      },
+      sessionId
     });
   }
 
@@ -1042,18 +1076,49 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
   resolvers: Resolver[],
   options: ResolveOptions
 ): Record<string, unknown> {
-  // Validate environment variable names first
-  const nameValidationErrors = validateEnvVarNames(schema);
-  if (nameValidationErrors.length > 0) {
-    throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
-  }
-
+  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
   const {
     interpolate = false,
     strict = true,
     policies,
+    enableAudit = isProduction,
     priority = 'last'
   } = options;
+
+  // Create result object early and attach audit session if needed
+  const result: Record<string, unknown> = {};
+  let sessionId: string | undefined;
+  
+  if (enableAudit) {
+    // Ensure audit module is loaded
+    if (!attachAuditSession) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const audit = require('./audit');
+        auditLogger = audit.logAuditEvent;
+        attachAuditSession = audit.attachAuditSession;
+      } catch {
+        // Audit module can't be loaded
+      }
+    }
+    if (attachAuditSession) {
+      sessionId = attachAuditSession(result);
+    }
+  }
+
+  // Validate environment variable names first
+  const nameValidationErrors = validateEnvVarNames(schema);
+  if (nameValidationErrors.length > 0) {
+    if (enableAudit) {
+      logAuditEventSync({
+        type: 'validation_failure',
+        timestamp: Date.now(),
+        error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`,
+        sessionId
+      });
+    }
+    throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
+  }
 
   // Collect all schema keys for early termination optimization
   // Early termination happens when ALL keys (not just required) are satisfied
@@ -1067,7 +1132,6 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     allSchemaKeys
   );
 
-  const result: Record<string, unknown> = {};
   const errors: string[] = [];
 
   for (const [key, def] of Object.entries(schema)) {
@@ -1076,6 +1140,16 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     const policyViolation = applyPolicies(key, def, provenance[key], policies);
     if (policyViolation) {
       errors.push(policyViolation);
+      if (enableAudit) {
+        logAuditEventSync({
+          type: 'policy_violation',
+          timestamp: Date.now(),
+          key,
+          source: provenance[key]?.source ?? 'unknown',
+          error: policyViolation,
+          sessionId
+        });
+      }
       continue;
     }
 
@@ -1097,17 +1171,66 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
 
       if (!validationResult.success) {
         errors.push(validationResult.error!);
+        if (enableAudit) {
+          logAuditEventSync({
+            type: 'validation_failure',
+            timestamp: Date.now(),
+            key,
+            error: validationResult.error!,
+            sessionId
+          });
+        }
       } else {
         result[key] = validationResult.value;
+        // Audit ALL env var loads (not just secrets - all env vars are sensitive)
+        if (enableAudit) {
+          logAuditEventSync({
+            type: 'env_loaded',
+            timestamp: Date.now(),
+            key,
+            source: provenance[key]?.source ?? 'unknown',
+            metadata: { cached: provenance[key]?.cached },
+            sessionId
+          });
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       errors.push(`${key}: ${message}`);
+      if (enableAudit) {
+        logAuditEventSync({
+          type: 'validation_failure',
+          timestamp: Date.now(),
+          key,
+          error: message,
+          sessionId
+        });
+      }
     }
   }
 
   if (errors.length > 0) {
+    if (enableAudit) {
+      logAuditEventSync({
+        type: 'validation_failure',
+        timestamp: Date.now(),
+        error: `${errors.length} validation error(s)`,
+        metadata: { errorCount: errors.length },
+        sessionId
+      });
+    }
     throw new Error(`Environment validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+  }
+
+  if (enableAudit) {
+    logAuditEventSync({
+      type: 'validation_success',
+      timestamp: Date.now(),
+      metadata: {
+        variableCount: Object.keys(schema).length
+      },
+      sessionId
+    });
   }
 
   // Apply nested delimiter transformation if specified

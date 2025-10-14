@@ -65,6 +65,25 @@ export interface Resolver {
   metadata?: Record<string, unknown>;
 }
 
+// Type-safe resolver interfaces for compile-time checks
+export interface SyncResolver extends Resolver {
+  loadSync(): Record<string, string>; // Required for sync resolvers
+}
+
+export interface AsyncOnlyResolver extends Resolver {
+  loadSync?: never; // Explicitly no sync support
+}
+
+// Type guard to check if resolver supports sync
+export function isSyncResolver(resolver: Resolver): resolver is SyncResolver {
+  return typeof resolver.loadSync === 'function';
+}
+
+// Type guard to check if resolver is async-only
+export function isAsyncOnlyResolver(resolver: Resolver): resolver is AsyncOnlyResolver {
+  return !resolver.loadSync;
+}
+
 export interface ResolveOptions {
   interpolate?: boolean;
   strict?: boolean;
@@ -78,7 +97,7 @@ export interface ResolveOptions {
    *
    * @example
    * // Local .env overrides AWS secrets (for development)
-   * resolve.with(
+   * resolve.async(
    *   [dotenv(), { DATABASE_URL: 'url' }],
    *   [awsSecrets(), { DATABASE_URL: 'url' }],
    *   { priority: 'first' }  // dotenv wins
@@ -86,7 +105,7 @@ export interface ResolveOptions {
    *
    * @example
    * // AWS secrets override process.env (for production, default)
-   * resolve.with(
+   * resolve.async(
    *   [processEnv(), { DATABASE_URL: 'url' }],
    *   [awsSecrets(), { DATABASE_URL: 'url' }]
    *   // priority: 'last' is default - AWS wins

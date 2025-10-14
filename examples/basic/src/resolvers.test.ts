@@ -26,7 +26,7 @@ describe('Advanced Resolvers Example', () => {
       API_KEY: 'mock-api-key-123',
     };
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
@@ -69,7 +69,7 @@ describe('Advanced Resolvers Example', () => {
       },
     };
 
-    await expect(resolve.with(
+    await expect(resolve.async(
       [processEnv(), { TEST_VAR: 'string' }],
       [failingProvider, { TEST_VAR: 'string' }]
     )).rejects.toThrow('Resolver failed to load');
@@ -83,7 +83,7 @@ describe('Advanced Resolvers Example', () => {
 
     // Short TTL cache
     process.env.NODE_ENV = 'development';
-    const shortConfig = await resolve.with(
+    const shortConfig = await resolve.async(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), { ttl: 1000 }), // 1 second
@@ -94,7 +94,7 @@ describe('Advanced Resolvers Example', () => {
     expect(shortConfig.SHORT_TTL_VAR).toBe('short-ttl-value');
 
     // Long TTL cache
-    const longConfig = await resolve.with(
+    const longConfig = await resolve.async(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), { ttl: 300000 }), // 5 minutes
@@ -123,7 +123,7 @@ describe('Advanced Resolvers Example', () => {
     const cachedResolver = cached(mockSecretsWithCounter, { ttl: 60000, key: 'test-cache' });
 
     // First call - should be a cache miss (cached: false)
-    const config1 = await resolve.with(
+    const config1 = await resolve.async(
       [cachedResolver, { SECRET_VALUE: 'string' }]
     );
 
@@ -135,7 +135,7 @@ describe('Advanced Resolvers Example', () => {
     expect(firstLoad?.metadata?.cached).toBe(false);
 
     // Second call - should be a cache hit (cached: true)
-    const config2 = await resolve.with(
+    const config2 = await resolve.async(
       [cachedResolver, { SECRET_VALUE: 'string' }]
     );
 
@@ -186,18 +186,18 @@ describe('Advanced Resolvers Example', () => {
     it('should validate environment variable names', async () => {
       // Test invalid variable name with safeResolve (should return error result)
       const safeResult = await safeResolve({
-        'PORxxxT': 3000, // Invalid variable name (contains lowercase)
+        'PORT-INVALID': 3000, // Invalid variable name (contains dash)
       });
 
       expect(safeResult.success).toBe(false);
       if (!safeResult.success) {
-        expect(safeResult.error).toContain('Invalid environment variable name: "PORxxxT"');
+        expect(safeResult.error).toContain('Invalid environment variable name: "PORT-INVALID"');
       }
 
       // Test with resolve (should throw)
       expect(() => resolve({
-        'PORxxxT': 3000, // Invalid variable name (contains lowercase)
-      })).toThrow('Invalid environment variable name: "PORxxxT"');
+        '123PORT': 3000, // Invalid variable name (starts with number)
+      })).toThrow('Invalid environment variable name: "123PORT"');
 
       // Test valid variable name (should work)
       const validResult = safeResolve({
@@ -207,7 +207,7 @@ describe('Advanced Resolvers Example', () => {
       expect(validResult.success).toBe(true);
     });
 
-    it('should work with multiple resolvers using safeResolve.with', async () => {
+    it('should work with multiple resolvers using safeResolve.async', async () => {
       process.env.NODE_ENV = 'production';
       process.env.PORT = '8080';
 
@@ -216,7 +216,7 @@ describe('Advanced Resolvers Example', () => {
         API_KEY: 'mock-api-key-123',
       };
 
-      const result = await safeResolve.with(
+      const result = await safeResolve.async(
         [processEnv(), {
           NODE_ENV: ['development', 'production', 'test'] as const,
           PORT: 3000,
@@ -259,7 +259,7 @@ describe('Advanced Resolvers Example', () => {
         },
       };
 
-      const result = await safeResolve.with(
+      const result = await safeResolve.async(
         [processEnv(), { TEST_VAR: 'string' }],
         [failingProvider, { TEST_VAR: 'string' }]
       );

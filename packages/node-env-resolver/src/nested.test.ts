@@ -124,11 +124,11 @@ describe('Nested Delimiter', () => {
     expect(database).not.toHaveProperty('PORT');
   });
 
-  it('should work with async resolve.with()', async () => {
+  it('should work with async resolve.async()', async () => {
     process.env.APP__NAME = 'MyApp';
     process.env.APP__VERSION = '1.0.0';
 
-    const config = await resolve.with(
+    const config = await resolve.async(
       [
         {
           name: 'test-resolver',

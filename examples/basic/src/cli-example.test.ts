@@ -6,7 +6,7 @@ import { withComputed } from 'node-env-resolver/utils';
 describe('CLI and Computed Fields Examples', () => {
   it('CLI args with env prefix - typical CLI tool pattern', async () => {
     // Simulate: node app.js --port 8080 --database-url postgres://localhost --verbose
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         PORT: 3000,
         DATABASE_URL: 'postgres',
@@ -185,7 +185,7 @@ describe('CLI and Computed Fields Examples', () => {
 
   it('Combined: CLI args + computed fields - CLI tool with smart config', async () => {
     // Simulate: node build.js --input ./src --output ./dist --minify --workers 4
-    const config = await resolve.with(
+    const config = await resolve.async(
       [cliArgs({
         argv: [
           '--input', './src',
@@ -239,7 +239,7 @@ describe('CLI and Computed Fields Examples', () => {
     process.env.SSL_ENABLED = 'false';
 
     // CLI args override env vars
-    const config = await resolve.with(
+    const config = await resolve.async(
       [processEnv(), {
         HOST: 'string',
         PORT: 3000,
