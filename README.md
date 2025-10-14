@@ -1341,7 +1341,7 @@ app.listen(config.PORT);
 
 ```ts
 // env.mjs
-import { resolve } from 'node-env-resolver/nextjs';
+import { resolve } from 'node-env-resolver-nextjs';
 
 export const env = resolve({
   server: {
@@ -1350,6 +1350,25 @@ export const env = resolve({
   },
   client: {
     NEXT_PUBLIC_APP_URL: 'url',
+  }
+});
+```
+
+### Vite (Vue, React, Svelte, Solid, Astro)
+
+```ts
+// env.ts
+import { resolve } from 'node-env-resolver-vite';
+
+export const env = resolve({
+  server: {
+    DATABASE_URL: 'postgres',
+    API_SECRET: 'string',
+    PORT: 'port:5173',
+  },
+  client: {
+    VITE_API_URL: 'url',
+    VITE_ENABLE_ANALYTICS: false,
   }
 });
 ```

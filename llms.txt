@@ -1169,6 +1169,131 @@ const env = await resolveZod.async(
 
 ---
 
+## Framework Integrations
+
+### Next.js Integration
+
+Zero-config Next.js integration with automatic client/server split:
+
+```ts
+// env.ts
+import { resolve } from 'node-env-resolver-nextjs';
+
+export const env = resolve({
+  server: {
+    DATABASE_URL: 'postgres',
+    API_SECRET: 'string',
+    PORT: 'port:3000',
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: 'url',
+    NEXT_PUBLIC_GA_ID: 'string?',
+  }
+});
+
+// Server component or API route
+import { env } from '../env';
+console.log(env.server.DATABASE_URL);  // ✅ Works
+console.log(env.client.NEXT_PUBLIC_APP_URL);  // ✅ Works
+
+// Client component
+'use client';
+import { env } from '../env';
+console.log(env.server.DATABASE_URL);  // ❌ Throws error
+console.log(env.client.NEXT_PUBLIC_APP_URL);  // ✅ Works
+```
+
+**Features:**
+- Automatic client/server split with `NEXT_PUBLIC_` prefix validation
+- Runtime protection prevents server vars from leaking to client
+- Full TypeScript support
+- Works with Next.js 13+ App Router
+- Safe resolve: `safeResolve()` for error handling
+
+### Vite Integration
+
+Zero-config Vite integration with automatic client/server split:
+
+```ts
+// env.ts
+import { resolve } from 'node-env-resolver-vite';
+
+export const env = resolve({
+  server: {
+    DATABASE_URL: 'postgres',
+    API_SECRET: 'string',
+    PORT: 'port:5173',
+  },
+  client: {
+    VITE_API_URL: 'url',
+    VITE_ENABLE_ANALYTICS: false,
+    VITE_GA_ID: 'string?',
+  }
+});
+
+// Server code (vite.config.ts, SSR, Node.js)
+import { env } from './env';
+console.log(env.server.DATABASE_URL);  // ✅ Works
+console.log(env.client.VITE_API_URL);  // ✅ Works
+
+// Browser code
+import { env } from './env';
+console.log(env.server.DATABASE_URL);  // ❌ Throws error
+console.log(env.client.VITE_API_URL);  // ✅ Works
+```
+
+**Features:**
+- Automatic client/server split with `VITE_` prefix validation
+- Runtime protection prevents server vars from leaking to client
+- Full TypeScript support with IntelliSense for `import.meta.env`
+- **Auto-generate TypeScript definitions** for `import.meta.env`
+- Works with Vite 4.x, 5.x, 6.x, and 7.x
+- Framework agnostic (Vue, React, Svelte, Solid, Astro)
+- Safe resolve: `safeResolve()` for error handling
+- Optional Vite plugin for config-time validation and type generation
+
+**Vite Plugin (optional):**
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { nodeEnvResolverPlugin } from 'node-env-resolver-vite/plugin';
+
+export default defineConfig({
+  plugins: [
+    nodeEnvResolverPlugin({
+      server: {
+        DATABASE_URL: 'postgres',
+        API_SECRET: 'string',
+      },
+      client: {
+        VITE_API_URL: 'url',
+        VITE_ENABLE_ANALYTICS: false,
+      },
+      // Auto-generate TypeScript definitions
+      generateTypes: 'src/vite-env.d.ts'
+    })
+  ]
+});
+```
+
+**TypeScript IntelliSense:**
+```ts
+// vite-env.d.ts
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string
+  readonly VITE_ENABLE_ANALYTICS: boolean
+  readonly VITE_GA_ID?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+```
+
+---
+
 ## Test Hints (for Agents)
 
 * Unit tests: verify types with `// @ts-expect-error` for invalid shapes.
