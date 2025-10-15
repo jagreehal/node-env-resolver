@@ -37,7 +37,6 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            // @ts-expect-error - Testing invalid key without VITE_ prefix
             API_URL: 'url'
           }
         });
@@ -64,7 +63,6 @@ describe('node-env-resolver-vite', () => {
       expect(() => {
         resolve({
           server: {
-            // @ts-expect-error - Testing invalid key with VITE_ prefix
             VITE_DATABASE_URL: 'postgres'
           },
           client: {}
@@ -77,9 +75,7 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            // @ts-expect-error - Testing invalid keys without VITE_ prefix
             API_URL: 'url',
-            // @ts-expect-error - Testing invalid keys without VITE_ prefix
             PUBLIC_KEY: 'string'
           }
         });
@@ -337,7 +333,6 @@ describe('node-env-resolver-vite', () => {
       const result = safeResolve({
         server: {},
         client: {
-          // @ts-expect-error - Testing invalid key without VITE_ prefix
           API_URL: 'url'
         }
       });
@@ -370,7 +365,6 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            // @ts-expect-error - Testing invalid key without PUBLIC_ prefix
             API_URL: 'url'
           }
         }, {
