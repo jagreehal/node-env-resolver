@@ -15,7 +15,7 @@
  * const config = await resolve.async(
  *   [cliArgs(), {
  *     PORT: 3000,
- *     DATABASE_URL: 'postgres',
+ *     DATABASE_URL: postgres(),
  *     VERBOSE: false
  *   }]
  * );

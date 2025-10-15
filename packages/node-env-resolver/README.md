@@ -21,7 +21,7 @@ const config = resolve({
   PORT: 3000,
   NODE_ENV: ['development', 'production', 'test'] as const,
   DEBUG: false,
-  API_KEY: 'string?'
+  API_KEY: string({optional:true})
 });
 
 // config is fully typed
@@ -44,7 +44,7 @@ const config = resolve([
     PORT: 3000,
     NODE_ENV: ['development', 'production', 'test'] as const,
     DEBUG: false,
-    API_KEY: 'string?'
+    API_KEY: string({optional:true})
   }
 ]);
 
@@ -54,9 +54,9 @@ const config = await resolve.async([
     PORT: 3000,
     NODE_ENV: ['development', 'production', 'test'] as const,
     DEBUG: false,
-    API_KEY: 'string?'
+    API_KEY: string({optional:true})
   }],
-  [awsSecrets(), { DATABASE_URL: 'url' }]);
+  [awsSecrets(), { DATABASE_URL: url() }]);
 ```
 
 ## Table of Contents
@@ -93,8 +93,8 @@ If an environment variable is missing and has no default, validation fails:
 
 ```ts
 const config = resolve({
-  DATABASE_URL: 'postgres',  // Required PostgreSQL URL
-  API_KEY: 'string'          // Required
+  DATABASE_URL: postgres(),  // Required PostgreSQL URL
+  API_KEY: string()          // Required
 });
 ```
 
@@ -116,7 +116,7 @@ Add `?` to make a value optional:
 
 ```ts
 const config = resolve({
-  API_KEY: 'string?',     // string | undefined
+  API_KEY: string({optional:true}),     // string | undefined
   REDIS_URL: 'url?',      // string | undefined
   MAX_RETRIES: 'number?'  // number | undefined
 });
@@ -154,10 +154,10 @@ Variable names can use:
 const config = resolve({
   PORT: 3000,              // ✅ SCREAMING_SNAKE_CASE (traditional)
   port: 3000,              // ✅ lowercase
-  myApiKey: 'string',      // ✅ camelCase
-  my_api_key: 'string',    // ✅ snake_case
-  API_KEY_V2: 'string',    // ✅ with numbers (not first char)
-  _PRIVATE: 'string'       // ✅ starting with underscore
+  myApiKey: string(),      // ✅ camelCase
+  my_api_key: string(),    // ✅ snake_case
+  API_KEY_V2: string(),    // ✅ with numbers (not first char)
+  _PRIVATE: string()       // ✅ starting with underscore
 });
 ```
 
@@ -166,10 +166,10 @@ const config = resolve({
 ```ts
 const config = resolve({
   '123PORT': 3000,         // ❌ Starts with number
-  'API-KEY': 'string',     // ❌ Contains hyphen
-  'API.KEY': 'string',     // ❌ Contains dot
-  'API KEY': 'string',     // ❌ Contains space
-  'API@KEY': 'string'      // ❌ Special characters
+  'API-KEY': string(),     // ❌ Contains hyphen
+  'API.KEY': string(),     // ❌ Contains dot
+  'API KEY': string(),     // ❌ Contains space
+  'API@KEY': string()      // ❌ Special characters
 });
 ```
 
@@ -202,15 +202,15 @@ Advanced validators are lazy-loaded only when you use them, keeping the base bun
 // Synchronous - works with all types
 const config = resolve({
   PORT: 3000,
-  DATABASE_URL: 'postgres',
-  API_URL: 'url',
+  DATABASE_URL: postgres(),
+  API_URL: url(),
   NODE_ENV: ['development', 'production'] as const
 });
 
 // Also works with async resolvers
 const config = await resolve.async([
   awsSecrets(),
-  { DATABASE_URL: 'postgres', API_URL: 'url' }
+  { DATABASE_URL: postgres(), API_URL: url() }
 ]);
 ```
 
@@ -436,15 +436,15 @@ const config = await resolve.async(
     NODE_ENV: ['development', 'production'] as const,
   }],
   [dotenv(), {
-    DATABASE_URL: 'postgres',
-    API_KEY: 'string',
+    DATABASE_URL: postgres(),
+    API_KEY: string(),
   }]
 );
 
 // Sync mode - supports multiple SYNC resolvers (NEW!)
 const config = resolve(
   [dotenv(), { PORT: 3000 }],
-  [json('config.json'), { DATABASE_URL: 'postgres' }]
+  [json('config.json'), { DATABASE_URL: postgres() }]
   // Both resolvers must have loadSync() method
 );
 ```
@@ -456,23 +456,23 @@ Use `priority` to control how resolvers merge values (works with both sync and a
 ```ts
 // priority: 'last' (default) - later resolvers override earlier ones
 const config = await resolve.async(
-  [processEnv(), { DATABASE_URL: 'postgres' }],
-  [awsSecrets(), { DATABASE_URL: 'postgres' }]
+  [processEnv(), { DATABASE_URL: postgres() }],
+  [awsSecrets(), { DATABASE_URL: postgres() }]
   // AWS wins
 );
 
 // priority: 'first' - earlier resolvers take precedence
 const config = await resolve.async(
-  [dotenv(), { DATABASE_URL: 'postgres' }],
-  [awsSecrets(), { DATABASE_URL: 'postgres' }],
+  [dotenv(), { DATABASE_URL: postgres() }],
+  [awsSecrets(), { DATABASE_URL: postgres() }],
   { priority: 'first' }
   // dotenv wins
 );
 
 // Also works with sync resolve() (NEW!)
 const config = resolve(
-  [dotenv(), { DATABASE_URL: 'postgres' }],
-  [json('config.json'), { DATABASE_URL: 'postgres' }],
+  [dotenv(), { DATABASE_URL: postgres() }],
+  [json('config.json'), { DATABASE_URL: postgres() }],
   { priority: 'first' }
   // dotenv wins
 );
@@ -490,9 +490,9 @@ When using `priority: 'first'`, resolvers are called sequentially, but execution
 
 ```ts
 const config = await resolve.async(
-  [dotenv(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
-  [awsSecrets(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
-  [gcpSecrets(), { DATABASE_URL: 'postgres', API_KEY: 'string', PORT: 3000 }],
+  [dotenv(), { DATABASE_URL: postgres(), API_KEY: string(), PORT: 3000 }],
+  [awsSecrets(), { DATABASE_URL: postgres(), API_KEY: string(), PORT: 3000 }],
+  [gcpSecrets(), { DATABASE_URL: postgres(), API_KEY: string(), PORT: 3000 }],
   { priority: 'first' }
 );
 // If dotenv() provides all required keys, awsSecrets() and gcpSecrets() are never called!
@@ -515,9 +515,9 @@ When using `priority: 'last'` (the default), all resolvers are called **in paral
 
 ```ts
 const config = await resolve.async(
-  [awsSecrets(), { DATABASE_URL: 'postgres' }],      // 100ms
-  [awsParameterStore(), { API_KEY: 'string' }], // 100ms
-  [gcpSecrets(), { JWT_SECRET: 'string' }]      // 100ms
+  [awsSecrets(), { DATABASE_URL: postgres() }],      // 100ms
+  [awsParameterStore(), { API_KEY: string() }], // 100ms
+  [gcpSecrets(), { JWT_SECRET: string() }]      // 100ms
   // Default: priority: 'last'
 );
 // Total time: ~100ms (parallel) instead of ~300ms (sequential)
@@ -540,7 +540,7 @@ import { safeResolve } from 'node-env-resolver';
 
 const result = safeResolve({
   PORT: 'number',
-  DATABASE_URL: 'postgres'
+  DATABASE_URL: postgres()
 });
 
 if (result.success) {
@@ -569,9 +569,9 @@ import { resolve } from 'node-env-resolver';
 const config = resolve({
   PORT: 3000,
   NODE_ENV: ['development', 'production'] as const,
-  API_KEY: 'string',
-  API_URL: 'url',        // Advanced types work synchronously!
-  DATABASE_URL: 'postgres',
+  API_KEY: string(),
+  API_URL: url(),        // Advanced types work synchronously!
+  DATABASE_URL: postgres(),
   DEBUG: false
 });
 ```
@@ -582,7 +582,7 @@ const config = resolve({
 // Async - await required when using custom resolvers
 const config = await resolve.async(
   [processEnv(), { PORT: 3000 }],
-  [dotenv(), { DATABASE_URL: 'postgres', API_URL: 'url' }]
+  [dotenv(), { DATABASE_URL: postgres(), API_URL: url() }]
 );
 ```
 
@@ -601,12 +601,12 @@ import { cliArgs } from 'node-env-resolver/cli';
 const config = await resolve.async(
   [processEnv(), {
     PORT: 3000,
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
     VERBOSE: false
   }],
   [cliArgs(), {
     PORT: 3000,
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
     VERBOSE: false
   }]
 );
@@ -642,7 +642,7 @@ const config = resolve({
 // Add computed properties
 const appConfig = withComputed(config, {
   // Build URLs from components
-  url: (c) => `${c.SSL_ENABLED ? 'https' : 'http'}://${c.HOST}:${c.PORT}`,
+  url: (c) => `${c.SSL_ENABLED ? 'https' : http()}://${c.HOST}:${c.PORT}`,
   
   // Environment checks
   isProd: (c) => c.NODE_ENV === 'production',
@@ -807,7 +807,7 @@ const databaseResolver: Resolver = {
 
 const config = await resolve.async(
   [processEnv(), { PORT: 3000 }],
-  [databaseResolver, { API_KEY: 'string' }]
+  [databaseResolver, { API_KEY: string() }]
 );
 ```
 
@@ -827,8 +827,8 @@ import { resolveSecrets } from 'node-env-resolver-aws';
 const config = await resolveSecrets({
   secretId: 'myapp/secrets'
 }, {
-  DATABASE_URL: 'postgres',
-  API_KEY: 'string'
+  DATABASE_URL: postgres(),
+  API_KEY: string()
 });
 ```
 
@@ -840,8 +840,8 @@ import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve.async(
   [processEnv(), { PORT: 3000 }],
-  [awsSecrets({ secretId: 'app/secrets' }), { DATABASE_URL: 'postgres' }],
-  [awsSsm({ path: '/app/config' }), { API_KEY: 'string' }]
+  [awsSecrets({ secretId: 'app/secrets' }), { DATABASE_URL: postgres() }],
+  [awsSsm({ path: '/app/config' }), { API_KEY: string() }]
 );
 ```
 
@@ -862,8 +862,8 @@ export const getConfig = async () => {
       awsSecrets({ secretId: 'app/secrets' }),
       { ttl: TTL.minutes5 }
     ), {
-      DATABASE_URL: 'postgres',
-      API_KEY: 'string',
+      DATABASE_URL: postgres(),
+      API_KEY: string(),
     }]
   );
 };
@@ -964,8 +964,8 @@ process.env.BASE_URL = 'https://api.example.com';
 process.env.API_ENDPOINT = '${BASE_URL}/v1';
 
 const config = resolve({
-  BASE_URL: 'url',
-  API_ENDPOINT: 'url'
+  BASE_URL: url(),
+  API_ENDPOINT: url()
 }, {
   interpolate: true
 });
@@ -1030,15 +1030,15 @@ await resolve.async(
 ```ts
 // Production: AWS secrets override process.env
 await resolve.async(
-  [processEnv(), { DATABASE_URL: 'postgres' }],
-  [awsSecrets(), { DATABASE_URL: 'postgres' }]
+  [processEnv(), { DATABASE_URL: postgres() }],
+  [awsSecrets(), { DATABASE_URL: postgres() }]
   // priority: 'last' (default) - AWS wins
 );
 
 // Development: Local .env overrides cloud
 await resolve.async(
-  [dotenv(), { DATABASE_URL: 'postgres' }],
-  [awsSecrets(), { DATABASE_URL: 'postgres' }],
+  [dotenv(), { DATABASE_URL: postgres() }],
+  [awsSecrets(), { DATABASE_URL: postgres() }],
   { priority: 'first' }  // dotenv wins
 );
 ```
@@ -1134,8 +1134,8 @@ import { resolve } from 'node-env-resolver';
 
 const config = resolve({
   PORT: 3000,
-  DATABASE_URL: 'postgres',
-  SESSION_SECRET: 'string'
+  DATABASE_URL: postgres(),
+  SESSION_SECRET: string()
 });
 
 const app = express();
@@ -1150,11 +1150,11 @@ import { resolve } from 'node-env-resolver/nextjs';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'postgres',
-    API_SECRET: 'string',
+    DATABASE_URL: postgres(),
+    API_SECRET: string(),
   },
   client: {
-    NEXT_PUBLIC_APP_URL: 'url',
+    NEXT_PUBLIC_APP_URL: url(),
   }
 });
 ```
@@ -1172,7 +1172,7 @@ const getConfig = async () => {
       awsSecrets({ secretId: 'lambda/config' }),
       { ttl: TTL.minutes5 }
     ), {
-      DATABASE_URL: 'postgres',
+      DATABASE_URL: postgres(),
     }]
   );
 };
@@ -1197,7 +1197,7 @@ By default, `.env` files are **completely blocked in production** for security. 
 // In production (NODE_ENV=production)
 const config = await resolve.async(
   [dotenv(), {
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   }]
 );
 // ❌ Throws: "DATABASE_URL cannot be sourced from .env files in production"
@@ -1208,7 +1208,7 @@ const config = await resolve.async(
 ```ts
 const config = await resolve.async(
   [dotenv(), {
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   }],
   {
     policies: {
@@ -1224,7 +1224,7 @@ const config = await resolve.async(
 const config = await resolve.async(
   [dotenv(), {
     PORT: 3000,
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   }],
   {
     policies: {
@@ -1248,8 +1248,8 @@ const config = await resolve.async(
     PORT: 3000,
   }],
   [awsSecrets({ secretId: 'prod/secrets' }), {
-    DATABASE_PASSWORD: 'string',
-    API_KEY: 'string',
+    DATABASE_PASSWORD: string(),
+    API_KEY: string(),
   }],
   {
     policies: {
@@ -1273,8 +1273,8 @@ import { awsSecrets } from 'node-env-resolver-aws';
 const config = await resolve.async(
   [processEnv(), {}],
   [cached(awsSecrets({ secretId: 'prod/db' }), { ttl: TTL.minutes5 }), {
-    DATABASE_PASSWORD: 'string',
-    STRIPE_SECRET: 'string',
+    DATABASE_PASSWORD: string(),
+    STRIPE_SECRET: string(),
   }],
   {
     policies: {
@@ -1327,8 +1327,8 @@ import { resolve, getAuditLog, clearAuditLog } from 'node-env-resolver';
 
 // Option 1: Explicitly enable (works in any environment)
 const config = resolve({
-  DATABASE_URL: 'postgres',
-  API_KEY: 'string',
+  DATABASE_URL: postgres(),
+  API_KEY: string(),
 }, {
   enableAudit: true  // ← Enable audit logging
 });
@@ -1349,7 +1349,7 @@ clearAuditLog();
 process.env.NODE_ENV = 'production';
 
 const config = resolve({
-  DATABASE_URL: 'postgres',
+  DATABASE_URL: postgres(),
 });
 
 // Audit automatically enabled in production
@@ -1365,11 +1365,11 @@ import { resolve, getAuditLog } from 'node-env-resolver';
 
 const appConfig = resolve({
   PORT: 3000,
-  API_KEY: 'string'
+  API_KEY: string()
 }, { enableAudit: true });
 
 const dbConfig = resolve({
-  DATABASE_URL: 'postgres',
+  DATABASE_URL: postgres(),
   DB_POOL_SIZE: 10
 }, { enableAudit: true });
 
@@ -1422,7 +1422,7 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve.async(
   [cached(awsSecrets({ secretId: 'prod/db' }), { ttl: 300000 }), {
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   }],
   { enableAudit: true }
 );
@@ -1451,8 +1451,8 @@ import { awsSecrets } from 'node-env-resolver-aws';
 const config = await resolve.async(
   [processEnv(), {}],
   [awsSecrets(), {
-    DATABASE_PASSWORD: 'string',
-    API_KEY: 'string',
+    DATABASE_PASSWORD: string(),
+    API_KEY: string(),
   }],
   {
     policies: {

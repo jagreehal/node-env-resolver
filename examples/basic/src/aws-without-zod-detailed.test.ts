@@ -3,7 +3,7 @@
  * Using detailed schema definitions with AWS resolvers
  */
 import { describe, it, expect } from 'vitest';
-import { resolve } from 'node-env-resolver';
+import { resolve, string, url } from 'node-env-resolver';
 import { cached, TTL } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -44,15 +44,15 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      NODE_ENV: { type: 'string', enum: ['development', 'production', 'test'] as const, default: 'development' },
+      NODE_ENV: { type: string(), enum: ['development', 'production', 'test'] as const, default: 'development' },
       PORT: { type: 'port', default: 3000 },
-      DATABASE_PASSWORD: { type: 'string', secret: true },
-      API_KEY: { type: 'string', secret: true, optional: true },
-      DATABASE_URL: { type: 'url', secret: true },
-      REDIS_URL: { type: 'url', optional: true },
+      DATABASE_PASSWORD: string({ secret: true }),
+      API_KEY: string({ secret: true, optional: true }),
+      DATABASE_URL: url({ secret: true }),
+      REDIS_URL: url({ optional: true }),
       DEBUG: { type: 'boolean', default: false },
       MAX_CONNECTIONS: { type: 'number', default: 100, min: 1, max: 1000 },
-      JWT_SECRET: { type: 'string', secret: true },
+      JWT_SECRET: string({ secret: true }),
     } as const;
 
     const config = await resolve.async(
@@ -86,8 +86,8 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
-      API_KEY: { type: 'string', secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' },
+      DATABASE_PASSWORD: string({ secret: true, min: 10 }),
+      API_KEY: string({ secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' }),
     } as const;
 
     await expect(resolve.async(
@@ -107,12 +107,12 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      NODE_ENV: { type: 'string', enum: ['development', 'production', 'test'] as const, default: 'development' },
+      NODE_ENV: string({ enum: ['development', 'production', 'test'] as const, default: 'development' }),
       PORT: { type: 'port', default: 3000 },
-      DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
-      JWT_SECRET: { type: 'string', secret: true, min: 32 },
-      ENCRYPTION_KEY: { type: 'string', secret: true, min: 16 },
-      STRIPE_SECRET_KEY: { type: 'string', secret: true, pattern: '^sk_(live|test)_[a-zA-Z0-9]{24,}$' },
+      DATABASE_PASSWORD: string({ secret: true, min: 10 }),
+      JWT_SECRET: string({ secret: true, min: 32 }),
+      ENCRYPTION_KEY: string({ secret: true, min: 16 }),
+      STRIPE_SECRET_KEY: string({ secret: true, pattern: '^sk_(live|test)_[a-zA-Z0-9]{24,}$' }),
     } as const;
 
     const config = await resolve.async(

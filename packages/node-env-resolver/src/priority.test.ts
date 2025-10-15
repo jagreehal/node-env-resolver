@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolve, safeResolve } from './index.js';
-import type { Resolver } from './types.js';
+import { resolve, safeResolve, string, postgres, number, boolean } from './index';
+import type { Resolver } from './types';
 
 // Helper to create mock resolvers
 function createResolver(name: string, env: Record<string, string>): Resolver {
@@ -33,8 +33,8 @@ describe('Priority option - async resolve()', () => {
     });
 
     const config = await resolve.async(
-      [resolver1, { DATABASE_URL: 'url', PORT: 3000 }],
-      [resolver2, { DATABASE_URL: 'url', API_KEY: 'string' }]
+      [resolver1, { DATABASE_URL: postgres(), PORT: number() }],
+      [resolver2, { DATABASE_URL: postgres(), API_KEY: string() }],
       // Default: priority: 'last'
     );
 
@@ -48,8 +48,8 @@ describe('Priority option - async resolve()', () => {
     const resolver2 = createResolver('second', { VAR: 'second-value' });
 
     const config = await resolve.async(
-      [resolver1, { VAR: 'string' }],
-      [resolver2, { VAR: 'string' }],
+      [resolver1, { VAR: string() }],
+      [resolver2, { VAR: string() }],
       { priority: 'last' }
     );
 
@@ -68,8 +68,8 @@ describe('Priority option - async resolve()', () => {
     });
 
     const config = await resolve.async(
-      [resolver1, { DATABASE_URL: 'url', PORT: 3000 }],
-      [resolver2, { DATABASE_URL: 'url', API_KEY: 'string' }],
+      [resolver1, { DATABASE_URL: postgres(), PORT: number() }],
+      [resolver2, { DATABASE_URL: postgres(), API_KEY: string() }],
       { priority: 'first' }
     );
 
@@ -90,8 +90,8 @@ describe('Priority option - async resolve()', () => {
     });
 
     const config = await resolve.async(
-      [resolver1, { PREFIX: 'string', SUFFIX: 'string' }],
-      [resolver2, { PREFIX: 'string', SUFFIX: 'string' }],
+      [resolver1, { PREFIX: string(), SUFFIX: string() }],
+      [resolver2, { PREFIX: string(), SUFFIX: string() }],
       { priority: 'first' }
     );
 
@@ -111,8 +111,8 @@ describe('Priority option - async resolve()', () => {
     });
 
     const config = await resolve.async(
-      [resolver1, { VAR1: 'string', VAR2: 'string' }],
-      [resolver2, { VAR1: 'string', VAR2: 'string' }],
+      [resolver1, { VAR1: string(), VAR2: string() }], 
+      [resolver2, { VAR1: string(), VAR2: string() }],
       { priority: 'first' }
     );
 
@@ -126,9 +126,9 @@ describe('Priority option - async resolve()', () => {
     const resolver3 = createResolver('third', { A: 'A3', B: 'B3', C: 'C3' });
 
     const config = await resolve.async(
-      [resolver1, { A: 'string' }],
-      [resolver2, { B: 'string' }],
-      [resolver3, { A: 'string', B: 'string', C: 'string' }],
+      [resolver1, { A: string() }],
+      [resolver2, { B: string() }],
+      [resolver3, { A: string(), B: string(), C: string() }],
       { priority: 'first' }
     );
 
@@ -144,8 +144,8 @@ describe('Priority option - safeResolve()', () => {
     const resolver2 = createResolver('second', { VAR: 'second' });
 
     const result = await safeResolve.async(
-      [resolver1, { VAR: 'string' }],
-      [resolver2, { VAR: 'string' }],
+      [resolver1, { VAR: string() }],
+      [resolver2, { VAR: string() }],
       { priority: 'last' }
     );
 
@@ -160,8 +160,8 @@ describe('Priority option - safeResolve()', () => {
     const resolver2 = createResolver('second', { VAR: 'second' });
 
     const result = await safeResolve.async(
-      [resolver1, { VAR: 'string' }],
-      [resolver2, { VAR: 'string' }],
+      [resolver1, { VAR: string() }],
+      [resolver2, { VAR: string() }],
       { priority: 'first' }
     );
 
@@ -178,8 +178,8 @@ describe('Priority option - sync resolve.async()', () => {
     const resolver2 = createResolver('second', { VAR: 'second' });
 
     const config = await resolve.async(
-      [resolver1, { VAR: 'string' }],
-      [resolver2, { VAR: 'string' }]
+      [resolver1, { VAR: string() }],
+      [resolver2, { VAR: string() }],
       // Default: priority: 'last'
     );
 
@@ -191,8 +191,8 @@ describe('Priority option - sync resolve.async()', () => {
     const resolver2 = createResolver('second', { VAR: 'second' });
 
     const config = await resolve.async(
-      [resolver1, { VAR: 'string' }],
-      [resolver2, { VAR: 'string' }],
+      [resolver1, { VAR: string() }],
+      [resolver2, { VAR: string() }],
       { priority: 'first' }
     );
 
@@ -206,8 +206,8 @@ describe('Priority option - sync safeResolve.async()', () => {
     const resolver2 = createResolver('second', { VAR: 'second' });
 
     const result = await safeResolve.async(
-      [resolver1, { VAR: 'string' }],
-      [resolver2, { VAR: 'string' }],
+      [resolver1, { VAR: string() }],
+      [resolver2, { VAR: string() }],
       { priority: 'last' }
     );
 
@@ -222,8 +222,8 @@ describe('Priority option - sync safeResolve.async()', () => {
     const resolver2 = createResolver('second', { VAR: 'second' });
 
     const result = await safeResolve.async(
-      [resolver1, { VAR: 'string' }],
-      [resolver2, { VAR: 'string' }],
+      [resolver1, { VAR: string() }],
+      [resolver2, { VAR: string() }],
       { priority: 'first' }
     );
 
@@ -248,9 +248,12 @@ describe('Priority option - real-world use cases', () => {
     });
 
     const config = await resolve.async(
-      [dotenvResolver, { DATABASE_URL: 'url', DEBUG: false }],
-      [awsResolver, { DATABASE_URL: 'url', API_KEY: 'string', DEBUG: false }],
-      { priority: 'first' } // Local .env takes precedence
+      [dotenvResolver, { DATABASE_URL: postgres(), DEBUG: boolean() }],
+      [awsResolver, { DATABASE_URL: postgres(), API_KEY: string(), DEBUG: boolean() }],
+      { 
+        priority: 'first', // Local .env takes precedence
+        policies: { allowDotenvInProduction: true }
+      }
     );
 
     expect(config.DATABASE_URL).toBe('postgres://localhost:5432/dev'); // Local wins
@@ -270,8 +273,8 @@ describe('Priority option - real-world use cases', () => {
     });
 
     const config = await resolve.async(
-      [processEnvResolver, { DATABASE_URL: 'url', PORT: 3000 }],
-      [awsResolver, { DATABASE_URL: 'url', API_KEY: 'string' }]
+      [processEnvResolver, { DATABASE_URL: postgres(), PORT: number() }],
+      [awsResolver, { DATABASE_URL: postgres(), API_KEY: string() }],
       // Default: priority: 'last' - AWS wins
     );
 
@@ -297,9 +300,9 @@ describe('Priority option - real-world use cases', () => {
     });
 
     const config = await resolve.async(
-      [processEnvResolver, { PORT: 3000, DATABASE_URL: 'url', API_KEY: 'string' }],
-      [dotenvResolver, { PORT: 3000, DATABASE_URL: 'url', API_KEY: 'string' }],
-      [awsResolver, { PORT: 3000, DATABASE_URL: 'url', API_KEY: 'string' }],
+        [processEnvResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
+      [dotenvResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
+      [awsResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
       { priority: 'first' }
     );
 

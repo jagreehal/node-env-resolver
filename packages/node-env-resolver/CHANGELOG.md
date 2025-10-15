@@ -55,7 +55,7 @@
   // After - Cleaner array syntax
   const config = await resolve.async([
     awsSecrets(),
-    { PORT: 3000, DATABASE_URL: 'postgres' },
+    { PORT: 3000, DATABASE_URL: postgres() },
   ]);
   ```
 
@@ -65,11 +65,11 @@
   // Simple: uses process.env by default
   const config = resolve({
     PORT: 3000,
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   });
 
   // With custom resolver: array syntax (consistent with async)
-  const config = resolve([dotenv(), { PORT: 3000, DATABASE_URL: 'postgres' }]);
+  const config = resolve([dotenv(), { PORT: 3000, DATABASE_URL: postgres() }]);
   ```
 
 ### Features
@@ -245,9 +245,9 @@
   // After - use built-in types
   import { resolve } from 'node-env-resolver';
   const config = resolve({
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
     EMAIL: 'email',
-    API_URL: 'url',
+    API_URL: url(),
   });
   ```
 
@@ -435,8 +435,8 @@
   ```ts
   // Your code doesn't need to change, but the implementation
   // now uses the cleaner tuple syntax internally
-  const config = await resolveSsm({ APP_NAME: 'string' });
-  const config = await resolveSecrets({ API_KEY: 'string' });
+  const config = await resolveSsm({ APP_NAME: string() });
+  const config = await resolveSecrets({ API_KEY: string() });
   ```
 
   ### Standard Schema moved to dev dependencies

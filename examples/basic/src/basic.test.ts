@@ -2,7 +2,7 @@
  * Basic usage example tests
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv } from 'node-env-resolver';
+import { resolve, processEnv, string, url } from 'node-env-resolver';
 
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
@@ -20,7 +20,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,                              // port with default
-        DATABASE_URL: 'url',                     // required URL
+        DATABASE_URL: url(),                     // required URL
         DEBUG: false,                            // boolean with default
       }]
     );
@@ -39,7 +39,7 @@ describe('Basic Usage Examples', () => {
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,                              // port with default
-        DATABASE_URL: 'url',                     // required URL
+        DATABASE_URL: url(),                     // required URL
         DEBUG: false,                            // boolean with default
       }],
       [mockProvider({
@@ -62,7 +62,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -78,7 +78,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     )).rejects.toThrow(/must be one of: development, production, test/);
@@ -92,7 +92,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -108,7 +108,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     )).rejects.toThrow(/Invalid URL/);
@@ -123,7 +123,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -141,7 +141,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -158,7 +158,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -187,7 +187,7 @@ describe('Basic Usage Examples', () => {
         }), {
           NODE_ENV: ['development', 'production', 'test'] as const,
           PORT: 3000,
-          DATABASE_URL: 'url',
+          DATABASE_URL: url(),
           DEBUG: false,
         }]
       );

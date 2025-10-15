@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolve } from './index.js';
-import type { Resolver } from './types.js';
+import { resolve, string, url } from './index';
+import type { Resolver } from './types';
 
 // Helper to create mock resolvers with load tracking
 function createTrackedResolver(
@@ -46,7 +46,7 @@ function createTrackedResolver(
 describe('Early termination optimization (priority: first)', () => {
   it('should skip remaining resolvers when all required keys are satisfied', async () => {
     const resolver1 = createTrackedResolver('first', {
-      DATABASE_URL: 'postgres://localhost:5432/db',
+      DATABASE_URL: 'http://localhost:5432/db',
       API_KEY: 'secret123',
       PORT: '8080'
     });
@@ -62,9 +62,9 @@ describe('Early termination optimization (priority: first)', () => {
     });
 
     const config = await resolve.async(
-      [resolver1, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-      [resolver2, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-      [resolver3, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+      [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       { priority: 'first' }
     );
 
@@ -77,14 +77,14 @@ describe('Early termination optimization (priority: first)', () => {
     expect(resolver3.loadCalled).toBe(false);
 
     // Verify the config has correct values from first resolver
-    expect(config.DATABASE_URL).toBe('postgres://localhost:5432/db');
+    expect(config.DATABASE_URL).toBe('http://localhost:5432/db');
     expect(config.API_KEY).toBe('secret123');
     expect(config.PORT).toBe(8080);
   });
 
   it('should call second resolver if first does not provide all required keys', async () => {
     const resolver1 = createTrackedResolver('first', {
-      DATABASE_URL: 'postgres://localhost:5432/db'
+      DATABASE_URL: 'http://localhost:5432/db'
       // Missing API_KEY and PORT
     });
 
@@ -98,9 +98,9 @@ describe('Early termination optimization (priority: first)', () => {
     });
 
     const config = await resolve.async(
-      [resolver1, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-      [resolver2, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-      [resolver3, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+      [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       { priority: 'first' }
     );
 
@@ -112,7 +112,7 @@ describe('Early termination optimization (priority: first)', () => {
     expect(resolver3.loadCalled).toBe(false);
 
     // Verify the config
-    expect(config.DATABASE_URL).toBe('postgres://localhost:5432/db');
+    expect(config.DATABASE_URL).toBe('http://localhost:5432/db');
     expect(config.API_KEY).toBe('secret123');
     expect(config.PORT).toBe(8080);
   });
@@ -130,12 +130,12 @@ describe('Early termination optimization (priority: first)', () => {
 
     const config = await resolve.async(
       [resolver1, { 
-        REQUIRED_VAR: 'string',
-        OPTIONAL_VAR: { type: 'string', optional: true }
+        REQUIRED_VAR: string(),
+        OPTIONAL_VAR: string({ optional: true })
       }],
       [resolver2, {
-        REQUIRED_VAR: 'string',
-        OPTIONAL_VAR: { type: 'string', optional: true }
+        REQUIRED_VAR: string(),
+        OPTIONAL_VAR: string({ optional: true })
       }],
       { priority: 'first' }
     );
@@ -161,12 +161,12 @@ describe('Early termination optimization (priority: first)', () => {
 
     const config = await resolve.async(
       [resolver1, { 
-        VAR1: 'string',
-        VAR2: { type: 'string', default: 'default-value' }
+        VAR1: string(),
+        VAR2: string({ default: 'default-value' })
       }],
       [resolver2, {
-        VAR1: 'string',
-        VAR2: { type: 'string', default: 'default-value' }
+        VAR1: string(),
+        VAR2: string({ default: 'default-value' })
       }],
       { priority: 'first' }
     );
@@ -181,7 +181,7 @@ describe('Early termination optimization (priority: first)', () => {
 
   it('should skip expensive remote resolvers when local .env has everything', async () => {
     const localResolver = createTrackedResolver('dotenv(.env)', {
-      DATABASE_URL: 'postgres://localhost:5432/dev',
+      DATABASE_URL: 'http://localhost:5432/dev',
       API_KEY: 'dev-key',
       PORT: '3000'
     }, 0); // Fast
@@ -198,9 +198,9 @@ describe('Early termination optimization (priority: first)', () => {
 
     const startTime = Date.now();
     const config = await resolve.async(
-      [localResolver, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-      [awsSecretsResolver, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
-      [parameterStoreResolver, { DATABASE_URL: 'url', API_KEY: 'string', PORT: 3000 }],
+      [localResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      [awsSecretsResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      [parameterStoreResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       { priority: 'first' }
     );
     const duration = Date.now() - startTime;
@@ -214,7 +214,7 @@ describe('Early termination optimization (priority: first)', () => {
     expect(duration).toBeLessThan(50);
 
     // Verify local values are used
-    expect(config.DATABASE_URL).toBe('postgres://localhost:5432/dev');
+    expect(config.DATABASE_URL).toBe('http://localhost:5432/dev');
     expect(config.API_KEY).toBe('dev-key');
     expect(config.PORT).toBe(3000);
   });
@@ -236,9 +236,9 @@ describe('Parallel resolver execution (priority: last)', () => {
 
     const startTime = Date.now();
     const config = await resolve.async(
-      [resolver1, { VAR1: 'string' }],
-      [resolver2, { VAR2: 'string' }],
-      [resolver3, { VAR3: 'string' }],
+      [resolver1, { VAR1: string() }],
+      [resolver2, { VAR2: string() }],
+      [resolver3, { VAR3: string() }],
       { priority: 'last' } // Default, but explicit
     );
     const duration = Date.now() - startTime;
@@ -275,9 +275,9 @@ describe('Parallel resolver execution (priority: last)', () => {
     }, 10);
 
     const config = await resolve.async(
-      [resolver1, { SHARED_VAR: 'string', VAR1: 'string' }],
-      [resolver2, { SHARED_VAR: 'string', VAR2: 'string' }],
-      [resolver3, { SHARED_VAR: 'string', VAR3: 'string' }],
+      [resolver1, { SHARED_VAR: string(), VAR1: string() }],
+      [resolver2, { SHARED_VAR: string(), VAR2: string() }],
+      [resolver3, { SHARED_VAR: string(), VAR3: string() }],
       { priority: 'last' }
     );
 
@@ -311,9 +311,9 @@ describe('Parallel resolver execution (priority: last)', () => {
 
     // With strict: false, should continue despite failure
     const config = await resolve.async(
-      [resolver1, { VAR1: 'string', VAR3: 'string' }],
-      [failingResolver, { VAR1: 'string', VAR3: 'string' }],
-      [resolver3, { VAR1: 'string', VAR3: 'string' }],
+      [resolver1, { VAR1: string(), VAR3: string() }],
+      [failingResolver, { VAR1: string(), VAR3: string() }],
+      [resolver3, { VAR1: string(), VAR3: string() }],
       { priority: 'last', strict: false }
     );
 
@@ -342,9 +342,9 @@ describe('Parallel resolver execution (priority: last)', () => {
 
     await expect(
       resolve.async(
-        [resolver1, { VAR1: 'string', VAR3: 'string' }],
-        [failingResolver, { VAR1: 'string', VAR3: 'string' }],
-        [resolver3, { VAR1: 'string', VAR3: 'string' }],
+        [resolver1, { VAR1: string(), VAR3: string() }],
+        [failingResolver, { VAR1: string(), VAR3: string() }],
+        [resolver3, { VAR1: string(), VAR3: string() }],
         { priority: 'last', strict: true }
       )
     ).rejects.toThrow('Resolver failed');
@@ -369,9 +369,9 @@ describe('Parallel resolver execution (priority: last)', () => {
 
     const startTime = Date.now();
     const config = await resolve.async(
-      [awsSecrets, { DATABASE_URL: 'url' }],
-      [awsParams, { API_KEY: 'string' }],
-      [gcpSecrets, { JWT_SECRET: 'string' }],
+      [awsSecrets, { DATABASE_URL: url() }],
+      [awsParams, { API_KEY: string() }],
+      [gcpSecrets, { JWT_SECRET: string() }],
       { priority: 'last' }
     );
     const duration = Date.now() - startTime;
@@ -422,7 +422,7 @@ describe('Performance optimizations - edge cases', () => {
 
     const startTime = Date.now();
     const config = await resolve.async(
-      [resolver, { VAR: 'string' }],
+      [resolver, { VAR: string() }],
       { priority: 'last' }
     );
     const duration = Date.now() - startTime;
@@ -444,12 +444,12 @@ describe('Performance optimizations - edge cases', () => {
 
     const config = await resolve.async(
       [resolver1, {
-        REQUIRED: 'string',
-        OPTIONAL: { type: 'string', optional: true }
+        REQUIRED: string(),
+        OPTIONAL: string({ optional: true })
       }],
       [resolver2, {
-        REQUIRED: 'string',
-        OPTIONAL: { type: 'string', optional: true }
+        REQUIRED: string(),
+        OPTIONAL: string({ optional: true })
       }],
       { priority: 'first' }
     );
@@ -462,4 +462,3 @@ describe('Performance optimizations - edge cases', () => {
     expect(config.OPTIONAL).toBe('opt-value');
   });
 });
-

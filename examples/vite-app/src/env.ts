@@ -1,4 +1,4 @@
-import { resolve } from 'node-env-resolver-vite';
+import { string, url, port, postgres, boolean } from 'node-env-resolver-vite';
 
 /**
  * Environment configuration for Vite app
@@ -6,23 +6,20 @@ import { resolve } from 'node-env-resolver-vite';
  * Server vars: Available only in Node.js context (vite.config.ts, SSR, build scripts)
  * Client vars: Available in browser (must have VITE_ prefix)
  */
-export const env = resolve({
+export const envConfig = {
   server: {
     // Server-only environment variables
-    DATABASE_URL: 'postgres?',
-    API_SECRET: 'string?',
-    PORT: 'port:5173',
+    DATABASE_URL: postgres({ optional: true }),
+    API_SECRET: string({ optional: true }),
+    PORT: port({ default: 5173 }),
     NODE_ENV: ['development', 'production', 'test'] as const,
   },
   client: {
     // Client-accessible environment variables (VITE_ prefix required)
-    VITE_API_URL: 'url?',
-    VITE_APP_NAME: 'string?',
-    VITE_ENABLE_ANALYTICS: false,
-    VITE_VERSION: 'string?',
+    VITE_API_URL: url({ optional: true }),
+    VITE_APP_NAME: string({ optional: true }),
+    VITE_ENABLE_ANALYTICS: boolean({ default: false }),
+    VITE_VERSION: string({ optional: true }),
   }
-});
-
-// Export types for convenience
-export type Env = typeof env;
+};
 

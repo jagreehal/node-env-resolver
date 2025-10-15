@@ -3,7 +3,7 @@
  * Demonstrates various TTL caching configurations
  */
 import { describe, it, expect } from 'vitest';
-import { resolve } from 'node-env-resolver';
+import { resolve, string, url } from 'node-env-resolver';
 import { cached, TTL, awsCache } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -25,8 +25,8 @@ const mockSsmProvider = (params: Record<string, string>): Resolver => ({
 describe('TTL Caching Examples', () => {
   it('should demonstrate simple TTL caching', async () => {
     const schema = {
-      API_KEY: 'string',
-      DATABASE_URL: 'url',
+      API_KEY: string(),
+      DATABASE_URL: url(),
     };
 
     const config = await resolve.async(
@@ -41,8 +41,8 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate advanced TTL with stale-while-revalidate', async () => {
     const schema = {
-      JWT_SECRET: 'string',
-      STRIPE_KEY: 'string',
+      JWT_SECRET: string(),
+      STRIPE_KEY: string(),
     };
 
     const config = await resolve.async(
@@ -62,9 +62,9 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate AWS-optimized cache configuration', async () => {
     const schema = {
-      DATABASE_PASSWORD: 'string',
-      REDIS_PASSWORD: 'string',
-      EXTERNAL_API_KEY: 'string',
+      DATABASE_PASSWORD: string(),
+      REDIS_PASSWORD: string(),
+      EXTERNAL_API_KEY: string(),
     };
 
     const config = await resolve.async(
@@ -88,9 +88,9 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate tiered caching strategy', async () => {
     const schema = {
-      USER_SESSION_TOKEN: 'string',
-      DATABASE_PASSWORD: 'string',
-      APP_VERSION: 'string',
+      USER_SESSION_TOKEN: string(),
+      DATABASE_PASSWORD: string(),
+      APP_VERSION: string(),
     };
 
     const config = await resolve.async(
@@ -105,12 +105,12 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate production-ready tiered caching', async () => {
     const schema = {
-      JWT_SECRET: 'string',
-      ENCRYPTION_KEY: 'string',
-      DATABASE_URL: 'url',
-      REDIS_URL: 'url',
-      STRIPE_SECRET_KEY: 'string',
-      SENDGRID_API_KEY: 'string',
+      JWT_SECRET: string(),
+      ENCRYPTION_KEY: string(),
+      DATABASE_URL: url(),
+      REDIS_URL: url(),
+      STRIPE_SECRET_KEY: string(),
+      SENDGRID_API_KEY: string(),
     };
 
     const config = await resolve.async(

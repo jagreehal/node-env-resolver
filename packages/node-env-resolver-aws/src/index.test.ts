@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock functions must be defined before any imports that use them
+const mockSecretsManagerSend = vi.hoisted(() => vi.fn());
+const mockSsmSend = vi.hoisted(() => vi.fn());
+const mockResolveWith = vi.hoisted(() => vi.fn());
+const mockSafeResolveWith = vi.hoisted(() => vi.fn());
+
 import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index';
-const mockSecretsManagerSend = vi.fn();
-const mockSsmSend = vi.fn();
-const mockResolveWith = vi.fn();
-const mockSafeResolveWith = vi.fn();
+import { string, url } from 'node-env-resolver';
 
 // Mock AWS SDK clients
 vi.mock('@aws-sdk/client-secrets-manager', () => ({
@@ -29,6 +33,8 @@ vi.mock('node-env-resolver', () => ({
   safeResolve: {
     async: mockSafeResolveWith,
   },
+  string: vi.fn(),
+  url: vi.fn(),
 }));
 
 describe('node-env-resolver/aws', () => {
@@ -152,7 +158,7 @@ describe('node-env-resolver/aws', () => {
       const result = await resolveSsm({
         path: '/myapp/config'
       }, {
-        API_ENDPOINT: 'url',
+        API_ENDPOINT: url(),
         TIMEOUT: 30
       });
 
@@ -160,7 +166,7 @@ describe('node-env-resolver/aws', () => {
       expect(mockResolveWith).toHaveBeenCalledWith(
         [
           expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
-          { API_ENDPOINT: 'url', TIMEOUT: 30 }
+          { API_ENDPOINT: url(), TIMEOUT: 30 }
         ]
       );
     });
@@ -172,7 +178,7 @@ describe('node-env-resolver/aws', () => {
         path: '/myapp/config',
         region: 'us-west-2'
       }, {
-        API_ENDPOINT: 'url'
+        API_ENDPOINT: url()
       }, {
         strict: false
       });
@@ -180,7 +186,7 @@ describe('node-env-resolver/aws', () => {
       expect(mockResolveWith).toHaveBeenCalledWith(
         [
           expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
-          { API_ENDPOINT: 'url' }
+          { API_ENDPOINT: url() }
         ],
         { strict: false }
       );
@@ -202,7 +208,7 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSsm({
         path: '/myapp/config'
       }, {
-        API_ENDPOINT: 'url',
+        API_ENDPOINT: url(),
         TIMEOUT: 30
       });
 
@@ -221,7 +227,7 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSsm({
         path: '/myapp/config'
       }, {
-        API_ENDPOINT: 'url'
+        API_ENDPOINT: url()
       });
 
       expect(result).toEqual({
@@ -243,15 +249,15 @@ describe('node-env-resolver/aws', () => {
       const result = await resolveSecrets({
         secretId: 'myapp/secrets'
       }, {
-        DATABASE_URL: 'url',
-        API_KEY: 'string'
+        DATABASE_URL: url(),
+        API_KEY: string()
       });
 
       expect(result).toEqual(expectedConfig);
       expect(mockResolveWith).toHaveBeenCalledWith(
         [
           expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
-          { DATABASE_URL: 'url', API_KEY: 'string' }
+          { DATABASE_URL: url(), API_KEY: string() }
         ]
       );
     });
@@ -263,7 +269,7 @@ describe('node-env-resolver/aws', () => {
         secretId: 'myapp/secrets',
         region: 'eu-west-1'
       }, {
-        DATABASE_URL: 'url'
+        DATABASE_URL: url()
       }, {
         strict: false
       });
@@ -271,7 +277,7 @@ describe('node-env-resolver/aws', () => {
       expect(mockResolveWith).toHaveBeenCalledWith(
         [
           expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
-          { DATABASE_URL: 'url' }
+          { DATABASE_URL: url() }
         ],
         { strict: false }
       );
@@ -293,8 +299,8 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSecrets({
         secretId: 'myapp/secrets'
       }, {
-        DATABASE_URL: 'url',
-        API_KEY: 'string'
+        DATABASE_URL: url(),
+        API_KEY: string()
       });
 
       expect(result).toEqual({
@@ -312,7 +318,7 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSecrets({
         secretId: 'myapp/secrets'
       }, {
-        DATABASE_URL: 'url'
+        DATABASE_URL: url()
       });
 
       expect(result).toEqual({

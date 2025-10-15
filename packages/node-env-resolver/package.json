@@ -72,7 +72,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "NODE_ENV=production tsup && tsc --emitDeclarationOnly",
+    "build": "NODE_ENV=production tsup",
     "build:dev": "tsup",
     "build:dts": "tsc --emitDeclarationOnly",
     "type-check": "tsc -p tsconfig.json --noEmit",

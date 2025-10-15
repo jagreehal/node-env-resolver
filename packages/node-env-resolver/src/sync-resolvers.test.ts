@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resolve, safeResolve, SyncResolver, AsyncOnlyResolver, isSyncResolver, isAsyncOnlyResolver } from './index';
+import { resolve, safeResolve, SyncResolver, AsyncResolver, isSyncResolver, isAsyncOnlyResolver, string, enums, number } from './index';
 import { dotenv, json, processEnv } from './resolvers';
 
 describe('Sync Resolvers', () => {
@@ -25,7 +25,7 @@ describe('Sync Resolvers', () => {
     });
 
     it('should correctly identify async-only resolvers', () => {
-      const asyncResolver: AsyncOnlyResolver = {
+      const asyncResolver: AsyncResolver = {
         name: 'async',
         async load() { return {}; }
       };
@@ -41,9 +41,9 @@ describe('Sync Resolvers', () => {
       process.env.TEST_PORT = '3000';
 
       const config = resolve({
-        TEST_VAR: 'string',
-        TEST_PORT: 'number',
-        TEST_MISSING: 'string?'
+        TEST_VAR: string(),
+        TEST_PORT: number(),
+        TEST_MISSING: string({optional:true})
       });
 
       expect(config.TEST_VAR).toBe('test-value');
@@ -64,7 +64,7 @@ describe('Sync Resolvers', () => {
 
       const config = resolve([
         customResolver,
-        { CUSTOM_VAR: 'string' }
+        { CUSTOM_VAR: string() }
       ]);
 
       expect(config.CUSTOM_VAR).toBe('from-resolver');
@@ -83,7 +83,7 @@ describe('Sync Resolvers', () => {
         resolve([
           // @ts-expect-error - Testing runtime validation
           asyncOnlyResolver,
-          { ASYNC_VAR: 'string' }
+          { ASYNC_VAR: string() }
         ]);
       }).toThrow(/does not support synchronous loading/);
     });
@@ -110,8 +110,8 @@ describe('Sync Resolvers', () => {
       };
 
       const config = resolve(
-        [resolver1, { SHARED: 'string', ONLY_IN_1: 'string' }],
-        [resolver2, { SHARED: 'string', ONLY_IN_2: 'string' }]
+        [resolver1, { SHARED: string(), ONLY_IN_1: string() }],
+        [resolver2, { SHARED: string(), ONLY_IN_2: string() }]
       );
 
       // With priority: 'last' (default), resolver2 wins for SHARED
@@ -142,8 +142,8 @@ describe('Sync Resolvers', () => {
       };
 
       const config = resolve(
-        [resolver1, { SHARED: 'string', ONLY_IN_1: 'string' }],
-        [resolver2, { SHARED: 'string', ONLY_IN_2: 'string' }],
+        [resolver1, { SHARED: string(), ONLY_IN_1: string() }],
+        [resolver2, { SHARED: string(), ONLY_IN_2: string() }],
         { priority: 'first' }
       );
 
@@ -167,26 +167,26 @@ describe('Sync Resolvers', () => {
       const resolver2: SyncResolver = {
         name: 'resolver2',
         async load() {
-          return { DATABASE_URL: 'postgres://localhost' };
+          return { DATABASE_URL: '//localhost' };
         },
         loadSync() {
-          return { DATABASE_URL: 'postgres://localhost' };
+          return { DATABASE_URL: '//localhost' };
         }
       };
 
       const config = resolve(
-        [resolver1, { PORT: 'number' }],
-        [resolver2, { DATABASE_URL: 'string' }]
+        [resolver1, { PORT: number() }],
+        [resolver2, { DATABASE_URL: string() }]
       );
 
       expect(config.PORT).toBe(3000);
-      expect(config.DATABASE_URL).toBe('postgres://localhost');
+      expect(config.DATABASE_URL).toBe('//localhost');
     });
   });
 
   describe('resolve.async() - Asynchronous', () => {
     it('should work with async-only resolvers', async () => {
-      const asyncResolver: AsyncOnlyResolver = {
+      const asyncResolver: AsyncResolver = {
         name: 'async',
         async load() {
           await new Promise(resolve => setTimeout(resolve, 10));
@@ -196,7 +196,7 @@ describe('Sync Resolvers', () => {
 
       const config = await resolve.async([
         asyncResolver,
-        { ASYNC_VAR: 'string' }
+        { ASYNC_VAR: string() }
       ]);
 
       expect(config.ASYNC_VAR).toBe('async-value');
@@ -211,7 +211,7 @@ describe('Sync Resolvers', () => {
 
       const config = await resolve.async([
         syncResolver,
-        { SYNC_VAR: 'string' }
+        { SYNC_VAR: string() }
       ]);
 
       expect(config.SYNC_VAR).toBe('sync-value');
@@ -223,7 +223,7 @@ describe('Sync Resolvers', () => {
       // processEnv() is a sync resolver but should work with resolve.async()
       const config = await resolve.async([
         processEnv(),
-        { TEST_ASYNC_VAR: 'string' }
+        { TEST_ASYNC_VAR: string() }
       ]);
 
       expect(config.TEST_ASYNC_VAR).toBe('test-value');
@@ -236,7 +236,7 @@ describe('Sync Resolvers', () => {
       process.env.TEST_VAR = 'value';
 
       const result = safeResolve({
-        TEST_VAR: 'string'
+        TEST_VAR: string()
       });
 
       expect(result.success).toBe(true);
@@ -247,7 +247,7 @@ describe('Sync Resolvers', () => {
 
     it('should return error for missing required variables', () => {
       const result = safeResolve({
-        MISSING_REQUIRED: 'string'
+        MISSING_REQUIRED: string()
       });
 
       expect(result.success).toBe(false);
@@ -265,7 +265,7 @@ describe('Sync Resolvers', () => {
       const result = safeResolve([
         // @ts-expect-error - Testing runtime validation
         asyncResolver,
-        { VAR: 'string' }
+        { VAR: string() }
       ]);
 
       expect(result.success).toBe(false);
@@ -277,7 +277,7 @@ describe('Sync Resolvers', () => {
 
   describe('safeResolve.async() - Async Error Handling', () => {
     it('should return success for valid async resolution', async () => {
-      const asyncResolver: AsyncOnlyResolver = {
+      const asyncResolver: AsyncResolver = {
         name: 'async',
         async load() {
           return { ASYNC_VAR: 'value' };
@@ -286,7 +286,7 @@ describe('Sync Resolvers', () => {
 
       const result = await safeResolve.async([
         asyncResolver,
-        { ASYNC_VAR: 'string' }
+        { ASYNC_VAR: string() }
       ]);
 
       expect(result.success).toBe(true);
@@ -305,7 +305,7 @@ describe('Sync Resolvers', () => {
 
       const result = await safeResolve.async([
         failingResolver,
-        { VAR: 'string' }
+        { VAR: string() }
       ], { strict: true });
 
       expect(result.success).toBe(false);
@@ -339,11 +339,11 @@ describe('Sync Resolvers', () => {
       process.env.ENUM = 'dev';
 
       const config = resolve({
-        STRING_VAR: 'string',
+        STRING_VAR: string(),
         NUMBER_VAR: 3000,  // Has default, won't fail
         BOOL_VAR: false,   // Has default, won't fail
-        OPTIONAL: 'string?', // Optional, won't fail
-        ENUM: ['dev', 'prod'] as const
+        OPTIONAL: string({optional:true}), // Optional, won't fail
+        ENUM: enums(['dev', 'prod'])
       });
 
       // TypeScript should infer these types correctly
@@ -356,7 +356,7 @@ describe('Sync Resolvers', () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _opt: string | undefined = config.OPTIONAL;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _enum: 'dev' | 'prod' = config.ENUM;
+      const _enum: 'dev' | 'prod' = config.ENUM as 'dev' | 'prod';
 
       // Verify actual values
       expect(config.STRING_VAR).toBe('test-string');
@@ -373,7 +373,7 @@ describe('Sync Resolvers', () => {
       const config = await resolve.async([
         processEnv(),
         {
-          STRING_VAR: 'string',
+          STRING_VAR: string(),
           NUMBER_VAR: 3000,  // Has default, won't fail
           BOOL_VAR: false,   // Has default, won't fail
         }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv } from 'node-env-resolver';
+import { resolve, processEnv, string, url, postgres, http } from 'node-env-resolver';
 import { cliArgs } from 'node-env-resolver/cli';
 import { withComputed } from 'node-env-resolver/utils';
 
@@ -9,14 +9,14 @@ describe('CLI and Computed Fields Examples', () => {
     const config = await resolve.async(
       [processEnv(), {
         PORT: 3000,
-        DATABASE_URL: 'postgres',
+        DATABASE_URL: postgres(),
         VERBOSE: false
       }],
       [cliArgs({
         argv: ['--port', '8080', '--database-url', 'postgres://localhost:5432/mydb', '--verbose']
       }), {
         PORT: 3000,
-        DATABASE_URL: 'postgres',
+        DATABASE_URL: postgres(),
         VERBOSE: false
       }]
     );
@@ -36,12 +36,12 @@ describe('CLI and Computed Fields Examples', () => {
     process.env.REDIS_PORT = '6379';
 
     const config = resolve({
-      DB_HOST: 'string',
+      DB_HOST: string(),
       DB_PORT: 'number',
-      DB_USER: 'string',
-      DB_PASSWORD: 'string',
-      DB_NAME: 'string',
-      REDIS_HOST: 'string',
+      DB_USER: string(),
+      DB_PASSWORD: string(),
+      DB_NAME: string(),
+      REDIS_HOST: string(),
       REDIS_PORT: 'number'
     });
 
@@ -146,9 +146,9 @@ describe('CLI and Computed Fields Examples', () => {
     process.env.API_KEY = 'secret-key-123';
 
     const config = resolve({
-      API_BASE_URL: 'url',
-      API_VERSION: 'string',
-      API_KEY: 'string'
+      API_BASE_URL: url(),
+      API_VERSION: string(),
+      API_KEY: string()
     });
 
     const appConfig = withComputed(config, {
@@ -194,8 +194,8 @@ describe('CLI and Computed Fields Examples', () => {
           '--workers', '4'
         ]
       }), {
-        INPUT: 'string',
-        OUTPUT: 'string',
+        INPUT: string(),
+        OUTPUT: string(),
         MINIFY: false,
         WORKERS: 'number'
       }]
@@ -241,7 +241,7 @@ describe('CLI and Computed Fields Examples', () => {
     // CLI args override env vars
     const config = await resolve.async(
       [processEnv(), {
-        HOST: 'string',
+        HOST: string(),
         PORT: 3000,
         NODE_ENV: ['development', 'staging', 'production'] as const,
         SSL_ENABLED: false
@@ -249,7 +249,7 @@ describe('CLI and Computed Fields Examples', () => {
       [cliArgs({
         argv: ['--port', '8080', '--ssl-enabled']
       }), {
-        HOST: 'string',
+        HOST: string(),
         PORT: 3000,
         NODE_ENV: ['development', 'staging', 'production'] as const,
         SSL_ENABLED: false
@@ -260,7 +260,7 @@ describe('CLI and Computed Fields Examples', () => {
     const serverConfig = withComputed(config, {
       // Compute server URL
       url: (c) => {
-        const protocol = c.SSL_ENABLED ? 'https' : 'http';
+        const protocol = c.SSL_ENABLED ? 'https' : http();
         return `${protocol}://${c.HOST}:${c.PORT}`;
       },
       

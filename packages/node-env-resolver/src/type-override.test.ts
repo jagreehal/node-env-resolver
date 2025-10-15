@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolve } from './index.js';
-import type { InferSimpleSchema } from './types.js';
+import { resolve, string, number, enums, url, postgres } from './index';
+import type { InferSimpleSchema } from './types';
 
 describe('Type override behavior with multiple resolvers', () => {
   it('last schema wins - type changes from string to number', async () => {
@@ -19,7 +19,7 @@ describe('Type override behavior with multiple resolvers', () => {
     };
 
     const config = await resolve.async(
-      [resolver1, { PORT: 'string' }],  // First schema: string
+      [resolver1, { PORT: string() }],  // First schema: string
       [resolver2, { PORT: 3000 }]        // Last schema: number (wins)
     );
 
@@ -44,8 +44,8 @@ describe('Type override behavior with multiple resolvers', () => {
     };
 
     const config = await resolve.async(
-      [resolver1, { API_KEY: 'string' }],   // Required
-      [resolver2, { API_KEY: 'string?' }]   // Optional (last schema wins)
+      [resolver1, { API_KEY: string() }],   // Required
+      [resolver2, { API_KEY: string({optional:true}) }]   // Optional (last schema wins)
     );
 
     // Last schema makes it optional
@@ -70,8 +70,8 @@ describe('Type override behavior with multiple resolvers', () => {
     };
 
     const config = await resolve.async(
-      [resolver1, { ENDPOINT: 'string' }],
-      [resolver2, { ENDPOINT: 'url' }]  // Last schema validates as URL
+      [resolver1, { ENDPOINT: string() }],
+      [resolver2, { ENDPOINT: url() }]  // Last schema validates as URL
     );
 
     // Last schema validates as URL (returns validated string)
@@ -96,8 +96,8 @@ describe('Type override behavior with multiple resolvers', () => {
     };
 
     const config = await resolve.async(
-      [resolver1, { ENV: ['development', 'staging'] as const }],
-      [resolver2, { ENV: ['production', 'test'] as const }]  // Last schema
+      [resolver1, { ENV: enums(['development', 'staging']) }],
+      [resolver2, { ENV: enums(['production', 'test']) }]  // Last schema
     );
 
     // Last schema's enum validation wins
@@ -123,8 +123,8 @@ describe('Type override behavior with multiple resolvers', () => {
     // Last schema expects number, but value is string - should fail
     await expect(
       resolve.async(
-        [resolver1, { VALUE: 'string' }],
-        [resolver2, { VALUE: 'number' }]  // Stricter
+        [resolver1, { VALUE: string() }],
+        [resolver2, { VALUE: number() }]  // Stricter
       )
     ).rejects.toThrow();
   });
@@ -176,19 +176,19 @@ describe('Type override behavior with multiple resolvers', () => {
 
     const config = await resolve.async(
       [local, {
-        PORT: 'string?',          // Schema type: string | undefined (optional)
-        API_KEY: 'string'
+        PORT: string({optional:true}),          // Schema type: string | undefined (optional)
+        API_KEY: string()
       }],
       [aws, {
         PORT: 3000,              // Schema type: number (WINS for type)
-        DATABASE_URL: 'postgres'  // New variable
+        DATABASE_URL: postgres()  // New variable
       }]
     );
 
     // TypeScript type checking with satisfies
     // Note: With multiple schemas, TypeScript can't infer the exact merged type
     // so we use type assertion here
-    const typedConfig = config as {
+    const typedConfig = config as unknown as {
       PORT: number;        // Last schema wins - should be number
       API_KEY: string;     // First schema
       DATABASE_URL: string; // Second schema
@@ -202,7 +202,7 @@ describe('Type override behavior with multiple resolvers', () => {
     // Verify the actual expanded type - this should work if PORT was string | undefined before merge
     type FirstSchema = InferSimpleSchema<{ readonly PORT: "string?"; readonly API_KEY: "string" }>;
     type FirstPortType = FirstSchema['PORT']; // Hover to see: string | undefined
-    const testUndefined: FirstPortType = undefined; // ✓ Works! Proves PORT is string | undefined
+    const testUndefined: FirstPortType = undefined as unknown as FirstPortType; // ✓ Works! Proves PORT is string | undefined
     expect(testUndefined).toBeUndefined();
 
     // PORT: Last schema type (number) + last resolver value ('3000' → 3000)

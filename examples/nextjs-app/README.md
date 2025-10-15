@@ -45,13 +45,13 @@ import { resolve } from 'node-env-resolver-nextjs';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'url',        // Required URL (validated)
-    API_SECRET: 'string',       // Required secret string
+    DATABASE_URL: url(),        // Required URL (validated)
+    API_SECRET: string(),       // Required secret string
     PORT: 3000,                  // Number with default
   },
   client: {
-    NEXT_PUBLIC_APP_URL: 'url', // Required URL (validated)
-    NEXT_PUBLIC_GA_ID: 'string?', // Optional string
+    NEXT_PUBLIC_APP_URL: url(), // Required URL (validated)
+    NEXT_PUBLIC_GA_ID: string({optional:true}), // Optional string
     NEXT_PUBLIC_ENABLE_ANALYTICS: false, // Boolean with default
   }
 });

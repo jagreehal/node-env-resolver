@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resolve, getAuditLog, clearAuditLog } from './index';
+import { resolve, getAuditLog, clearAuditLog, string, url, port } from './index';
 
 describe('Audit Logging', () => {
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe('Audit Logging', () => {
             return { SECRET_KEY: 'test-secret' };
           },
         }, {
-          SECRET_KEY: 'string',
+          SECRET_KEY: string(),
         }],
         { enableAudit: true }
       );
@@ -51,7 +51,7 @@ describe('Audit Logging', () => {
             return { SECRET_KEY: 'test-secret' };
           },
         }, {
-          SECRET_KEY: 'string',
+          SECRET_KEY: string(),
         }],
         { enableAudit: true }
       );
@@ -79,7 +79,7 @@ describe('Audit Logging', () => {
             return { DATABASE_URL: 'http://localhost' };
           },
         }, {
-          DATABASE_URL: 'url',
+          DATABASE_URL: url(),
         }],
         { enableAudit: true }
       ).catch(() => {
@@ -105,7 +105,7 @@ describe('Audit Logging', () => {
             return { PORT: 'not-a-number' };
           },
         }, {
-          PORT: 'port',
+          PORT: port(),
         }],
         { enableAudit: true }
       );
@@ -130,7 +130,7 @@ describe('Audit Logging', () => {
               return { PORT: 'invalid' };
             },
           }, {
-            PORT: 'port',
+            PORT: port(),
           }],
           { enableAudit: true }
         );
@@ -190,8 +190,8 @@ describe('Security Policies', () => {
                 return { DATABASE_URL: 'http://localhost', API_KEY: 'key123' };
               },
             }, {
-              DATABASE_URL: 'url',
-              API_KEY: 'string',
+              DATABASE_URL: url(),
+              API_KEY: string(),
             }
           ],
           {
@@ -224,8 +224,8 @@ describe('Security Policies', () => {
             return { DATABASE_URL: 'http://localhost', API_KEY: 'key123' };
           },
         }, {
-          DATABASE_URL: 'url',
-          API_KEY: 'string',
+          DATABASE_URL: url(),
+          API_KEY: string(),
         }
       ],
       {
@@ -256,7 +256,7 @@ describe('Security Policies', () => {
                 return { SECRET: 'secret123' };
               },
             }, {
-              SECRET: 'string',
+              SECRET: string(),
             }
           ]
         )
@@ -279,7 +279,7 @@ describe('Security Policies', () => {
               return { SECRET: 'secret123' };
             },
           }, {
-            SECRET: 'string',
+            SECRET: string(),
           }
         ],
         {
@@ -308,8 +308,8 @@ describe('Security Policies', () => {
               return { ALLOWED_VAR: 'allowed', BLOCKED_VAR: 'blocked' };
             },
           }, {
-            ALLOWED_VAR: 'string',
-            BLOCKED_VAR: 'string',
+            ALLOWED_VAR: string(),
+            BLOCKED_VAR: string(),
           }
         ],
         {
@@ -352,12 +352,12 @@ describe('Per-Config Audit Tracking', () => {
     };
 
     const config1 = await resolve.async(
-      [resolver1, { VAR1: 'string' }],
+      [resolver1, { VAR1: string() }],
       { enableAudit: true }
     );
 
     const config2 = await resolve.async(
-      [resolver2, { VAR2: 'string' }],
+      [resolver2, { VAR2: string() }],
       { enableAudit: true }
     );
 
@@ -401,12 +401,12 @@ describe('Per-Config Audit Tracking', () => {
     };
 
     const config1 = resolve(
-      [resolver1, { VAR1: 'string' }],
+      [resolver1, { VAR1: string() }],
       { enableAudit: true }
     );
 
     const config2 = resolve(
-      [resolver2, { VAR2: 'string' }],
+      [resolver2, { VAR2: string() }],
       { enableAudit: true }
     );
 
@@ -436,7 +436,7 @@ describe('Per-Config Audit Tracking', () => {
           return { VAR: 'value' };
         },
       }, {
-        VAR: 'string',
+        VAR: string(),
       }],
       { enableAudit: false } // Audit disabled
     );
@@ -453,7 +453,7 @@ describe('Per-Config Audit Tracking', () => {
           return { SHARED: 'from-source1' };
         },
       }, {
-        SHARED: 'string',
+        SHARED: string(),
       }],
       { enableAudit: true }
     );
@@ -465,7 +465,7 @@ describe('Per-Config Audit Tracking', () => {
           return { SHARED: 'from-source2' };
         },
       }, {
-        SHARED: 'string',
+        SHARED: string(),
       }],
       { enableAudit: true }
     );
@@ -489,7 +489,7 @@ describe('Per-Config Audit Tracking', () => {
           return { VAR1: 'value1' };
         },
       }, {
-        VAR1: 'string',
+        VAR1: string(),
       }],
       { enableAudit: true }
     );
@@ -501,7 +501,7 @@ describe('Per-Config Audit Tracking', () => {
           return { VAR2: 'value2' };
         },
       }, {
-        VAR2: 'string',
+        VAR2: string(),
       }],
       { enableAudit: true }
     );

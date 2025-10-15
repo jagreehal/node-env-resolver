@@ -2,12 +2,12 @@
  * Centralized configuration using node-env-resolver
  * Perfect for Express.js applications with multiple deployment environments
  */
-import { resolve, cached } from 'node-env-resolver';
+import { resolve, cached, string, url } from 'node-env-resolver';
 import { awsSsm } from 'node-env-resolver-aws';
 export const config = await resolve({
     // Application
     NODE_ENV: {
-        type: 'string',
+        type: string(),
         enum: ['development', 'production', 'test'],
         default: 'development',
         description: 'Application environment',
@@ -19,7 +19,7 @@ export const config = await resolve({
     },
     // Database
     DATABASE_URL: {
-        type: 'url',
+        type: url(),
         description: 'PostgreSQL connection string',
     },
     DATABASE_POOL_MIN: {
@@ -37,18 +37,18 @@ export const config = await resolve({
     },
     // Redis Cache
     REDIS_URL: {
-        type: 'url',
+        type: url(),
         optional: true,
         description: 'Redis connection string',
     },
     // Security
     JWT_SECRET: {
-        type: 'string',
+        type: string(),
         secret: true,
         description: 'JWT signing secret',
     },
     JWT_EXPIRES_IN: {
-        type: 'string',
+        type: string(),
         default: '7d',
         pattern: '^\\d+[hdwmy]$',
         description: 'JWT expiration time',
@@ -79,13 +79,13 @@ export const config = await resolve({
     },
     // External Services
     STRIPE_PUBLIC_KEY: {
-        type: 'string',
+        type: string(),
         pattern: '^pk_',
         optional: true,
         description: 'Stripe publishable key',
     },
     STRIPE_SECRET_KEY: {
-        type: 'string',
+        type: string(),
         pattern: '^sk_',
         secret: true,
         optional: true,
@@ -93,14 +93,14 @@ export const config = await resolve({
     },
     // Logging
     LOG_LEVEL: {
-        type: 'string',
+        type: string(),
         enum: ['error', 'warn', 'info', 'debug'],
         default: 'info',
         description: 'Logging level',
     },
     // Monitoring
     SENTRY_DSN: {
-        type: 'url',
+        type: url(),
         optional: true,
         description: 'Sentry error tracking DSN',
     },

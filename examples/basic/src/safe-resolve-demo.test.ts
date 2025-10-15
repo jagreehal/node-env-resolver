@@ -3,7 +3,7 @@
  * Demonstrates the new safeResolve and safeResolveSync functions
  */
 import { describe, it, expect } from 'vitest';
-import { safeResolve, processEnv } from 'node-env-resolver';
+import { safeResolve, processEnv, string, url } from 'node-env-resolver';
 
 describe('Safe Resolve Demo', () => {
   it('should demonstrate safeResolve vs resolve behavior', () => {
@@ -14,13 +14,13 @@ describe('Safe Resolve Demo', () => {
     // ❌ This would throw an error if validation fails
     // const config = resolve({
     //   PORT: 'number',
-    //   MISSING_VAR: 'string', // This would cause an error
+    //   MISSING_VAR: string(), // This would cause an error
     // });
 
     // ✅ This returns a result object instead of throwing
     const safeResult = safeResolve({
       PORT: 'number',
-      MISSING_VAR: 'string', // This fails validation
+      MISSING_VAR: string(), // This fails validation
     });
 
     console.log('Safe resolve result:', safeResult);
@@ -83,7 +83,7 @@ describe('Safe Resolve Demo', () => {
         PORT: 3000,
       }],
       [mockSecrets, {
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
       }]
     );
 

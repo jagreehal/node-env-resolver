@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { nodeEnvResolverPlugin } from './plugin.js';
+import { nodeEnvResolverPlugin } from './plugin';
 import { existsSync, readFileSync, unlinkSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
+import { string, url, port } from 'node-env-resolver';
 
 describe('nodeEnvResolverPlugin - Type Generation', () => {
   const testTypeFile = './test-generated-types.d.ts';
@@ -20,7 +21,7 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     const plugin = nodeEnvResolverPlugin({
       server: {},
       client: {
-        VITE_API_URL: 'url',
+        VITE_API_URL: url(),
         VITE_ENABLE_ANALYTICS: false,
       }
     }, {
@@ -67,11 +68,11 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     const plugin = nodeEnvResolverPlugin({
       server: {},
       client: {
-        VITE_STRING: 'string',
+        VITE_STRING: string(),
         VITE_NUMBER: 'number',
         VITE_BOOLEAN: 'boolean',
-        VITE_OPTIONAL: 'string?',
-        VITE_URL: 'url',
+        VITE_OPTIONAL: string({optional:true}),
+        VITE_URL: url(),
         VITE_ENUM: ['dev', 'prod'] as const,
       }
     }, {
@@ -117,7 +118,7 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     const plugin = nodeEnvResolverPlugin({
       server: {},
       client: {
-        VITE_API_URL: 'url',
+        VITE_API_URL: url(),
       }
     }, {
       generateTypes: testTypeFile
@@ -149,7 +150,7 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     const plugin = nodeEnvResolverPlugin({
       server: {},
       client: {
-        VITE_PORT: 'port',
+        VITE_PORT: port(),
       }
     }, {
       generateTypes: testTypeFile
@@ -212,7 +213,7 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     const plugin = nodeEnvResolverPlugin({
       server: {},
       client: {
-        VITE_API_URL: 'url',
+        VITE_API_URL: url(),
       }
     }, {
       generateTypes: testTypeFile
@@ -246,7 +247,7 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
       client: {
         VITE_NUMBER_DEFAULT: 3000,
         VITE_BOOLEAN_DEFAULT: false,
-        VITE_OPTIONAL_STRING: 'string?',
+        VITE_OPTIONAL_STRING: string({optional:true}),
       }
     }, {
       generateTypes: testTypeFile
@@ -272,4 +273,3 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     expect(content).toContain('readonly VITE_OPTIONAL_STRING: string | undefined');
   });
 });
-

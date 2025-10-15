@@ -9,7 +9,7 @@ import type { Plugin } from 'vite';
 import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { dirname } from 'path';
 import { mkdirSync } from 'fs';
-import { resolve, type ViteEnvConfig, type ViteOptions } from './index.js';
+import { resolve, type ViteEnvConfig, type ViteOptions } from './index';
 import type { SimpleEnvSchema } from 'node-env-resolver';
 
 export interface PluginOptions<_TServer extends SimpleEnvSchema = SimpleEnvSchema, _TClient extends SimpleEnvSchema = SimpleEnvSchema> extends ViteOptions {
@@ -107,7 +107,26 @@ function inferType(definition: unknown): string {
 
   // Handle custom validator functions
   if (typeof definition === 'function') {
-    return 'string'; // Default to string for custom validators
+    const func = definition as unknown as Record<string, unknown>;
+    const isOptional = func.optional === true;
+    
+    // Try to infer type from function name or return type
+    const funcStr = definition.toString();
+    
+    let tsType = 'string'; // Default
+    
+    // Check if it's a typed validator by checking the function body or attached metadata
+    if (funcStr.includes('parseFloat') || funcStr.includes('parseInt') || funcStr.includes('Number(')) {
+      tsType = 'number';
+    } else if (funcStr.includes('Boolean') || funcStr.includes('=== \'true\'')) {
+      tsType = 'boolean';
+    } else if (funcStr.includes('JSON.parse')) {
+      tsType = 'unknown';
+    } else if (funcStr.includes('Array.isArray')) {
+      tsType = 'string[]';
+    }
+    
+    return isOptional ? `${tsType} | undefined` : tsType;
   }
 
   return 'string';
@@ -158,11 +177,11 @@ function generateTypeDefinitions(clientSchema: SimpleEnvSchema): string {
  *   plugins: [
  *     nodeEnvResolverPlugin({
  *       server: {
- *         DATABASE_URL: 'postgres',
- *         API_SECRET: 'string',
+ *         DATABASE_URL: postgres(),
+ *         API_SECRET: string(),
  *       },
  *       client: {
- *         VITE_API_URL: 'url',
+ *         VITE_API_URL: url(),
  *         VITE_ENABLE_ANALYTICS: false,
  *       },
  *       generateTypes: 'src/vite-env.d.ts'  // Auto-generate types!

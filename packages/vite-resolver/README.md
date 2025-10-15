@@ -35,14 +35,14 @@ import { resolve } from 'node-env-resolver-vite';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'postgres',
-    API_SECRET: 'string',
+    DATABASE_URL: postgres(),
+    API_SECRET: string(),
     PORT: 'port:5173',
   },
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
     VITE_ENABLE_ANALYTICS: false,
-    VITE_GA_ID: 'string?',
+    VITE_GA_ID: string({optional:true}),
   }
 });
 ```
@@ -75,22 +75,22 @@ import { resolve, safeResolve } from 'node-env-resolver-vite';
 // ❌ Throws on validation failure (like Zod's parse())
 export const env = resolve({
   server: {
-    DATABASE_URL: 'postgres',
-    API_SECRET: 'string',
+    DATABASE_URL: postgres(),
+    API_SECRET: string(),
   },
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
   }
 });
 
 // ✅ Returns result object (like Zod's safeParse())
 const result = safeResolve({
   server: {
-    DATABASE_URL: 'postgres',
-    API_SECRET: 'string',
+    DATABASE_URL: postgres(),
+    API_SECRET: string(),
   },
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
   }
 });
 
@@ -140,16 +140,16 @@ Use the same shorthand syntax as the core package:
 export const env = resolve({
   server: {
     PORT: 'port:5173',
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
     NODE_ENV: ['development', 'production', 'test'] as const,
-    API_KEY: 'string',
+    API_KEY: string(),
     MAX_CONNECTIONS: 'number',
     TIMEOUT: 'duration',  // e.g., '30s', '5m'
   },
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
     VITE_ENABLE_ANALYTICS: false,
-    VITE_GA_ID: 'string?',
+    VITE_GA_ID: string({optional:true}),
     VITE_FEATURE_FLAGS: 'string[]',  // Comma-separated
   }
 });
@@ -203,13 +203,13 @@ export default defineConfig({
   plugins: [
     nodeEnvResolverPlugin({
       server: {
-        DATABASE_URL: 'postgres',
-        API_SECRET: 'string',
+        DATABASE_URL: postgres(),
+        API_SECRET: string(),
       },
       client: {
-        VITE_API_URL: 'url',
+        VITE_API_URL: url(),
         VITE_ENABLE_ANALYTICS: false,
-        VITE_GA_ID: 'string?',
+        VITE_GA_ID: string({optional:true}),
       },
       generateTypes: 'src/vite-env.d.ts'  // ✨ Auto-generates types!
     })
@@ -277,11 +277,11 @@ export default defineConfig({
   plugins: [
     nodeEnvResolverPlugin({
       server: {
-        DATABASE_URL: 'postgres',
-        API_SECRET: 'string',
+        DATABASE_URL: postgres(),
+        API_SECRET: string(),
       },
       client: {
-        VITE_API_URL: 'url',
+        VITE_API_URL: url(),
         VITE_ENABLE_ANALYTICS: false,
       },
       // Auto-generate TypeScript definitions (optional)
@@ -321,10 +321,10 @@ import { resolve } from 'node-env-resolver-vite';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   },
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
   }
 });
 
@@ -345,7 +345,7 @@ import { resolve } from 'node-env-resolver-vite';
 export const env = resolve({
   server: {},
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
   }
 });
 
@@ -367,10 +367,10 @@ import { resolve } from 'node-env-resolver-vite';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   },
   client: {
-    VITE_PUBLIC_API_URL: 'url',
+    VITE_PUBLIC_API_URL: url(),
   }
 }, {
   clientPrefix: 'VITE_PUBLIC_'  // SvelteKit uses PUBLIC_ internally
@@ -386,7 +386,7 @@ import { resolve } from 'node-env-resolver-vite';
 export const env = resolve({
   server: {},
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
   }
 });
 
@@ -406,10 +406,10 @@ import { resolve } from 'node-env-resolver-vite';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   },
   client: {
-    VITE_PUBLIC_API_URL: 'url',
+    VITE_PUBLIC_API_URL: url(),
   }
 }, {
   clientPrefix: 'VITE_PUBLIC_'  // Astro convention
@@ -442,11 +442,11 @@ In production, `.env` files are automatically ignored. Production platforms inje
 ```typescript
 export const env = resolve({
   server: {
-    DATABASE_URL: 'postgres',
-    API_SECRET: 'string',
+    DATABASE_URL: postgres(),
+    API_SECRET: string(),
   },
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
   }
 });
 ```
@@ -466,12 +466,12 @@ import { resolve } from 'node-env-resolver-vite';
 export const env = resolve({
   server: {
     // Database
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
     DB_POOL_SIZE: 10,
 
     // External APIs
-    STRIPE_SECRET_KEY: 'string',
-    OPENAI_API_KEY: 'string',
+    STRIPE_SECRET_KEY: string(),
+    OPENAI_API_KEY: string(),
     
     // App configuration
     NODE_ENV: ['development', 'production', 'test'] as const,
@@ -480,8 +480,8 @@ export const env = resolve({
   },
   client: {
     // Public API endpoints
-    VITE_API_URL: 'url',
-    VITE_WS_URL: 'url',
+    VITE_API_URL: url(),
+    VITE_WS_URL: url(),
     
     // Feature flags
     VITE_ENABLE_ANALYTICS: false,
@@ -489,11 +489,11 @@ export const env = resolve({
     VITE_FEATURE_FLAGS: 'string[]',
     
     // Public keys
-    VITE_STRIPE_PUBLISHABLE_KEY: 'string',
-    VITE_GA_ID: 'string?',
+    VITE_STRIPE_PUBLISHABLE_KEY: string(),
+    VITE_GA_ID: string({optional:true}),
     
     // App info
-    VITE_APP_VERSION: 'string',
+    VITE_APP_VERSION: string(),
   }
 });
 ```
@@ -541,7 +541,7 @@ export const env = resolve({
     PORT: 'port:5173',
   },
   client: {
-    VITE_API_URL: 'url',
+    VITE_API_URL: url(),
   }
 });
 

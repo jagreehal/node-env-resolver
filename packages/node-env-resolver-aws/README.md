@@ -21,7 +21,7 @@ import { resolveSsm, resolveSecrets } from 'node-env-resolver-aws';
 const config = await resolveSsm({
   path: '/myapp/config'
 }, {
-  API_ENDPOINT: 'string',
+  API_ENDPOINT: string(),
   TIMEOUT: 30
 });
 
@@ -29,8 +29,8 @@ const config = await resolveSsm({
 const secrets = await resolveSecrets({
   secretId: 'myapp/production/secrets'
 }, {
-  DATABASE_URL: 'string',
-  API_KEY: 'string'
+  DATABASE_URL: string(),
+  API_KEY: string()
 });
 ```
 
@@ -42,8 +42,8 @@ import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve.async(
   [awsSecrets({ secretId: 'myapp/production/secrets' }), {
-    DATABASE_URL: 'postgres',
-    API_KEY: 'string',
+    DATABASE_URL: postgres(),
+    API_KEY: string(),
   }],
   [awsSsm({ path: '/myapp/config' }), {
     TIMEOUT: 30,
@@ -73,8 +73,8 @@ export const handler = async (event) => {
   const config = await resolveSecrets({
     secretId: 'myapp/secrets'
   }, {
-    DATABASE_URL: 'postgres',
-    API_KEY: 'string'
+    DATABASE_URL: postgres(),
+    API_KEY: string()
   });
   // 200ms delay on EVERY request + AWS API costs
 };
@@ -97,8 +97,8 @@ export const getConfig = async () => {
         staleWhileRevalidate: true
       }
     ), {
-      DATABASE_URL: 'postgres',
-      API_KEY: 'string',
+      DATABASE_URL: postgres(),
+      API_KEY: string(),
     }]
   );
 };
@@ -122,7 +122,7 @@ const getConfig = async () => {
       awsSecrets({ secretId: 'myapp/lambda' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
     ), {
-      DATABASE_URL: 'postgres',
+      DATABASE_URL: postgres(),
     }]
   );
 };
@@ -165,7 +165,7 @@ This package uses the standard AWS SDK credential provider chain. Credentials ar
      region: 'us-east-1',
      accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
      secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-   }, { API_ENDPOINT: 'string' });
+   }, { API_ENDPOINT: string() });
    ```
 
 **In most cases, you don't need to pass credentials explicitly** - just set the standard AWS environment variables or use IAM roles.
@@ -186,7 +186,7 @@ const config = await resolveSsm({
   region: 'us-east-1',
   recursive: true
 }, {
-  API_ENDPOINT: 'string',
+  API_ENDPOINT: string(),
   TIMEOUT: 30
 });
 ```
@@ -201,7 +201,7 @@ import { safeResolveSsm } from 'node-env-resolver-aws';
 const result = await safeResolveSsm({
   path: '/myapp/config'
 }, {
-  API_ENDPOINT: 'string'
+  API_ENDPOINT: string()
 });
 
 if (result.success) {
@@ -222,8 +222,8 @@ const config = await resolveSecrets({
   secretId: 'myapp/production/secrets',
   region: 'us-east-1'
 }, {
-  DATABASE_URL: 'string',
-  API_KEY: 'string'
+  DATABASE_URL: string(),
+  API_KEY: string()
 });
 ```
 
@@ -237,7 +237,7 @@ import { safeResolveSecrets } from 'node-env-resolver-aws';
 const result = await safeResolveSecrets({
   secretId: 'myapp/secrets'
 }, {
-  DATABASE_URL: 'string'
+  DATABASE_URL: string()
 });
 
 if (result.success) {
@@ -263,8 +263,8 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolve.async(
   [awsSecrets({ secretId: 'myapp/secrets' }), {
-    DATABASE_URL: 'postgres',
-    API_KEY: 'string'
+    DATABASE_URL: postgres(),
+    API_KEY: string()
   }]
 );
 ```
@@ -289,7 +289,7 @@ import { awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolve.async(
   [awsSsm({ path: '/myapp/config' }), {
-    API_ENDPOINT: 'string',
+    API_ENDPOINT: string(),
     TIMEOUT: 30
   }]
 );
@@ -322,7 +322,7 @@ const config = await resolve.async(
       staleWhileRevalidate: true
     }
   ), {
-    DATABASE_URL: 'postgres'
+    DATABASE_URL: postgres()
   }]
 );
 ```
@@ -400,8 +400,8 @@ import { resolveSecrets, resolveSsm } from 'node-env-resolver-aws';
 const secrets = await resolveSecrets({
   secretId: 'myapp/production/secrets'
 }, {
-  DATABASE_URL: 'postgres',
-  JWT_SECRET: 'string',
+  DATABASE_URL: postgres(),
+  JWT_SECRET: string(),
 });
 
 // Load config from SSM
@@ -426,8 +426,8 @@ const config = await resolve.async(
     PORT: 3000,
   }],
   [awsSecrets({ secretId: 'myapp/production/secrets' }), {
-    DATABASE_URL: 'postgres',
-    JWT_SECRET: 'string',
+    DATABASE_URL: postgres(),
+    JWT_SECRET: string(),
   }],
   [awsSsm({ path: '/myapp/production/config' }), {
     TIMEOUT: 30,
@@ -443,7 +443,7 @@ import { resolveSecrets } from 'node-env-resolver-aws';
 const config = await resolveSecrets({
   secretId: 'lambda/secrets'
 }, {
-  API_ENDPOINT: 'string',
+  API_ENDPOINT: string(),
   TIMEOUT: 30,
 });
 
@@ -460,8 +460,8 @@ import { safeResolveSecrets } from 'node-env-resolver-aws';
 const result = await safeResolveSecrets({
   secretId: 'myapp/production/secrets'
 }, {
-  DATABASE_URL: 'string',
-  API_KEY: 'string'
+  DATABASE_URL: string(),
+  API_KEY: string()
 });
 
 if (result.success) {
@@ -484,7 +484,7 @@ import { safeResolveSecrets } from 'node-env-resolver-aws';
 const result = await safeResolveSecrets({
   secretId: 'myapp/secrets'
 }, {
-  DATABASE_URL: 'string'
+  DATABASE_URL: string()
 });
 
 if (!result.success) {
@@ -505,7 +505,7 @@ try {
   const config = await resolveSecrets({
     secretId: 'myapp/secrets'
   }, {
-    DATABASE_URL: 'string'
+    DATABASE_URL: string()
   });
 } catch (error) {
   console.error('Failed to load secrets from AWS:', error);

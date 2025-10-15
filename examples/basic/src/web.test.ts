@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolveEnvSplit } from 'node-env-resolver/web';
-import { processEnv } from 'node-env-resolver';
+import { processEnv, string, url, email } from 'node-env-resolver';
 import { dotenv } from 'node-env-resolver/resolvers';
 
 // Mock process.env for testing

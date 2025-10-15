@@ -138,7 +138,7 @@ export function processEnv(): SyncResolver {
  * // Loads: VERSION, NAME, CONFIG_* from package.json
  * const config = await resolve.async([
  *   packageJson(),
- *   { VERSION: 'string', NAME: 'string' }
+ *   { VERSION: string(), NAME: string() }
  * ]);
  * ```
  */
@@ -248,7 +248,7 @@ export function packageJson(options?: {
  * // Fetch config from remote endpoint
  * const config = await resolve.async([
  *   http('https://config.example.com/app.json'),
- *   { PORT: 3000, API_KEY: 'string' }
+ *   { PORT: 3000, API_KEY: string() }
  * ]);
  * ```
  */
@@ -397,7 +397,7 @@ export function json(path: string = 'config.json'): Resolver {
  * import { secrets } from 'node-env-resolver/resolvers';
  *
  * const config = await resolve.async(
- *   [secrets('/run/secrets'), { DB_PASSWORD: 'string' }]
+ *   [secrets('/run/secrets'), { DB_PASSWORD: string() }]
  * );
  * ```
  */

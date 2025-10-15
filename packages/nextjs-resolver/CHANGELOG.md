@@ -188,9 +188,9 @@
   // After - use built-in types
   import { resolve } from 'node-env-resolver';
   const config = resolve({
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
     EMAIL: 'email',
-    API_URL: 'url',
+    API_URL: url(),
   });
   ```
 
@@ -369,8 +369,8 @@
   ```ts
   // Your code doesn't need to change, but the implementation
   // now uses the cleaner tuple syntax internally
-  const config = await resolveSsm({ APP_NAME: 'string' });
-  const config = await resolveSecrets({ API_KEY: 'string' });
+  const config = await resolveSsm({ APP_NAME: string() });
+  const config = await resolveSecrets({ API_KEY: string() });
   ```
 
   ### Standard Schema moved to dev dependencies

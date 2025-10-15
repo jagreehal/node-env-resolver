@@ -6,8 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolve } from 'node-env-resolver';
-import { processEnv } from 'node-env-resolver';
+import { resolve, processEnv, string, url } from 'node-env-resolver';
 
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
@@ -39,7 +38,7 @@ describe('Custom Validator Functions', () => {
       const schema = {
         CUSTOM_PORT: positiveNumber,
         CUSTOM_NAME: uppercaseString,
-        REGULAR_URL: 'url'  // Mix with built-in validators
+        REGULAR_URL: url()  // Mix with built-in validators
       };
 
       const config = await resolve.async(
@@ -274,7 +273,7 @@ describe('Custom Validator Functions', () => {
 
       const schema = {
         CUSTOM_PORT: portValidator,
-        NODE_ENV: 'string'
+        NODE_ENV: string()
       };
 
       const config = await resolve.async(
@@ -307,7 +306,7 @@ describe('Custom Validator Functions', () => {
       const schema = {
         APP_CONFIG: configValidator,
         PORT: 3000,  // Mix with default values
-        DATABASE_URL: 'url'  // Mix with built-in validators
+        DATABASE_URL: url()  // Mix with built-in validators
       };
 
       const config = await resolve.async(

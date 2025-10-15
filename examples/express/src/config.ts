@@ -2,7 +2,7 @@
  * Centralized configuration using node-env-resolver
  * Perfect for Express.js applications with multiple deployment environments
  */
-import { resolve } from 'node-env-resolver';
+import { resolve, url, string } from 'node-env-resolver';
 
 export const config = await resolve({
   // Application
@@ -10,7 +10,7 @@ export const config = await resolve({
   PORT: 3000,
 
   // Database
-  DATABASE_URL: 'url',
+  DATABASE_URL: url(),
   DATABASE_POOL_MIN: 2,
   DATABASE_POOL_MAX: 10,
 
@@ -18,7 +18,7 @@ export const config = await resolve({
   REDIS_URL: 'url?',
 
   // Security
-  JWT_SECRET: 'string',
+  JWT_SECRET: string(),
   JWT_EXPIRES_IN: 'string:7d',
 
   // API Configuration

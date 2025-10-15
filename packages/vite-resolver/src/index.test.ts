@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, safeResolve, isServer, isClient } from './index.js';
+import { resolve, safeResolve, isServer, isClient } from './index';
+import { string, url, postgres, port, number, boolean } from 'node-env-resolver';
 
 describe('node-env-resolver-vite', () => {
   // Store original process.env
@@ -23,7 +24,7 @@ describe('node-env-resolver-vite', () => {
       const env = resolve({
         server: {},
         client: {
-          VITE_API_URL: 'url',
+          VITE_API_URL: url(),
           VITE_ENABLE_ANALYTICS: false
         }
       });
@@ -37,7 +38,7 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            API_URL: 'url'
+            API_URL: url()
           }
         });
       }).toThrow(/must be prefixed with 'VITE_'/);
@@ -49,8 +50,8 @@ describe('node-env-resolver-vite', () => {
 
       const env = resolve({
         server: {
-          DATABASE_URL: 'postgres',
-          API_SECRET: 'string'
+          DATABASE_URL: postgres(),
+          API_SECRET: string()
         },
         client: {}
       });
@@ -63,7 +64,7 @@ describe('node-env-resolver-vite', () => {
       expect(() => {
         resolve({
           server: {
-            VITE_DATABASE_URL: 'postgres'
+            VITE_DATABASE_URL: postgres()
           },
           client: {}
         });
@@ -75,8 +76,8 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            API_URL: 'url',
-            PUBLIC_KEY: 'string'
+            API_URL: url(),
+            PUBLIC_KEY: string()
           }
         });
       }).toThrow(/API_URL → VITE_API_URL/);
@@ -90,7 +91,7 @@ describe('node-env-resolver-vite', () => {
       const env = resolve({
         server: {},
         client: {
-          VITE_APP_NAME: 'string'
+          VITE_APP_NAME: string()
         }
       });
 
@@ -103,7 +104,7 @@ describe('node-env-resolver-vite', () => {
 
       const env = resolve({
         server: {
-          PORT: 'number'
+          PORT: number()
         },
         client: {}
       });
@@ -119,8 +120,8 @@ describe('node-env-resolver-vite', () => {
       const env = resolve({
         server: {},
         client: {
-          VITE_DEBUG: 'boolean',
-          VITE_PRODUCTION: 'boolean'
+          VITE_DEBUG: boolean(),
+          VITE_PRODUCTION: boolean()
         }
       });
 
@@ -132,7 +133,7 @@ describe('node-env-resolver-vite', () => {
       const env = resolve({
         server: {},
         client: {
-          VITE_OPTIONAL: 'string?'
+          VITE_OPTIONAL: string({optional:true})
         }
       });
 
@@ -145,7 +146,7 @@ describe('node-env-resolver-vite', () => {
       const env = resolve({
         server: {},
         client: {
-          VITE_API_URL: 'url'
+          VITE_API_URL: url()
         }
       });
 
@@ -157,7 +158,7 @@ describe('node-env-resolver-vite', () => {
 
       const env = resolve({
         server: {
-          PORT: 'port'
+          PORT: port()
         },
         client: {}
       });
@@ -199,7 +200,7 @@ describe('node-env-resolver-vite', () => {
 
       const env = resolve({
         server: {
-          DATABASE_URL: 'postgres'
+          DATABASE_URL: postgres()
         },
         client: {}
       });
@@ -214,7 +215,7 @@ describe('node-env-resolver-vite', () => {
 
       const env = resolve({
         server: {
-          DATABASE_URL: 'postgres'
+          DATABASE_URL: postgres()
         },
         client: {}
       });
@@ -242,7 +243,7 @@ describe('node-env-resolver-vite', () => {
       const env = resolve({
         server: {},
         client: {
-          VITE_API_URL: 'url'
+          VITE_API_URL: url()
         }
       });
 
@@ -268,7 +269,7 @@ describe('node-env-resolver-vite', () => {
 
       const env = resolve({
         server: {
-          DATABASE_URL: 'postgres'
+          DATABASE_URL: postgres()
         },
         client: {}
       }, {
@@ -300,10 +301,10 @@ describe('node-env-resolver-vite', () => {
 
       const result = safeResolve({
         server: {
-          PORT: 'port'
+          PORT: port()
         },
         client: {
-          VITE_API_URL: 'url'
+          VITE_API_URL: url()
         }
       });
 
@@ -318,7 +319,7 @@ describe('node-env-resolver-vite', () => {
       const result = safeResolve({
         server: {},
         client: {
-          VITE_API_URL: 'url' // Missing in env
+          VITE_API_URL: url() // Missing in env
         }
       });
 
@@ -333,7 +334,7 @@ describe('node-env-resolver-vite', () => {
       const result = safeResolve({
         server: {},
         client: {
-          API_URL: 'url'
+          API_URL: url()
         }
       });
 
@@ -351,7 +352,7 @@ describe('node-env-resolver-vite', () => {
       const env = resolve({
         server: {},
         client: {
-          PUBLIC_API_URL: 'url'
+          PUBLIC_API_URL: url()
         }
       }, {
         clientPrefix: 'PUBLIC_'
@@ -365,7 +366,7 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            API_URL: 'url'
+            API_URL: url()
           }
         }, {
           clientPrefix: 'PUBLIC_'
@@ -412,15 +413,15 @@ describe('node-env-resolver-vite', () => {
 
       const env = resolve({
         server: {
-          DATABASE_URL: 'postgres',
-          API_SECRET: 'string',
-          PORT: 'port',
+          DATABASE_URL: postgres(),
+          API_SECRET: string(),
+          PORT: port(),
           NODE_ENV: ['development', 'production', 'test'] as const
         },
         client: {
-          VITE_API_URL: 'url',
-          VITE_ENABLE_ANALYTICS: 'boolean',
-          VITE_GA_ID: 'string?'
+          VITE_API_URL: url(),
+          VITE_ENABLE_ANALYTICS: boolean(),
+          VITE_GA_ID: string({optional:true})
         }
       });
 
@@ -447,4 +448,3 @@ describe('node-env-resolver-vite', () => {
     });
   });
 });
-

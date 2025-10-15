@@ -165,7 +165,7 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
  * const config = await resolveSsm({
  *   path: '/myapp/config'
  * }, {
- *   API_ENDPOINT: 'url',
+ *   API_ENDPOINT: url(),
  *   TIMEOUT: 30
  * });
  * ```
@@ -194,7 +194,7 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
  * const result = await safeResolveSsm({
  *   path: '/myapp/config'
  * }, {
- *   API_ENDPOINT: 'url'
+ *   API_ENDPOINT: url()
  * });
  *
  * if (result.success) {
@@ -239,8 +239,8 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
  * const config = await resolveSecrets({
  *   secretId: 'myapp/production/secrets'
  * }, {
- *   DATABASE_URL: 'url',
- *   API_KEY: 'string'
+ *   DATABASE_URL: url(),
+ *   API_KEY: string()
  * });
  * ```
  */
@@ -267,7 +267,7 @@ export async function resolveSecrets<T extends SimpleEnvSchema>(
  * const result = await safeResolveSecrets({
  *   secretId: 'myapp/secrets'
  * }, {
- *   DATABASE_URL: 'url'
+ *   DATABASE_URL: url()
  * });
  *
  * if (result.success) {

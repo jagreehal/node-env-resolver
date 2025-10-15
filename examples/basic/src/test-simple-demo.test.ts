@@ -2,7 +2,7 @@
  * Simple Demo Tests
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, type Resolver } from 'node-env-resolver';
+import { resolve, processEnv, type Resolver, string, url, port, enums } from 'node-env-resolver';
 
 function createDatabaseConfigResolver(values: Record<string, string>): Resolver {
   return {
@@ -32,7 +32,7 @@ describe('Simple Demo', () => {
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
-        DATABASE_HOST: 'string',
+        DATABASE_HOST: string(),
         DATABASE_PORT: 'number',
       }]
     );
@@ -77,7 +77,7 @@ describe('Simple Demo', () => {
           NODE_ENV: ['development', 'production', 'test'] as const,
         }],
         [dbConfig, {
-          DATABASE_HOST: 'string',
+          DATABASE_HOST: string(),
           DATABASE_PORT: 'number',
         }]
       );
@@ -99,7 +99,7 @@ describe('Simple Demo', () => {
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
-        DATABASE_HOST: 'string',
+        DATABASE_HOST: string(),
         DATABASE_PORT: 'number',
       }]
     );
@@ -129,7 +129,7 @@ describe('Simple Demo', () => {
           NODE_ENV: ['development', 'production', 'test'] as const,
         }],
         [dbConfig, {
-          DATABASE_HOST: 'string',
+          DATABASE_HOST: string(),
           DATABASE_PORT: 'number',
         }]
       );
@@ -156,7 +156,7 @@ describe('Simple Demo', () => {
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
-        DATABASE_HOST: 'string',
+        DATABASE_HOST: string(),
         DATABASE_PORT: 'number',
       }]
     )).rejects.toThrow(/must be one of: development, production, test/);
@@ -180,7 +180,7 @@ describe('Simple Demo', () => {
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
-        DATABASE_HOST: 'string',
+        DATABASE_HOST: string(),
         DATABASE_PORT: 'number',
       }]
     );
@@ -204,7 +204,7 @@ describe('Simple Demo', () => {
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
-        DATABASE_HOST: 'string',
+        DATABASE_HOST: string(),
         DATABASE_PORT: 'number',
       }]
     );
@@ -228,7 +228,7 @@ describe('Simple Demo', () => {
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
-        DATABASE_HOST: 'string',
+        DATABASE_HOST: string(),
         DATABASE_PORT: 'number',
       }]
     );
@@ -253,10 +253,10 @@ describe('Simple Demo', () => {
 
     const config = await resolve.async(
       [processEnv(), {
-        SYNC_VAR: 'string'
+        SYNC_VAR: string()
       }],
       [syncProvider, {
-        SYNC_VAR: 'string'
+        SYNC_VAR: string()
       }]
     );
 

@@ -289,7 +289,11 @@ export function validateFile(value: string, key?: string): ValidationResult {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');
-    const content = fs.readFileSync(value, 'utf8').trim();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { resolve } = require('path');
+    // Resolve file path relative to current working directory
+    const resolvedPath = resolve(process.cwd(), value);
+    const content = fs.readFileSync(resolvedPath, 'utf8').trim();
     return { valid: true, value: content };
   } catch (error) {
     const keyInfo = key ? ` for ${key}` : '';

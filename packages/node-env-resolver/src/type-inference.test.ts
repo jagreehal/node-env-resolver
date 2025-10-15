@@ -1,16 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv } from './index';
+import { resolve, processEnv, stringArray, numberArray, string, duration, file, boolean } from './index';
 
 describe('Type Inference for New Features', () => {
-  it('should infer string[] type correctly', () => {
+  it('should infer string array type correctly', () => {
     process.env.TAGS = 'a,b,c';
     
     const config = resolve({
-      TAGS: 'string[]'
+      TAGS: stringArray()
     });
     
     // Type check: this should compile without errors
-    // @ts-expect-error - TODO: Fix type inference for array types
     const tags: string[] = config.TAGS;
     expect(tags).toEqual(['a', 'b', 'c']);
     
@@ -21,15 +20,14 @@ describe('Type Inference for New Features', () => {
     delete process.env.TAGS;
   });
 
-  it('should infer number[] type correctly', () => {
+  it('should infer number array type correctly', () => {
     process.env.PORTS = '3000,8080';
     
     const config = resolve({
-      PORTS: 'number[]'
+      PORTS: numberArray()
     });
     
     // Type check: this should compile
-    // @ts-expect-error - TODO: Fix type inference for array types
     const ports: number[] = config.PORTS;
     expect(ports).toEqual([3000, 8080]);
     
@@ -45,7 +43,7 @@ describe('Type Inference for New Features', () => {
     
     const config = await resolve.async([
       processEnv(),
-      { TIMEOUT: 'duration' }
+      { TIMEOUT: duration() }
     ]);
     
     // Type check: should be number
@@ -60,10 +58,11 @@ describe('Type Inference for New Features', () => {
   });
 
   it('should infer file as string | undefined for optional', () => {
-    process.env.SECRET_PATH = '';
+    // Don't set SECRET_PATH so it's undefined
+    delete process.env.SECRET_PATH;
     
     const config = resolve({
-      SECRET_PATH: { type: 'string', optional: true }
+      SECRET_PATH: file({ optional: true })
     });
     
     // Type check: should be string | undefined
@@ -73,7 +72,7 @@ describe('Type Inference for New Features', () => {
     // Now test with value
     process.env.SECRET_PATH = 'some-value';
     const config2 = resolve({
-      SECRET_PATH: 'string'
+      SECRET_PATH: string()
     });
     
     const secret2: string = config2.SECRET_PATH;
@@ -91,21 +90,20 @@ describe('Type Inference for New Features', () => {
     const config = await resolve.async([
       processEnv(),
       {
-        TAGS: 'string[]',
-        PORTS: 'number[]',
-        TIMEOUT: 'duration',
-        DEBUG: false,
-        OPTIONAL_FIELD: 'string?'
+        TAGS: stringArray(),
+        PORTS: numberArray(),
+        TIMEOUT: duration(),
+        DEBUG: boolean(),
+        OPTIONAL_FIELD: string({optional:true})
       }
     ]);
     
-    // All type checks should pass
-    // Note: Type inference is limited with variadic args, so we use assertions
-    const tags: string[] = config.TAGS as unknown as string[];
-    const ports: number[] = config.PORTS as unknown as number[];
-    const timeout: number = config.TIMEOUT as unknown as number;
-    const debug: boolean = config.DEBUG;
-    const optional: string | undefined = config.OPTIONAL_FIELD;
+    // All type checks should pass - let TypeScript infer the types
+    const tags = config.TAGS;
+    const ports = config.PORTS;
+    const timeout = config.TIMEOUT;
+    const debug = config.DEBUG;
+    const optional = config.OPTIONAL_FIELD;
     
     expect(tags).toEqual(['a', 'b']);
     expect(ports).toEqual([3000, 8080]);
@@ -119,4 +117,3 @@ describe('Type Inference for New Features', () => {
     delete process.env.DEBUG;
   });
 });
-

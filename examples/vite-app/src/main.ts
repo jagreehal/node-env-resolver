@@ -1,5 +1,3 @@
-import { env } from './env';
-
 /**
  * Vite app entry point
  * 
@@ -11,11 +9,11 @@ import { env } from './env';
 const app = document.querySelector<HTMLDivElement>('#app');
 
 if (app) {
-  // ✅ Accessing client vars works fine
-  const apiUrl = env.client.VITE_API_URL || 'https://api.example.com';
-  const appName = env.client.VITE_APP_NAME || 'Vite App';
-  const analyticsEnabled = env.client.VITE_ENABLE_ANALYTICS;
-  const version = env.client.VITE_VERSION || '1.0.0';
+  // ✅ Accessing client vars works fine via import.meta.env
+  const apiUrl = import.meta.env.VITE_API_URL || 'https://api.example.com';
+  const appName = import.meta.env.VITE_APP_NAME || 'Vite App';
+  const analyticsEnabled = import.meta.env.VITE_ENABLE_ANALYTICS;
+  const version = import.meta.env.VITE_VERSION || '1.0.0';
 
   app.innerHTML = `
     <div class="container">
@@ -30,9 +28,9 @@ if (app) {
 
       <div class="warning">
         <h3>⚠️ Server Variables</h3>
-        <p>Try uncommenting the line below to see runtime protection in action:</p>
-        <pre><code>// console.log(env.server.DATABASE_URL);</code></pre>
-        <p>Accessing server vars in the browser will throw a helpful error!</p>
+        <p>Server variables are not available in the browser build.</p>
+        <pre><code>// import.meta.env.DATABASE_URL // undefined in browser</code></pre>
+        <p>Only VITE_ prefixed variables are available in the browser!</p>
       </div>
 
       <div class="demo">
@@ -183,7 +181,7 @@ if (app) {
   
   document.querySelector('#test-client')?.addEventListener('click', () => {
     try {
-      const value = env.client.VITE_API_URL || 'Not set';
+      const value = import.meta.env.VITE_API_URL || 'Not set';
       if (resultDiv) {
         resultDiv.className = 'success';
         resultDiv.textContent = `✅ Success! VITE_API_URL = "${value}"`;
@@ -198,8 +196,8 @@ if (app) {
 
   document.querySelector('#test-server')?.addEventListener('click', () => {
     try {
-      // This will throw an error due to runtime protection
-      const value = env.server.DATABASE_URL;
+      // This will show that server vars are not available in browser
+      const value = import.meta.env.DATABASE_URL;
       if (resultDiv) {
         resultDiv.className = 'success';
         resultDiv.textContent = `Value: ${value}`;
@@ -213,6 +211,6 @@ if (app) {
   });
 
   console.log('✅ Vite app initialized successfully!');
-  console.log('Client env vars:', env.client);
+  console.log('Client env vars:', import.meta.env);
 }
 

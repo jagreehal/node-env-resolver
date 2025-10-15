@@ -3,7 +3,7 @@
  * Using the composition API for explicit provider mapping
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv } from 'node-env-resolver';
+import { resolve, processEnv, string, url } from 'node-env-resolver';
 import { cached, TTL } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -47,9 +47,9 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
           }
         ),
         {
-          DATABASE_PASSWORD: 'string',
-          API_KEY: 'string?',
-          DATABASE_URL: 'url',
+          DATABASE_PASSWORD: string(),
+          API_KEY: string({optional:true}),
+          DATABASE_URL: url(),
           LOG_LEVEL: ['debug', 'info', 'warn', 'error'] as const,
         }
       ]
@@ -86,9 +86,9 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
       [
         cached(mockAwsSecretsProvider(mockSecrets), TTL.minute5),
         {
-          DATABASE_PASSWORD: 'string',
-          API_KEY: 'string?', // Optional
-          DATABASE_URL: 'url',
+          DATABASE_PASSWORD: string(),
+          API_KEY: string({optional:true}), // Optional
+          DATABASE_URL: url(),
         }
       ]
     );
@@ -119,8 +119,8 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
           key: 'jwt-secrets'
         }),
         {
-          JWT_SECRET: 'string',
-          ENCRYPTION_KEY: 'string',
+          JWT_SECRET: string(),
+          ENCRYPTION_KEY: string(),
         }
       ]
     );
@@ -138,8 +138,8 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
           key: 'jwt-secrets'
         }),
         {
-          JWT_SECRET: 'string',
-          ENCRYPTION_KEY: 'string',
+          JWT_SECRET: string(),
+          ENCRYPTION_KEY: string(),
         }
       ]
     );

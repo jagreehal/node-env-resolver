@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { withComputed } from './utils';
-import { resolve } from './index';
+import { enums, number, resolve, string } from './index';
 
 describe('withComputed utility', () => {
   describe('basic functionality', () => {
@@ -89,9 +89,9 @@ describe('withComputed utility', () => {
       process.env.NODE_ENV = 'production';
       
       const config = resolve({
-        HOST: 'string',
-        PORT: 'number',
-        NODE_ENV: ['development', 'production', 'test'] as const
+        HOST: string(),
+        PORT: number(),
+        NODE_ENV: enums(['development', 'production', 'test'])
       });
       
       const configWithComputed = withComputed(config, {
@@ -114,9 +114,9 @@ describe('withComputed utility', () => {
       process.env.PORT = '3000';
       
       const config = resolve({
-        HOST: 'string',
-        PORT: 'number',
-        BASE_PATH: 'string?'
+        HOST: string(),
+        PORT: number(),
+        BASE_PATH: string({optional:true})
       });
       
       const result = withComputed(config, {

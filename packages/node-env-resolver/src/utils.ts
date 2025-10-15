@@ -36,7 +36,7 @@ export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver
       
       // If no cache or cache is expired beyond maxAge, force refresh
       if (!cache || (now - cache.timestamp) > maxAge) {
-        const data = await resolver.load();
+        const data = resolver.load ? await resolver.load() : {};
         cache = { data, timestamp: now };
         wrapper.metadata = { cached: false };
         return data;
@@ -53,7 +53,8 @@ export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver
       if (staleWhileRevalidate && !cache.refreshPromise) {
         // Trigger background refresh (non-blocking, lazy/on-demand)
         // This only runs when a request comes in, NOT via setInterval
-        cache.refreshPromise = resolver.load().then(data => {
+        const refreshPromise = Promise.resolve(resolver.load ? resolver.load() : Promise.resolve({}));
+        cache.refreshPromise = refreshPromise.then(data => {
           // Success: update cache with fresh data
           cache!.data = data;
           cache!.timestamp = Date.now();
@@ -75,7 +76,7 @@ export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver
       }
       
       // Cache is stale and no stale-while-revalidate, force refresh
-      const data = await resolver.load();
+      const data = resolver.load ? await resolver.load() : {};
       cache = { data, timestamp: now };
       wrapper.metadata = { cached: false };
       return data;
@@ -129,7 +130,7 @@ export function retry(resolver: Resolver, maxRetries = 3, delayMs = 1000): Resol
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          return await resolver.load();
+          return resolver.load ? await resolver.load() : {};
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -159,7 +160,7 @@ export function retry(resolver: Resolver, maxRetries = 3, delayMs = 1000): Resol
  *
  * // Maps APP_PORT → PORT, APP_DATABASE_URL → DATABASE_URL
  * const config = await resolve.async(
- *   [withPrefix(processEnv(), 'APP_'), { PORT: 3000, DATABASE_URL: 'postgres' }]
+ *   [withPrefix(processEnv(), 'APP_'), { PORT: 3000, DATABASE_URL: postgres() }]
  * );
  * ```
  */
@@ -169,7 +170,7 @@ export function withPrefix(resolver: Resolver, prefix: string): Resolver {
   return {
     name: `withPrefix(${resolver.name}, ${prefix})`,
     async load() {
-      const env = await resolver.load();
+      const env = resolver.load ? await resolver.load() : {};
       const stripped: Record<string, string> = {};
 
       for (const [key, value] of Object.entries(env)) {
@@ -278,7 +279,7 @@ export function withComputed<
  *   [withAliases(processEnv(), {
  *     PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT'],
  *     DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL']
- *   }), { PORT: 3000, DATABASE_URL: 'postgres' }]
+ *   }), { PORT: 3000, DATABASE_URL: postgres() }]
  * );
  * ```
  */
@@ -289,7 +290,7 @@ export function withAliases(
   return {
     name: `withAliases(${resolver.name})`,
     async load() {
-      const env = await resolver.load();
+      const env = resolver.load ? await resolver.load() : {};
       return applyAliases(env, aliases);
     },
     loadSync() {
@@ -347,8 +348,8 @@ function applyAliases(
  *     // Custom parsing
  *     MAX_RETRIES: (val) => Math.min(parseInt(val, 10), 10)
  *   }), {
- *     TAGS: 'string',
- *     API_URL: 'url',
+ *     TAGS: string(),
+ *     API_URL: url(),
  *     MAX_RETRIES: 'number'
  *   }]
  * );
@@ -361,7 +362,7 @@ export function withTransform(
   return {
     name: `withTransform(${resolver.name})`,
     async load() {
-      const env = await resolver.load();
+      const env = resolver.load ? await resolver.load() : {};
       return applyTransforms(env, transforms);
     },
     loadSync() {
@@ -415,7 +416,7 @@ function applyTransforms(
  * // But schema only needs HOST, PORT
  * const dbConfig = await resolve.async(
  *   [withNamespace(processEnv(), 'DATABASE'), {
- *     HOST: 'string',
+ *     HOST: string(),
  *     PORT: 'port'
  *   }]
  * );
@@ -432,7 +433,7 @@ export function withNamespace(
   return {
     name: `withNamespace(${resolver.name}, ${namespace})`,
     async load() {
-      const env = await resolver.load();
+      const env = resolver.load ? await resolver.load() : {};
       const scoped: Record<string, string> = {};
 
       // Filter and strip namespace prefix
@@ -481,7 +482,7 @@ export function withNamespace(
  * import { dotenv, processEnv } from 'node-env-resolver/resolvers';
  *
  * const { getConfig, stop } = watch(
- *   { PORT: 3000, API_KEY: 'string' },
+ *   { PORT: 3000, API_KEY: string() },
  *   [processEnv(), dotenv()],
  *   {
  *     onChange: (config) => console.log('Config reloaded!', config)

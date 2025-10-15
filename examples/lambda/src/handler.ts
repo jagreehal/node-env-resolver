@@ -3,7 +3,7 @@
  * Optimized for cold start performance with tree-shaking
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { resolve, processEnv } from 'node-env-resolver';
+import { resolve, processEnv, url, string } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 // Define environment once at module level for reuse across invocations
@@ -23,10 +23,10 @@ const envPromise = resolve.async(
     region: process.env.AWS_REGION || 'us-east-1',
   }), {
     // Database connection
-    DATABASE_URL: 'url',              // Required secret URL
+    DATABASE_URL: url(),              // Required secret URL
 
     // External service keys (from AWS Secrets)
-    STRIPE_SECRET_KEY: 'string',  // Required secret
+    STRIPE_SECRET_KEY: string(),  // Required secret
 
     // Optional services
     REDIS_URL: 'url?',                 // Optional URL

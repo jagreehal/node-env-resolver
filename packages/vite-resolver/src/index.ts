@@ -64,15 +64,15 @@ export interface ViteOptions extends Omit<ResolveOptions, 'resolvers'> {
  *
  * export const env = resolve({
  *   server: {
- *     DATABASE_URL: 'url',
- *     API_SECRET: 'string',
+ *     DATABASE_URL: url(),
+ *     API_SECRET: string(),
  *     PORT: 'port:5173',
  *     NODE_ENV: ['development', 'production'] as const
  *   },
  *   client: {
- *     VITE_API_URL: 'url',
+ *     VITE_API_URL: url(),
  *     VITE_ENABLE_ANALYTICS: false,
- *     VITE_GA_ID: 'string?'
+ *     VITE_GA_ID: string({optional:true})
  *   }
  * });
  *
@@ -161,12 +161,12 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
  *
  * const result = safeResolve({
  *   server: {
- *     DATABASE_URL: 'url',
- *     API_SECRET: 'string',
+ *     DATABASE_URL: url(),
+ *     API_SECRET: string(),
  *     PORT: 'port:5173'
  *   },
  *   client: {
- *     VITE_API_URL: 'url',
+ *     VITE_API_URL: url(),
  *     VITE_ENABLE_ANALYTICS: false,
  *   }
  * });
@@ -199,6 +199,7 @@ export function safeResolve<TServer extends SimpleEnvSchema, TClient extends Sim
 
 // Re-export useful types and utilities
 export type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
+export { string, url, port, postgres, email, number, boolean, enums, secret, custom, duration, file, json, stringArray, numberArray, urlArray, http, https, mysql, mongodb, redis, date, timestamp } from 'node-env-resolver';
 
 // Utility for runtime environment detection
 export const isServer = typeof window === 'undefined';

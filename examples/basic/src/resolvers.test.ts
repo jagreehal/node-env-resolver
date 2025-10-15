@@ -3,7 +3,7 @@
  * Demonstrates async usage with AWS Secrets and caching
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, safeResolve, processEnv, getAuditLog } from 'node-env-resolver';
+import { resolve, safeResolve, processEnv, getAuditLog, string, url } from 'node-env-resolver';
 import { cached } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -42,8 +42,8 @@ describe('Advanced Resolvers Example', () => {
           }
         ),
         {
-          DATABASE_PASSWORD: 'string',
-          API_KEY: 'string',
+          DATABASE_PASSWORD: string(),
+          API_KEY: string(),
         }
       ]
     );
@@ -70,8 +70,8 @@ describe('Advanced Resolvers Example', () => {
     };
 
     await expect(resolve.async(
-      [processEnv(), { TEST_VAR: 'string' }],
-      [failingProvider, { TEST_VAR: 'string' }]
+      [processEnv(), { TEST_VAR: string() }],
+      [failingProvider, { TEST_VAR: string() }]
     )).rejects.toThrow('Resolver failed to load');
   });
 
@@ -87,7 +87,7 @@ describe('Advanced Resolvers Example', () => {
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), { ttl: 1000 }), // 1 second
-        { SHORT_TTL_VAR: 'string' }
+        { SHORT_TTL_VAR: string() }
       ]
     );
 
@@ -98,7 +98,7 @@ describe('Advanced Resolvers Example', () => {
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), { ttl: 300000 }), // 5 minutes
-        { LONG_TTL_VAR: 'string' }
+        { LONG_TTL_VAR: string() }
       ]
     );
 
@@ -124,7 +124,7 @@ describe('Advanced Resolvers Example', () => {
 
     // First call - should be a cache miss (cached: false)
     const config1 = await resolve.async(
-      [cachedResolver, { SECRET_VALUE: 'string' }]
+      [cachedResolver, { SECRET_VALUE: string() }]
     );
 
     const auditAfterFirst = getAuditLog();
@@ -136,7 +136,7 @@ describe('Advanced Resolvers Example', () => {
 
     // Second call - should be a cache hit (cached: true)
     const config2 = await resolve.async(
-      [cachedResolver, { SECRET_VALUE: 'string' }]
+      [cachedResolver, { SECRET_VALUE: string() }]
     );
 
     const auditAfterSecond = getAuditLog();
@@ -174,7 +174,7 @@ describe('Advanced Resolvers Example', () => {
     it('should return error result when validation fails', async () => {
       const result = await safeResolve({
         PORT: 'number',
-        REQUIRED_VAR: 'string', // Missing required variable
+        REQUIRED_VAR: string(), // Missing required variable
       });
 
       expect(result.success).toBe(false);
@@ -201,7 +201,7 @@ describe('Advanced Resolvers Example', () => {
 
       // Test valid variable name (should work)
       const validResult = safeResolve({
-        'VALID_VAR': { type: 'string', default: 'default' },
+        'VALID_VAR': string({ default: 'default' }),
       });
 
       expect(validResult.success).toBe(true);
@@ -232,8 +232,8 @@ describe('Advanced Resolvers Example', () => {
             }
           ),
           {
-            DATABASE_PASSWORD: 'string',
-            API_KEY: 'string',
+            DATABASE_PASSWORD: string(),
+            API_KEY: string(),
           }
         ]
       );
@@ -260,8 +260,8 @@ describe('Advanced Resolvers Example', () => {
       };
 
       const result = await safeResolve.async(
-        [processEnv(), { TEST_VAR: 'string' }],
-        [failingProvider, { TEST_VAR: 'string' }]
+        [processEnv(), { TEST_VAR: string() }],
+        [failingProvider, { TEST_VAR: string() }]
       );
 
       expect(result.success).toBe(false);
