@@ -11,8 +11,25 @@ import type {
   PolicyOptions,
   Provenance,
 } from './types';
-import { validateFile } from './validators';
-import { join } from 'path';
+import { join, resolve } from 'path';
+import { readFileSync } from 'fs';
+
+/**
+ * Inline file validator to avoid importing the entire validators module
+ */
+function validateFile(value: string, key?: string): { valid: boolean; value?: string; error?: string } {
+  try {
+    const resolvedPath = resolve(process.cwd(), value);
+    const content = readFileSync(resolvedPath, 'utf8').trim();
+    return { valid: true, value: content };
+  } catch (error) {
+    const keyInfo = key ? ` for ${key}` : '';
+    return {
+      valid: false,
+      error: `Failed to read file${keyInfo}: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
 
 /**
  * Lazy-loaded audit logger (only imported when audit is enabled)

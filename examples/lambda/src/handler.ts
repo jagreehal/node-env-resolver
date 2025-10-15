@@ -30,8 +30,9 @@ const envPromise = resolveAsync(
     STRIPE_SECRET_KEY: string(),  // Required secret
 
     // Optional services
-    REDIS_URL: 'url?',                 // Optional URL
-  }]
+    REDIS_URL: url({optional: true}),  // Optional URL
+  }],
+  {} // Empty options object
 );
 
 export const handler = async (

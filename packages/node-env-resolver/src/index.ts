@@ -1,16 +1,17 @@
 /**
  * Type-safe environment variable resolver
- * 
+ *
  * @example
  * ```typescript
  * import { resolve } from 'node-env-resolver';
- * 
- * const config = await resolve({
+ * import { postgres, string } from 'node-env-resolver/resolvers';
+ *
+ * const config = resolve({
  *   PORT: 3000,                              // number with default
- *   DATABASE_URL: 'url',                    // required secret url
+ *   DATABASE_URL: postgres(),                // required PostgreSQL URL
  *   NODE_ENV: ['development', 'production'], // enum
  *   DEBUG: false,                            // boolean with default
- *   API_KEY: 'string?',                      // optional string
+ *   API_KEY: string({optional: true}),       // optional string
  * });
  * ```
  */
@@ -51,14 +52,36 @@ export type {
 // Re-export audit types and functions
 export { getAuditLog, clearAuditLog, type AuditEvent, type AuditEventType } from './audit';
 
-// Re-export only processEnv (used by other modules)
-export { processEnv } from './resolvers';
-
 // Import resolver functions
 import { normalizeSchema, resolveEnvInternal, resolveEnvInternalSync } from './resolver';
-import { processEnv } from './resolvers';
 
-// Note: processEnv is now exported from ./resolvers
+/**
+ * Resolver that reads from process.env
+ * This is the default resolver used when no custom resolvers are provided
+ */
+export function processEnv(): SyncResolver {
+  return {
+    name: 'process.env',
+    async load() {
+      const env: Record<string, string> = {};
+      for (const [key, value] of Object.entries(process.env)) {
+        if (value !== undefined) {
+          env[key] = value;
+        }
+      }
+      return env;
+    },
+    loadSync() {
+      const env: Record<string, string> = {};
+      for (const [key, value] of Object.entries(process.env)) {
+        if (value !== undefined) {
+          env[key] = value;
+        }
+      }
+      return env;
+    }
+  };
+}
 
 // Helper to build default resolvers (just processEnv)
 function buildDefaultResolvers(): SyncResolver[] {
@@ -225,22 +248,26 @@ function resolve(arg1: unknown, ...rest: unknown[]): unknown {
  *
  * @example
  * ```typescript
+ * import { resolveAsync } from 'node-env-resolver';
+ * import { postgres, string } from 'node-env-resolver/resolvers';
+ * import { awsSecrets, dotenv } from 'node-env-resolver/resolvers';
+ *
  * // Works with async-only resolvers
  * const config = await resolveAsync([
  *   awsSecrets(),
- *   { PORT: 3000, DATABASE_URL: 'url', API_KEY: 'string' }
+ *   { PORT: 3000, DATABASE_URL: postgres(), API_KEY: string() }
  * ]);
  *
  * // Also works with sync resolvers (automatically wrapped in Promise)
  * const config = await resolveAsync([
  *   processEnv(),  // Sync resolver works in async context
- *   { DATABASE_URL: 'postgres' }
+ *   { DATABASE_URL: postgres() }
  * ], { strict: true });
  *
- * // Multiple resolvers
+ * // Multiple resolvers - supports unlimited tuples!
  * const config = await resolveAsync(
  *   [dotenv(), { PORT: 3000 }],
- *   [awsSecrets(), { DATABASE_URL: 'url' }],
+ *   [awsSecrets(), { DATABASE_URL: postgres() }],
  *   { strict: true }
  * );
  * ```
@@ -394,10 +421,14 @@ function safeResolve<T extends SimpleEnvSchema>(
  *
  * @example
  * ```typescript
+ * import { safeResolveAsync } from 'node-env-resolver';
+ * import { postgres } from 'node-env-resolver/resolvers';
+ * import { awsSecrets, dotenv } from 'node-env-resolver/resolvers';
+ *
  * // Works with async resolvers
  * const result = await safeResolveAsync([
  *   awsSecrets({ region: 'us-east-1' }),
- *   { PORT: 3000, DATABASE_URL: 'url' }
+ *   { PORT: 3000, DATABASE_URL: postgres() }
  * ]);
  *
  * // Also works with sync resolvers
@@ -406,10 +437,10 @@ function safeResolve<T extends SimpleEnvSchema>(
  *   { PORT: 3000 }
  * ]);
  *
- * // Multiple resolvers
+ * // Multiple resolvers - supports unlimited tuples!
  * const result = await safeResolveAsync(
  *   [dotenv(), { PORT: 3000 }],
- *   [awsSecrets(), { DATABASE_URL: 'url' }],
+ *   [awsSecrets(), { DATABASE_URL: postgres() }],
  *   { strict: true }
  * );
  *
