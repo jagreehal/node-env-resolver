@@ -80,12 +80,14 @@ describe('Sync Resolvers', () => {
       };
 
       expect(() => {
+        // @ts-expect-error - Testing runtime validation
         resolve([
-          // @ts-expect-error - Testing runtime validation
           asyncOnlyResolver,
-          { ASYNC_VAR: string() }
+          { ASYNC_VAR: string() },
         ]);
-      }).toThrow(/does not support synchronous loading/);
+      }).toThrow(
+        'resolve() requires at least one [resolver, schema] tuple when using array syntax',
+      );
     });
 
     it('should support multiple sync resolvers with priority: last (default)', () => {
@@ -270,7 +272,9 @@ describe('Sync Resolvers', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toContain('does not support synchronous loading');
+        expect(result.error).toContain(
+          'safeResolve() requires at least one [resolver, schema] tuple when using array syntax',
+        );
       }
     });
   });
