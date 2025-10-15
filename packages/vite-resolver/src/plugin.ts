@@ -10,9 +10,9 @@ import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { dirname } from 'path';
 import { mkdirSync } from 'fs';
 import { resolve, type ViteEnvConfig, type ViteOptions } from './index.js';
-import type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
+import type { SimpleEnvSchema } from 'node-env-resolver';
 
-export interface PluginOptions<TServer extends SimpleEnvSchema, TClient extends SimpleEnvSchema> extends ViteOptions {
+export interface PluginOptions<_TServer extends SimpleEnvSchema = SimpleEnvSchema, _TClient extends SimpleEnvSchema = SimpleEnvSchema> extends ViteOptions {
   /**
    * Whether to inject client env vars into Vite's define config
    * This makes them available as import.meta.env.VITE_* in the browser

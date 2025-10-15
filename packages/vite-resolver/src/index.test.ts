@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolve, safeResolve, isServer, isClient } from './index.js';
 
 describe('node-env-resolver-vite', () => {
@@ -37,7 +37,8 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            API_URL: 'url' as any // Missing VITE_ prefix
+            // @ts-expect-error - Testing invalid key without VITE_ prefix
+            API_URL: 'url'
           }
         });
       }).toThrow(/must be prefixed with 'VITE_'/);
@@ -63,7 +64,8 @@ describe('node-env-resolver-vite', () => {
       expect(() => {
         resolve({
           server: {
-            VITE_DATABASE_URL: 'postgres' as any // Should not have VITE_ prefix
+            // @ts-expect-error - Testing invalid key with VITE_ prefix
+            VITE_DATABASE_URL: 'postgres'
           },
           client: {}
         });
@@ -75,8 +77,10 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            API_URL: 'url' as any,
-            PUBLIC_KEY: 'string' as any
+            // @ts-expect-error - Testing invalid keys without VITE_ prefix
+            API_URL: 'url',
+            // @ts-expect-error - Testing invalid keys without VITE_ prefix
+            PUBLIC_KEY: 'string'
           }
         });
       }).toThrow(/API_URL → VITE_API_URL/);
@@ -221,14 +225,16 @@ describe('node-env-resolver-vite', () => {
 
       // Mock browser environment
       const originalWindow = global.window;
-      (global as any).window = {};
+      // @ts-expect-error - Mocking window for testing
+      global.window = {};
 
       expect(() => env.server.DATABASE_URL).toThrow(/Cannot access server environment variable/);
       expect(() => env.server.DATABASE_URL).toThrow(/DATABASE_URL/);
 
       // Restore
       if (originalWindow === undefined) {
-        delete (global as any).window;
+        // @ts-expect-error - Cleaning up mock
+        delete global.window;
       } else {
         global.window = originalWindow;
       }
@@ -246,14 +252,16 @@ describe('node-env-resolver-vite', () => {
 
       // Mock browser environment
       const originalWindow = global.window;
-      (global as any).window = {};
+      // @ts-expect-error - Mocking window for testing
+      global.window = {};
 
       expect(() => env.client.VITE_API_URL).not.toThrow();
       expect(env.client.VITE_API_URL).toBe('https://api.example.com');
 
       // Restore
       if (originalWindow === undefined) {
-        delete (global as any).window;
+        // @ts-expect-error - Cleaning up mock
+        delete global.window;
       } else {
         global.window = originalWindow;
       }
@@ -273,14 +281,16 @@ describe('node-env-resolver-vite', () => {
 
       // Mock browser environment
       const originalWindow = global.window;
-      (global as any).window = {};
+      // @ts-expect-error - Mocking window for testing
+      global.window = {};
 
       // Should not throw even in browser when protection is disabled
       expect(() => env.server.DATABASE_URL).not.toThrow();
 
       // Restore
       if (originalWindow === undefined) {
-        delete (global as any).window;
+        // @ts-expect-error - Cleaning up mock
+        delete global.window;
       } else {
         global.window = originalWindow;
       }
@@ -327,7 +337,8 @@ describe('node-env-resolver-vite', () => {
       const result = safeResolve({
         server: {},
         client: {
-          API_URL: 'url' as any // Missing VITE_ prefix
+          // @ts-expect-error - Testing invalid key without VITE_ prefix
+          API_URL: 'url'
         }
       });
 
@@ -359,7 +370,8 @@ describe('node-env-resolver-vite', () => {
         resolve({
           server: {},
           client: {
-            API_URL: 'url' as any
+            // @ts-expect-error - Testing invalid key without PUBLIC_ prefix
+            API_URL: 'url'
           }
         }, {
           clientPrefix: 'PUBLIC_'
@@ -377,7 +389,8 @@ describe('node-env-resolver-vite', () => {
 
     it('should correctly detect client context when window exists', () => {
       const originalWindow = global.window;
-      (global as any).window = {};
+      // @ts-expect-error - Mocking window for testing
+      global.window = {};
 
       // Need to re-import to get updated values
       // For this test, we'll just verify the logic
@@ -385,7 +398,8 @@ describe('node-env-resolver-vite', () => {
 
       // Restore
       if (originalWindow === undefined) {
-        delete (global as any).window;
+        // @ts-expect-error - Cleaning up mock
+        delete global.window;
       } else {
         global.window = originalWindow;
       }

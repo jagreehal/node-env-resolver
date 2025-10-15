@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { nodeEnvResolverPlugin } from './plugin.js';
-import { existsSync, readFileSync, unlinkSync, mkdirSync, rmdirSync } from 'fs';
+import { existsSync, readFileSync, unlinkSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 
 describe('nodeEnvResolverPlugin - Type Generation', () => {
@@ -29,16 +29,18 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
 
     // Simulate config resolution
     if (plugin.config) {
-      await plugin.config({} as any, {} as any);
+      // @ts-expect-error - Mocking Vite config for testing
+      await plugin.config({}, {});
     }
 
     // Simulate configResolved hook
     if (plugin.configResolved) {
+      // @ts-expect-error - Mocking Vite resolved config for testing
       await plugin.configResolved({
         command: 'serve',
         mode: 'development',
         root: process.cwd()
-      } as any);
+      });
     }
 
     // Check file was created
@@ -77,15 +79,17 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     });
 
     if (plugin.config) {
-      await plugin.config({} as any, {} as any);
+      // @ts-expect-error - Mocking Vite config for testing
+      await plugin.config({}, {});
     }
 
     if (plugin.configResolved) {
+      // @ts-expect-error - Mocking Vite resolved config for testing
       await plugin.configResolved({
         command: 'serve',
         mode: 'development',
         root: process.cwd()
-      } as any);
+      });
     }
 
     const content = readFileSync(testTypeFile, 'utf-8');
@@ -120,15 +124,17 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     });
 
     if (plugin.config) {
-      await plugin.config({} as any, {} as any);
+      // @ts-expect-error - Mocking Vite config for testing
+      await plugin.config({}, {});
     }
 
     if (plugin.configResolved) {
+      // @ts-expect-error - Mocking Vite resolved config for testing
       await plugin.configResolved({
         command: 'serve',
         mode: 'development',
         root: process.cwd()
-      } as any);
+      });
     }
 
     // Check file was NOT overwritten
@@ -150,15 +156,17 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     });
 
     if (plugin.config) {
-      await plugin.config({} as any, {} as any);
+      // @ts-expect-error - Mocking Vite config for testing
+      await plugin.config({}, {});
     }
 
     if (plugin.configResolved) {
+      // @ts-expect-error - Mocking Vite resolved config for testing
       await plugin.configResolved({
         command: 'serve',
         mode: 'development',
         root: process.cwd()
-      } as any);
+      });
     }
 
     const content = readFileSync(testTypeFile, 'utf-8');
@@ -180,15 +188,17 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     });
 
     if (plugin.config) {
-      await plugin.config({} as any, {} as any);
+      // @ts-expect-error - Mocking Vite config for testing
+      await plugin.config({}, {});
     }
 
     if (plugin.configResolved) {
+      // @ts-expect-error - Mocking Vite resolved config for testing
       await plugin.configResolved({
         command: 'serve',
         mode: 'development',
         root: process.cwd()
-      } as any);
+      });
     }
 
     const content = readFileSync(testTypeFile, 'utf-8');
@@ -209,16 +219,18 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     });
 
     if (plugin.config) {
-      await plugin.config({} as any, {} as any);
+      // @ts-expect-error - Mocking Vite config for testing
+      await plugin.config({}, {});
     }
 
     // Simulate production build
     if (plugin.configResolved) {
+      // @ts-expect-error - Mocking Vite resolved config for testing
       await plugin.configResolved({
         command: 'build',
         mode: 'production',
         root: process.cwd()
-      } as any);
+      });
     }
 
     // Should NOT generate in production
@@ -241,15 +253,17 @@ describe('nodeEnvResolverPlugin - Type Generation', () => {
     });
 
     if (plugin.config) {
-      await plugin.config({} as any, {} as any);
+      // @ts-expect-error - Mocking Vite config for testing
+      await plugin.config({}, {});
     }
 
     if (plugin.configResolved) {
+      // @ts-expect-error - Mocking Vite resolved config for testing
       await plugin.configResolved({
         command: 'serve',
         mode: 'development',
         root: process.cwd()
-      } as any);
+      });
     }
 
     const content = readFileSync(testTypeFile, 'utf-8');
