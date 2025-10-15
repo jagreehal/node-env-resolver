@@ -44,8 +44,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "^3.910.0",
-    "@aws-sdk/client-ssm": "^3.910.0"
+    "@aws-sdk/client-secrets-manager": "^3.911.0",
+    "@aws-sdk/client-ssm": "^3.911.0"
   },
   "peerDependencies": {
     "node-env-resolver": "^4.0.0"
