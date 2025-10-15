@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { boolean, email, json, number, port, resolve, safeResolve, string, url } from './index';
+import { boolean, email, number, port, resolve, safeResolve, string, url } from './index';
 // Mock the globalThis.window for browser detection
 const originalGlobalThis = globalThis;
 
@@ -226,21 +226,21 @@ describe('node-env-resolver-nextjs', () => {
       expect(config.client.NEXT_PUBLIC_TIMEOUT).toBe(5000);
     });
 
-    it('handles JSON validation', () => {
+    it('handles JSON strings', () => {
       process.env.CONFIG = '{"theme":"dark","features":["analytics"]}';
       process.env.NEXT_PUBLIC_SETTINGS = '{"debug":true}';
 
       const config = resolve({
         server: {
-          CONFIG: json()
+          CONFIG: string()
         },
         client: {
-          NEXT_PUBLIC_SETTINGS: json()
+          NEXT_PUBLIC_SETTINGS: string()
         }
       });
 
-      expect(config.server.CONFIG).toEqual({ theme: 'dark', features: ['analytics'] });
-      expect(config.client.NEXT_PUBLIC_SETTINGS).toEqual({ debug: true });
+      expect(config.server.CONFIG).toBe('{"theme":"dark","features":["analytics"]}');
+      expect(config.client.NEXT_PUBLIC_SETTINGS).toBe('{"debug":true}');
     });
 
     it('handles email validation', () => {

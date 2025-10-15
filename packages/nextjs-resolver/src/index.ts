@@ -234,9 +234,9 @@ export function safeResolve<TServer extends SimpleEnvSchema, TClient extends Sim
 // Re-export useful types and utilities
 export type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
 
-export {
-    dotenv, processEnv, packageJson, http as httpResolver, json as jsonResolver, secrets, yaml, toml
-} from 'node-env-resolver/resolvers';
+// Note: Next.js handles .env files automatically via process.env
+// Custom resolvers are rarely needed in Next.js applications
+// If you need custom resolvers, import them directly from 'node-env-resolver/resolvers'
 
 // Utility for runtime environment detection
 export const isServer = typeof (globalThis as GlobalWithWindow).window === 'undefined';
