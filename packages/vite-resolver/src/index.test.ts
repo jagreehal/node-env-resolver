@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolve, safeResolve, isServer, isClient } from './index';
-import { string, url, postgres, port, number, boolean } from 'node-env-resolver';
+import { string, url, postgres, port, number, boolean } from 'node-env-resolver/resolvers';
 
 describe('node-env-resolver-vite', () => {
   // Store original process.env

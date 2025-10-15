@@ -5,7 +5,7 @@
 ## TL;DR
 
 * Use `resolve({...})` for the simple case (reads **process.env** only, synchronous).
-* Use `resolve.async([provider, schema], … [, options])` when you need **multiple async resolvers** (e.g. dotenv + AWS Secrets).
+* Use `resolveAsync([provider, schema], … [, options])` when you need **multiple async resolvers** (e.g. dotenv + AWS Secrets).
 * **NEW:** `resolve()` now supports **multiple sync resolvers** using the same tuple syntax.
 * Merge rule is **left → right**, **last tuple wins** on key conflicts (default).
 * Use `priority: 'first'` option to reverse precedence (first tuple wins).
@@ -61,7 +61,7 @@ if (result.success) {
 import { resolve, processEnv } from 'node-env-resolver';
 import { dotenv } from 'node-env-resolver/resolvers';
 
-const config = await resolve.async(
+const config = await resolveAsync(
   [dotenv({ path: '.env', expand: true }), {
     DATABASE_URL: url(),
     DEBUG: false
@@ -91,7 +91,7 @@ const config = resolve(
 import { safeResolve, processEnv } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const result = await safeResolve.async(
+const result = await saferesolveAsync(
   [processEnv(), { PORT: 3000 }],
   [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: postgres() }]
 );
@@ -112,14 +112,14 @@ Control merge behaviour when multiple resolvers provide the same variable:
 
 ```ts
 // priority: 'last' (default) - later resolvers override earlier ones
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { DATABASE_URL: url() }],
   [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: url() }]
   // AWS wins (last resolver)
 );
 
 // priority: 'first' - earlier resolvers take precedence
-const config = await resolve.async(
+const config = await resolveAsync(
   [dotenv(), { DATABASE_URL: url() }],
   [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: url() }],
   { priority: 'first' }
@@ -140,7 +140,7 @@ const config = await resolve.async(
 
 **✅ CORRECT** - Spread arguments directly, no wrapper array:
 ```ts
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [dotenv(), { DATABASE_URL: url() }]
 );
@@ -149,7 +149,7 @@ await resolve.async(
 **❌ WRONG** - Don't wrap in extra array:
 ```ts
 // This will fail with "Invalid environment variable name: 0, 1"
-await resolve.async([
+await resolveAsync([
   [processEnv(), { PORT: 3000 }],
   [dotenv(), { DATABASE_URL: url() }]
 ]);
@@ -173,7 +173,7 @@ resolve(
 
 **For multiple sources (`.async`):**
 ```ts
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [dotenv(),     { DATABASE_URL: url() }],
   {
@@ -277,7 +277,7 @@ if (result.success) {
 import { resolve } from 'node-env-resolver';
 import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [awsSecrets({ secretId: 'prod/db' }), { DATABASE_URL: postgres() }],
   [awsSsm({ path: '/myapp/config', recursive: true }), { API_KEY: string() }]
@@ -304,7 +304,7 @@ const databaseResolver: Resolver = {
 };
 
 // Use it
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [databaseResolver, { FEATURE_FLAGS: 'json' }]
 );
@@ -322,7 +322,7 @@ function apiResolver(url: string): Resolver {
   };
 }
 
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [apiResolver('https://config.example.com/api'), { RATE_LIMIT: 'number' }]
 );
@@ -356,7 +356,7 @@ const stableAws = cached(
   awsCache()  // Use AWS defaults
 );
 
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [stableAws, { DATABASE_URL: url(), API_KEY: string() }]
 );
@@ -411,7 +411,7 @@ awsCache()  // Returns:
 ```ts
 // ✅ CORRECT - Call resolve() every time, let cached() wrapper handle caching
 export const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'app/secrets' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
@@ -576,7 +576,7 @@ Environment validation failed:
 **Do**
 
 * Prefer `resolve({...})` if only `process.env` is needed.
-* Use `resolve.async([provider, schema], …)` for multiple async resolvers.
+* Use `resolveAsync([provider, schema], …)` for multiple async resolvers.
 * **NEW:** Use `resolve([resolver1, schema1], [resolver2, schema2], options)` for multiple **sync** resolvers.
 * Use `priority: 'first'` for development workflows where local overrides should win.
 * **NEW:** Use `getAuditLog(config)` to get audit events for a specific config object.
@@ -635,14 +635,14 @@ const app = createApp(result.data);
 import { resolve, processEnv, dotenv } from 'node-env-resolver';
 
 // Development: local .env overrides everything
-const config = await resolve.async(
+const config = await resolveAsync(
   [dotenv(), { DATABASE_URL: url(), DEBUG: false }],
   [processEnv(), { PORT: 3000, NODE_ENV: ['development','production'] as const }],
   { priority: 'first' }  // .env wins
 );
 
 // Production: cloud secrets override process.env
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: url() }]
   // Default priority: 'last' - AWS wins
@@ -655,7 +655,7 @@ const config = await resolve.async(
 import { resolve, processEnv, cached, retry, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [
     cached(
@@ -708,7 +708,7 @@ const dbResolver: Resolver = {
   }
 };
 
-const result = await safeResolve.async(
+const result = await saferesolveAsync(
   [processEnv(), { PORT: 3000, NODE_ENV: ['dev', 'prod'] as const }],
   [dbResolver, { FEATURE_FLAGS: 'json', RATE_LIMIT: 'number' }]
 );
@@ -727,7 +727,7 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 // Define config loader (called every invocation)
 export const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'lambda/config' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
@@ -754,7 +754,7 @@ import { resolve, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'myapp/production' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
@@ -782,7 +782,7 @@ import { resolve, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'myapp/nextjs' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
@@ -828,7 +828,7 @@ import { cliArgs } from 'node-env-resolver/cli';
 
 // $ node build.js --input ./src --output ./dist --minify --workers 4
 
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { INPUT: string(), OUTPUT: string(), MINIFY: false, WORKERS: 'number' }],
   [cliArgs(), { INPUT: string(), OUTPUT: string(), MINIFY: false, WORKERS: 'number' }]
 );
@@ -858,7 +858,7 @@ const config = resolve({
 // CORS origins
 process.env.ALLOWED_ORIGINS = 'https://app.com,https://api.com,http://localhost:3000';
 
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   ALLOWED_ORIGINS: 'url[]'  // Each URL is validated
 }]);
 
@@ -879,7 +879,7 @@ process.env.CACHE_TTL = '5m';
 process.env.SESSION_DURATION = '2h30m';
 process.env.RETRY_BACKOFF = '500ms';
 
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   TIMEOUT: 'duration',          // 30000 ms
   CACHE_TTL: 'duration',        // 300000 ms
   SESSION_DURATION: 'duration', // 9000000 ms
@@ -897,7 +897,7 @@ import { resolve, processEnv } from 'node-env-resolver';
 // K8s mounts secrets to /run/secrets/db-password, /run/secrets/api-key
 
 // Method 1: Using secretsDir (recommended, zero config)
-const config = await resolve.async([
+const config = await resolveAsync([
   processEnv(),
   {
     DB_PASSWORD: 'file',  // Reads /run/secrets/db-password (auto kebab-case)
@@ -907,12 +907,12 @@ const config = await resolve.async([
 
 // Method 2: Explicit file path in env var (Go ecosystem pattern)
 process.env.DB_PASSWORD_FILE = '/run/secrets/db_password';
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   DB_PASSWORD_FILE: 'file'  // Reads file at that path
 }]);
 
 // Method 3: Per-field secretsDir override
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   DB_PASSWORD: { type: 'file', secretsDir: '/custom/secrets' },
   API_KEY: 'file'  // Uses global secretsDir
 }], { secretsDir: '/run/secrets' });
@@ -1048,7 +1048,7 @@ resolve(schema: Schema, options?: ResolveOptions): TypedConfig
 resolve(...tuples: [SyncResolver, Schema][], options?: ResolveOptions): TypedConfig
 
 // Primary - throws on error (multiple sources, async - supports both sync and async resolvers)
-resolve.async(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<MergedConfig>
+resolveAsync(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<MergedConfig>
 
 // Safe - returns result object (single source: process.env)
 safeResolve(schema: Schema, options?: ResolveOptions): { success: true, data: TypedConfig } | { success: false, error: string }
@@ -1057,7 +1057,7 @@ safeResolve(schema: Schema, options?: ResolveOptions): { success: true, data: Ty
 safeResolve(...tuples: [SyncResolver, Schema][], options?: ResolveOptions): { success: true, data: TypedConfig } | { success: false, error: string }
 
 // Safe - returns result object (multiple sources, async)
-safeResolve.async(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<{ success: true, data: MergedConfig } | { success: false, error: string }>
+saferesolveAsync(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<{ success: true, data: MergedConfig } | { success: false, error: string }>
 
 // AWS convenience functions (node-env-resolver-aws)
 resolveSsm(ssmOptions, schema, resolveOptions?): Promise<TypedConfig>
@@ -1320,7 +1320,7 @@ interface ImportMeta {
 * Replace `z.enum([...])` with `['a','b'] as const`.
 * Replace `.default(3000)` with literal `3000`.
 * Replace `runtimeEnv: process.env` with `resolve({...})` (now synchronous).
-* For multi-source needs, move to `resolve.async([provider, schema], …)` (async).
+* For multi-source needs, move to `resolveAsync([provider, schema], …)` (async).
 * If you prefer Zod schemas, use `resolveZod()` from `node-env-resolver/zod` (async).
 * Replace custom merge logic with `priority: 'first' | 'last'` option.
 
@@ -1336,7 +1336,7 @@ interface ImportMeta {
 2. **Call resolve() every time:**
    ```ts
    // ✅ CORRECT
-   const getConfig = async () => resolve.async([cached(...), schema]);
+   const getConfig = async () => resolveAsync([cached(...), schema]);
    app.get('/', async () => { const config = await getConfig(); });
 
    // ❌ WRONG

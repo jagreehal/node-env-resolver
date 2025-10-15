@@ -3,7 +3,8 @@
  * Demonstrates the new safeResolve and safeResolveSync functions
  */
 import { describe, it, expect } from 'vitest';
-import { safeResolve, processEnv, string, url } from 'node-env-resolver';
+import { safeResolve, safeResolveAsync } from 'node-env-resolver';
+import { processEnv, string, url } from 'node-env-resolver/resolvers';
 
 describe('Safe Resolve Demo', () => {
   it('should demonstrate safeResolve vs resolve behavior', () => {
@@ -63,7 +64,7 @@ describe('Safe Resolve Demo', () => {
     delete process.env.PORT;
   });
 
-  it('should demonstrate safeResolve.async with multiple resolvers', async () => {
+  it('should demonstrate saferesolveAsync with multiple resolvers', async () => {
     process.env.NODE_ENV = 'production';
     process.env.PORT = '3000';
 
@@ -77,7 +78,7 @@ describe('Safe Resolve Demo', () => {
       },
     };
 
-    const result = await safeResolve.async(
+    const result = await safeResolveAsync(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,

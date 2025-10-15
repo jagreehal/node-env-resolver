@@ -2,8 +2,9 @@
  * Tests for environment variable name validation and resolvers
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, safeResolve, processEnv, type SimpleEnvSchema, string, port, url, boolean, json } from './index';
-import { secrets, toml, json as jsonResolver } from './resolvers';
+import { resolve, safeResolve, processEnv, type SimpleEnvSchema, resolveAsync } from './index';
+import {  jsonValidator } from './validators';
+import { secrets, toml, json, string, port, url, boolean } from './resolvers';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -93,17 +94,17 @@ describe('JSON Type Validation', () => {
   it('should parse valid JSON strings', async () => {
     // Test JSON object
     process.env.TEST_JSON_OBJ = '{"key": "value", "count": 42}';
-    const objResult = await resolve.async([
+    const objResult = await resolveAsync([
       processEnv(),
-      { TEST_JSON_OBJ: json() }
+      { TEST_JSON_OBJ: jsonValidator() }
     ]);
     expect(objResult.TEST_JSON_OBJ).toEqual({ key: 'value', count: 42 });
 
     // Test JSON array
     process.env.TEST_JSON_ARR = '[1, 2, 3, "test"]';
-    const arrResult = await resolve.async([
+    const arrResult = await resolveAsync([
       processEnv(),
-      { TEST_JSON_ARR: json() }
+      { TEST_JSON_ARR: jsonValidator() }
     ]);
     expect(arrResult.TEST_JSON_ARR).toEqual([1, 2, 3, 'test']);
 
@@ -112,12 +113,12 @@ describe('JSON Type Validation', () => {
     process.env.TEST_JSON_BOOL = 'true';
     process.env.TEST_JSON_NULL = 'null';
     
-    const primResult = await resolve.async([
+    const primResult = await resolveAsync([
       processEnv(),
       { 
-        TEST_JSON_NUM: json(),
-        TEST_JSON_BOOL: json(),
-        TEST_JSON_NULL: json()
+        TEST_JSON_NUM: jsonValidator(),
+        TEST_JSON_BOOL: jsonValidator(),
+        TEST_JSON_NULL: jsonValidator()
       }
     ]);
     
@@ -136,9 +137,9 @@ describe('JSON Type Validation', () => {
   it('should reject invalid JSON strings', async () => {
     process.env.TEST_INVALID_JSON = '{invalid json}';
     
-    await expect(resolve.async([
+    await expect(resolveAsync([
       processEnv(),
-      { TEST_INVALID_JSON: json() }
+      { TEST_INVALID_JSON: jsonValidator() }
     ])).rejects.toThrow('Invalid JSON');
 
     delete process.env.TEST_INVALID_JSON;
@@ -147,9 +148,9 @@ describe('JSON Type Validation', () => {
   it('should return parsed value not string', async () => {
     process.env.TEST_JSON_PARSE = '{"nested": {"value": 123}}';
     
-    const result = await resolve.async([
+    const result = await resolveAsync([
       processEnv(),
-      { TEST_JSON_PARSE: json() }
+      { TEST_JSON_PARSE: jsonValidator() }
     ]);
     
     // Should be an object, not a string
@@ -162,7 +163,7 @@ describe('JSON Type Validation', () => {
   });
 
   it('should work with json type default values', async () => {
-    const result = await resolve.async([
+    const result = await resolveAsync([
       processEnv(),
       { 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,8 +200,8 @@ describe('JSON Resolver', () => {
       DEBUG: 'true'
     }));
 
-    const config = await resolve.async(
-      [jsonResolver(configFile), {
+    const config = await resolveAsync(
+      [json(configFile), {
         PORT: port(),
         NODE_ENV: string(),
         DEBUG: boolean()
@@ -225,8 +226,8 @@ describe('JSON Resolver', () => {
       }
     }));
 
-    const config = await resolve.async(
-      [jsonResolver(configPath), {
+    const config = await resolveAsync(
+      [json(configPath), {
         DATABASE_HOST: string(),
         DATABASE_PORT: port(),
         API_KEY: string(),
@@ -241,7 +242,7 @@ describe('JSON Resolver', () => {
   });
 
   it('should return empty object if file does not exist', async () => {
-    const resolver = jsonResolver(join(testDir, 'nonexistent.json'));
+    const resolver = json(join(testDir, 'nonexistent.json'));
     const env = resolver.load ? await resolver.load() : {};
     expect(env).toEqual({});
   });
@@ -251,8 +252,8 @@ describe('JSON Resolver', () => {
     writeFileSync(configPath, '{invalid json}');
 
     await expect(async () => {
-      await resolve.async(
-        [jsonResolver(configPath), { PORT: 3000 }]
+      await resolveAsync(
+        [json(configPath), { PORT: 3000 }]
       );
     }).rejects.toThrow('Failed to parse JSON file');
   });
@@ -263,7 +264,7 @@ describe('JSON Resolver', () => {
 
     // Note: sync mode uses process.env, not json resolver
     // For actual json resolver sync test, we need to use loadSync directly
-    const resolver = jsonResolver(configPath);
+    const resolver = json(configPath);
     const env = resolver.loadSync!();
     expect(env.PORT).toBe('3000');
   });
@@ -289,7 +290,7 @@ describe('Secrets Directory Resolver', () => {
     writeFileSync(join(testDir, 'api-key'), 'key456');
     writeFileSync(join(testDir, 'jwt.secret'), 'jwt789');
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [secrets(testDir), {
         DB_PASSWORD: string(),
         API_KEY: string(),
@@ -306,7 +307,7 @@ describe('Secrets Directory Resolver', () => {
     writeFileSync(join(testDir, 'database-url'), '//localhost');
     writeFileSync(join(testDir, 'api.endpoint'), 'https://api.example.com');
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [secrets(testDir), {
         DATABASE_URL: string(),
         API_ENDPOINT: string()
@@ -333,7 +334,7 @@ describe('Secrets Directory Resolver', () => {
   it('should trim whitespace from secret values', async () => {
     writeFileSync(join(testDir, 'secret'), '  secret-value\n\n  ');
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [secrets(testDir), { SECRET: string() }]
     );
 
@@ -379,7 +380,7 @@ debug = "true"
     `);
 
     try {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [toml(configPath), {
           PORT: port(),
           NODE_ENV: string(),
@@ -413,7 +414,7 @@ url = "https://api.example.com"
     `);
 
     try {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [toml(configPath), {
           DATABASE_HOST: string(),
           DATABASE_PORT: port(),
@@ -446,7 +447,7 @@ url = "https://api.example.com"
     writeFileSync(configPath, 'port = "3000"');
 
     try {
-      await resolve.async(
+      await resolveAsync(
         [toml(configPath), { PORT: 3000 }]
       );
     } catch (error) {

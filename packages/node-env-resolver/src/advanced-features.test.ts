@@ -1,6 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, string, stringArray, numberArray, urlArray, duration, file, number } from './index';
-import { dotenv, json } from './resolvers';
+import { resolve, resolveAsync } from './index';
+import {
+  string,
+  stringArray,
+  numberArray,
+  urlArray,
+  duration,
+  file,
+  number,
+  dotenv,
+  json,
+} from './resolvers';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -122,7 +132,7 @@ describe('Advanced Features', () => {
     it('should parse and validate multiple URLs', async () => {
       process.env.URLS = 'https://api.example.com,https://cdn.example.com,http://localhost:3000';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           URLS: urlArray()
         }]
@@ -139,7 +149,7 @@ describe('Advanced Features', () => {
       process.env.URLS = 'https://valid.com,not-a-url,https://another.com';
       
       try {
-        await resolve.async(
+        await resolveAsync(
           [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
             URLS: urlArray()
           }]
@@ -155,7 +165,7 @@ describe('Advanced Features', () => {
     it('should parse seconds', async () => {
       process.env.TIMEOUT = '5s';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           TIMEOUT: duration()
         }]
@@ -167,7 +177,7 @@ describe('Advanced Features', () => {
     it('should parse minutes', async () => {
       process.env.TIMEOUT = '2m';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           TIMEOUT: duration()
         }]
@@ -179,7 +189,7 @@ describe('Advanced Features', () => {
     it('should parse hours', async () => {
       process.env.TIMEOUT = '1h';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           TIMEOUT: duration()
         }]
@@ -195,7 +205,7 @@ describe('Advanced Features', () => {
       fs.writeFileSync(secretFile, 'my-secret-value');
       process.env.SECRET_PATH = secretFile;
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           SECRET_PATH: file()
         }]
@@ -209,7 +219,7 @@ describe('Advanced Features', () => {
       fs.writeFileSync(secretFile, '  my-secret-value  \n');
       process.env.SECRET_PATH = secretFile;
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           SECRET_PATH: file()
         }]
@@ -291,7 +301,7 @@ describe('Advanced Features', () => {
       process.env.DB_PASSWORD_FILE = path.join(secretsDir, 'db_password');
       process.env.API_KEY_FILE = path.join(secretsDir, 'api_key');
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           DB_PASSWORD_FILE: file(),
           API_KEY_FILE: file()
@@ -309,7 +319,7 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'db-password'), 'password-from-secrets-dir');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           DB_PASSWORD: file()
@@ -324,7 +334,7 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'api-key'), 'api-key-from-secrets-dir');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           API_KEY: file({ secretsDir })
@@ -344,7 +354,7 @@ describe('Advanced Features', () => {
 
       process.env.DB_PASSWORD_FILE = customFile;
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
           DB_PASSWORD_FILE: file()
         }],
@@ -355,7 +365,7 @@ describe('Advanced Features', () => {
 
     it('should error when no path provided and no secretsDir configured', async () => {
       try {
-        await resolve.async([
+        await resolveAsync([
           { name: 'test', load: () => Promise.resolve({}) },
           {
             DB_PASSWORD: file()
@@ -376,7 +386,7 @@ describe('Advanced Features', () => {
       fs.writeFileSync(path.join(globalSecretsDir, 'api-key'), 'global-key');
       fs.writeFileSync(path.join(fieldSecretsDir, 'api-key'), 'field-key');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           API_KEY: file({ secretsDir: fieldSecretsDir })
@@ -391,7 +401,7 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'my-secret-key'), 'kebab-case-file-name');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
           MY_SECRET_KEY: file()
@@ -411,7 +421,7 @@ describe('Advanced Features', () => {
       // Use relative path from test directory
       const relativePath = path.relative(process.cwd(), testFile);
       
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({ TEST_FILE: relativePath }) },
         { TEST_FILE: file() }
       ]);
@@ -429,7 +439,7 @@ describe('Advanced Features', () => {
       // Use relative path from current working directory
       const relativePath = path.relative(process.cwd(), nestedFile);
       
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({ NESTED_FILE: relativePath }) },
         { NESTED_FILE: file() }
       ]);
@@ -447,7 +457,7 @@ describe('Advanced Features', () => {
       // Use relative path from current working directory
       const relativePath = path.relative(process.cwd(), envFile);
       
-      const config = await resolve.async([
+      const config = await resolveAsync([
         dotenv(relativePath),
         { DOTENV_TEST: string() }
       ]);
@@ -463,7 +473,7 @@ describe('Advanced Features', () => {
       // Use relative path from current working directory
       const relativePath = path.relative(process.cwd(), jsonFile);
       
-      const config = await resolve.async([
+      const config = await resolveAsync([
         json(relativePath),
         { JSON_TEST: string() }
       ]);

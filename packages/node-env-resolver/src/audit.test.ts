@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resolve, getAuditLog, clearAuditLog, string, url, port } from './index';
+import { resolve, resolveAsync, getAuditLog, clearAuditLog } from './index';
+import { string, url, port } from './resolvers';
 
 describe('Audit Logging', () => {
   beforeEach(() => {
@@ -11,7 +12,7 @@ describe('Audit Logging', () => {
     process.env.NODE_ENV = 'production';
 
     try {
-      await resolve.async(
+      await resolveAsync(
         [{
           name: 'test',
           async load() {
@@ -72,7 +73,7 @@ describe('Audit Logging', () => {
     process.env.NODE_ENV = 'production';
 
     try {
-      await resolve.async(
+      await resolveAsync(
         [{
           name: 'dotenv(.env)',
           async load() {
@@ -98,7 +99,7 @@ describe('Audit Logging', () => {
 
   it('logs validation failures', async () => {
     try {
-      await resolve.async(
+      await resolveAsync(
         [{
           name: 'test',
           async load() {
@@ -123,7 +124,7 @@ describe('Audit Logging', () => {
     // Generate > 1000 events
     for (let i = 0; i < 1100; i++) {
       try {
-        await resolve.async(
+        await resolveAsync(
           [{
             name: 'test',
             async load() {
@@ -150,7 +151,7 @@ describe('Audit Logging', () => {
     try {
       clearAuditLog();
 
-      await resolve.async(
+      await resolveAsync(
         [{
           name: 'test',
           async load() {
@@ -182,7 +183,7 @@ describe('Security Policies', () => {
 
     try {
       await expect(
-        resolve.async(
+        resolveAsync(
           [
             {
               name: 'process.env',
@@ -216,7 +217,7 @@ describe('Security Policies', () => {
   });
 
   it('enforceAllowedSources - allows variables from correct resolvers', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [
         {
           name: 'aws-secrets',
@@ -248,7 +249,7 @@ describe('Security Policies', () => {
 
     try {
       await expect(
-        resolve.async(
+        resolveAsync(
           [
             {
               name: 'dotenv(.env)',
@@ -271,7 +272,7 @@ describe('Security Policies', () => {
     process.env.NODE_ENV = 'production';
 
     try {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [
           {
             name: 'dotenv(.env)',
@@ -300,7 +301,7 @@ describe('Security Policies', () => {
     process.env.NODE_ENV = 'production';
 
     try {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [
           {
             name: 'dotenv(.env)',
@@ -351,12 +352,12 @@ describe('Per-Config Audit Tracking', () => {
       },
     };
 
-    const config1 = await resolve.async(
+    const config1 = await resolveAsync(
       [resolver1, { VAR1: string() }],
       { enableAudit: true }
     );
 
-    const config2 = await resolve.async(
+    const config2 = await resolveAsync(
       [resolver2, { VAR2: string() }],
       { enableAudit: true }
     );
@@ -429,7 +430,7 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('returns empty array for config without audit session', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'test',
         async load() {
@@ -446,7 +447,7 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('handles multiple configs with same variables', async () => {
-    const config1 = await resolve.async(
+    const config1 = await resolveAsync(
       [{
         name: 'source1',
         async load() {
@@ -458,7 +459,7 @@ describe('Per-Config Audit Tracking', () => {
       { enableAudit: true }
     );
 
-    const config2 = await resolve.async(
+    const config2 = await resolveAsync(
       [{
         name: 'source2',
         async load() {
@@ -482,7 +483,7 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('maintains backward compatibility with getAuditLog()', async () => {
-    await resolve.async(
+    await resolveAsync(
       [{
         name: 'test1',
         async load() {
@@ -494,7 +495,7 @@ describe('Per-Config Audit Tracking', () => {
       { enableAudit: true }
     );
 
-    await resolve.async(
+    await resolveAsync(
       [{
         name: 'test2',
         async load() {

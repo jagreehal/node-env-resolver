@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { withComputed } from './utils';
-import { enums, number, resolve, string } from './index';
+import { resolve } from './index';
+import { enums, number, string } from './resolvers';
 
 describe('withComputed utility', () => {
   describe('basic functionality', () => {

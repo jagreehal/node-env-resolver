@@ -3,7 +3,8 @@
  * Demonstrates async usage with AWS Secrets and caching
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, safeResolve, processEnv, getAuditLog, string, url } from 'node-env-resolver';
+import { resolve, safeResolve, getAuditLog,  safeResolveAsync, resolveAsync } from 'node-env-resolver';
+import { processEnv, string } from 'node-env-resolver/resolvers';
 import { cached } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -26,7 +27,7 @@ describe('Advanced Resolvers Example', () => {
       API_KEY: 'mock-api-key-123',
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
@@ -69,7 +70,7 @@ describe('Advanced Resolvers Example', () => {
       },
     };
 
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [processEnv(), { TEST_VAR: string() }],
       [failingProvider, { TEST_VAR: string() }]
     )).rejects.toThrow('Resolver failed to load');
@@ -83,7 +84,7 @@ describe('Advanced Resolvers Example', () => {
 
     // Short TTL cache
     process.env.NODE_ENV = 'development';
-    const shortConfig = await resolve.async(
+    const shortConfig = await resolveAsync(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), { ttl: 1000 }), // 1 second
@@ -94,7 +95,7 @@ describe('Advanced Resolvers Example', () => {
     expect(shortConfig.SHORT_TTL_VAR).toBe('short-ttl-value');
 
     // Long TTL cache
-    const longConfig = await resolve.async(
+    const longConfig = await resolveAsync(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), { ttl: 300000 }), // 5 minutes
@@ -123,7 +124,7 @@ describe('Advanced Resolvers Example', () => {
     const cachedResolver = cached(mockSecretsWithCounter, { ttl: 60000, key: 'test-cache' });
 
     // First call - should be a cache miss (cached: false)
-    const config1 = await resolve.async(
+    const config1 = await resolveAsync(
       [cachedResolver, { SECRET_VALUE: string() }]
     );
 
@@ -135,7 +136,7 @@ describe('Advanced Resolvers Example', () => {
     expect(firstLoad?.metadata?.cached).toBe(false);
 
     // Second call - should be a cache hit (cached: true)
-    const config2 = await resolve.async(
+    const config2 = await resolveAsync(
       [cachedResolver, { SECRET_VALUE: string() }]
     );
 
@@ -207,7 +208,7 @@ describe('Advanced Resolvers Example', () => {
       expect(validResult.success).toBe(true);
     });
 
-    it('should work with multiple resolvers using safeResolve.async', async () => {
+    it('should work with multiple resolvers using saferesolveAsync', async () => {
       process.env.NODE_ENV = 'production';
       process.env.PORT = '8080';
 
@@ -216,7 +217,7 @@ describe('Advanced Resolvers Example', () => {
         API_KEY: 'mock-api-key-123',
       };
 
-      const result = await safeResolve.async(
+      const result = await safeResolveAsync(
         [processEnv(), {
           NODE_ENV: ['development', 'production', 'test'] as const,
           PORT: 3000,
@@ -259,7 +260,7 @@ describe('Advanced Resolvers Example', () => {
         },
       };
 
-      const result = await safeResolve.async(
+      const result = await safeResolveAsync(
         [processEnv(), { TEST_VAR: string() }],
         [failingProvider, { TEST_VAR: string() }]
       );

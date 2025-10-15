@@ -2,7 +2,9 @@
  * Centralized configuration using node-env-resolver
  * Perfect for Express.js applications with multiple deployment environments
  */
-import { resolve, url, string } from 'node-env-resolver';
+import { resolve } from 'node-env-resolver';
+import { url, string } from 'node-env-resolver/resolvers';
+
 
 export const config = await resolve({
   // Application
@@ -41,7 +43,7 @@ export const config = await resolve({
 });
 
 // Note: In production, you can add AWS SSM provider:
-// export const config = await resolve.async(
+// export const config = await resolveAsync(
 //   [processEnv(), { ... }],
 //   [awsSsm({ path: '/myapp/production' }), {}]
 // );

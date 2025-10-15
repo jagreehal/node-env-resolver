@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resolve, safeResolve, SyncResolver, AsyncResolver, isSyncResolver, isAsyncOnlyResolver, string, enums, number } from './index';
-import { dotenv, json, processEnv } from './resolvers';
+import { resolve, resolveAsync, safeResolve, safeResolveAsync, SyncResolver, AsyncResolver, isSyncResolver, isAsyncOnlyResolver } from './index';
+import { dotenv, json, processEnv, string, enums, number } from './resolvers';
 
 describe('Sync Resolvers', () => {
   beforeEach(() => {
@@ -184,7 +184,7 @@ describe('Sync Resolvers', () => {
     });
   });
 
-  describe('resolve.async() - Asynchronous', () => {
+  describe('resolveAsync() - Asynchronous', () => {
     it('should work with async-only resolvers', async () => {
       const asyncResolver: AsyncResolver = {
         name: 'async',
@@ -194,7 +194,7 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         asyncResolver,
         { ASYNC_VAR: string() }
       ]);
@@ -209,7 +209,7 @@ describe('Sync Resolvers', () => {
         loadSync() { return { SYNC_VAR: 'sync-value' }; }
       };
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         syncResolver,
         { SYNC_VAR: string() }
       ]);
@@ -220,8 +220,8 @@ describe('Sync Resolvers', () => {
     it('should work with built-in sync resolvers like processEnv in async mode', async () => {
       process.env.TEST_ASYNC_VAR = 'test-value';
 
-      // processEnv() is a sync resolver but should work with resolve.async()
-      const config = await resolve.async([
+      // processEnv() is a sync resolver but should work with resolveAsync()
+      const config = await resolveAsync([
         processEnv(),
         { TEST_ASYNC_VAR: string() }
       ]);
@@ -275,7 +275,7 @@ describe('Sync Resolvers', () => {
     });
   });
 
-  describe('safeResolve.async() - Async Error Handling', () => {
+  describe('safeResolveAsync() - Async Error Handling', () => {
     it('should return success for valid async resolution', async () => {
       const asyncResolver: AsyncResolver = {
         name: 'async',
@@ -284,7 +284,7 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const result = await safeResolve.async([
+      const result = await safeResolveAsync([
         asyncResolver,
         { ASYNC_VAR: string() }
       ]);
@@ -303,7 +303,7 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const result = await safeResolve.async([
+      const result = await safeResolveAsync([
         failingResolver,
         { VAR: string() }
       ], { strict: true });
@@ -370,7 +370,7 @@ describe('Sync Resolvers', () => {
       // Set up test env var
       process.env.STRING_VAR = 'test-string';
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         processEnv(),
         {
           STRING_VAR: string(),

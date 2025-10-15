@@ -3,7 +3,8 @@
  * Using the composition API for explicit provider mapping
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, string, url } from 'node-env-resolver';
+import {  resolveAsync } from 'node-env-resolver';
+import { processEnv, string, url } from 'node-env-resolver/resolvers';
 import { cached, TTL } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -29,7 +30,7 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
       LOG_LEVEL: 'info'
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         // Local config from .env or process.env
         NODE_ENV: ['development', 'production', 'test'] as const,
@@ -41,7 +42,7 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
         cached(
           mockAwsSecretsProvider(mockSecrets),
           {
-            ttl: TTL.minute5,
+            ttl: TTL.minutes5,
             staleWhileRevalidate: true,
             key: 'production-secrets'
           }
@@ -78,13 +79,17 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
       // API_KEY is missing (optional)
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
       }],
       [
-        cached(mockAwsSecretsProvider(mockSecrets), TTL.minute5),
+        cached(mockAwsSecretsProvider(mockSecrets), {
+          ttl: TTL.minutes5,
+          staleWhileRevalidate: true,
+          key: 'production-secrets'
+        }),
         {
           DATABASE_PASSWORD: string(),
           API_KEY: string({optional:true}), // Optional
@@ -110,11 +115,11 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
 
     // First call - should load from provider
     process.env.NODE_ENV = 'development';
-    const config1 = await resolve.async(
+    const config1 = await resolveAsync(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), {
-          ttl: TTL.minute5,
+          ttl: TTL.minutes5,
           staleWhileRevalidate: true,
           key: 'jwt-secrets'
         }),
@@ -129,11 +134,11 @@ describe('AWS Secrets - Simple Shorthand Syntax', () => {
     expect(config1.ENCRYPTION_KEY).toBe('encryption-key');
 
     // Second call - should use cache
-    const config2 = await resolve.async(
+    const config2 = await resolveAsync(
       [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
       [
         cached(mockAwsSecretsProvider(mockSecrets), {
-          ttl: TTL.minute5,
+          ttl: TTL.minutes5,
           staleWhileRevalidate: true,
           key: 'jwt-secrets'
         }),

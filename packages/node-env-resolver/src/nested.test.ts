@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, safeResolve, string, port, url, boolean } from './index';
+import { resolve, resolveAsync, safeResolve } from './index';
+import { string, port, url, boolean } from './resolvers';
 
 /**
  * Tests for nested delimiter functionality
@@ -127,11 +128,11 @@ describe('Nested Delimiter', () => {
     expect(database).not.toHaveProperty('PORT');
   });
 
-  it('should work with async resolve.async()', async () => {
+  it('should work with async resolveAsync()', async () => {
     process.env.APP__NAME = 'MyApp';
     process.env.APP__VERSION = '1.0.0';
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [
         {
           name: 'test-resolver',

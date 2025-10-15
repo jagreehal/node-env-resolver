@@ -7,7 +7,7 @@
 import { describe, it, expect, expectTypeOf } from 'vitest';
 import { env } from './builder';
 import type { Resolver } from './index';
-import { string, number, enums } from './index';
+import { string, number, enums } from './resolvers';
 // Mock custom resolver
 function createCustomResolver(values: Record<string, string>): Resolver {
   return {

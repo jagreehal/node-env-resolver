@@ -10,6 +10,31 @@
 
 import { resolve as nodeEnvResolve } from 'node-env-resolver';
 import type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema } from 'node-env-resolver';
+export {
+  string,
+  url,
+  port,
+  postgres,
+  email,
+  number,
+  boolean,
+  enums,
+  secret,
+  custom,
+  duration,
+  file,
+  json,
+  stringArray,
+  numberArray,
+  urlArray,
+  http,
+  https,
+  mysql,
+  mongodb,
+  redis,
+  date,
+  timestamp,
+} from 'node-env-resolver/resolvers';
 
 // Safe resolve result types (Zod-like)
 export interface SafeResolveResult<T> {
@@ -208,7 +233,10 @@ export function safeResolve<TServer extends SimpleEnvSchema, TClient extends Sim
 
 // Re-export useful types and utilities
 export type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
-export { string, url, port, postgres, email, number, boolean, enums, secret, custom, duration, file, json, stringArray, numberArray, urlArray, http, https, mysql, mongodb, redis, date, timestamp } from 'node-env-resolver';
+
+export {
+    dotenv, processEnv, packageJson, http as httpResolver, json as jsonResolver, secrets, yaml, toml
+} from 'node-env-resolver/resolvers';
 
 // Utility for runtime environment detection
 export const isServer = typeof (globalThis as GlobalWithWindow).window === 'undefined';

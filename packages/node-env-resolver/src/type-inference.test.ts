@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, stringArray, numberArray, string, duration, file, boolean } from './index';
+import { resolve, resolveAsync } from './index';
+import { stringArray, numberArray, string, duration, file, boolean } from './resolvers';
+import { processEnv } from './resolvers';
 
 describe('Type Inference for New Features', () => {
   it('should infer string array type correctly', () => {
@@ -41,7 +43,7 @@ describe('Type Inference for New Features', () => {
   it('should infer duration as number', async () => {
     process.env.TIMEOUT = '5s';
     
-    const config = await resolve.async([
+    const config = await resolveAsync([
       processEnv(),
       { TIMEOUT: duration() }
     ]);
@@ -87,7 +89,7 @@ describe('Type Inference for New Features', () => {
     process.env.TIMEOUT = '30s';
     process.env.DEBUG = 'true';
     
-    const config = await resolve.async([
+    const config = await resolveAsync([
       processEnv(),
       {
         TAGS: stringArray(),

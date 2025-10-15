@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolve, string, url } from './index';
+import { resolveAsync } from './index';
+import { string, url } from './resolvers';
 import type { Resolver } from './types';
 
 // Helper to create mock resolvers with load tracking
@@ -61,7 +62,7 @@ describe('Early termination optimization (priority: first)', () => {
       DATABASE_URL: 'should-not-be-used'
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
@@ -97,7 +98,7 @@ describe('Early termination optimization (priority: first)', () => {
       EXTRA_VAR: 'should-not-be-called'
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
@@ -128,7 +129,7 @@ describe('Early termination optimization (priority: first)', () => {
       OPTIONAL_VAR: 'value2'
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { 
         REQUIRED_VAR: string(),
         OPTIONAL_VAR: string({ optional: true })
@@ -159,7 +160,7 @@ describe('Early termination optimization (priority: first)', () => {
       VAR2: 'value2-from-second'
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { 
         VAR1: string(),
         VAR2: string({ default: 'default-value' })
@@ -197,7 +198,7 @@ describe('Early termination optimization (priority: first)', () => {
     }, 100); // Slow remote call
 
     const startTime = Date.now();
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [localResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       [awsSecretsResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       [parameterStoreResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
@@ -235,7 +236,7 @@ describe('Parallel resolver execution (priority: last)', () => {
     }, 50); // 50ms delay
 
     const startTime = Date.now();
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { VAR1: string() }],
       [resolver2, { VAR2: string() }],
       [resolver3, { VAR3: string() }],
@@ -274,7 +275,7 @@ describe('Parallel resolver execution (priority: last)', () => {
       VAR3: 'only-in-third'
     }, 10);
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { SHARED_VAR: string(), VAR1: string() }],
       [resolver2, { SHARED_VAR: string(), VAR2: string() }],
       [resolver3, { SHARED_VAR: string(), VAR3: string() }],
@@ -310,7 +311,7 @@ describe('Parallel resolver execution (priority: last)', () => {
     });
 
     // With strict: false, should continue despite failure
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { VAR1: string(), VAR3: string() }],
       [failingResolver, { VAR1: string(), VAR3: string() }],
       [resolver3, { VAR1: string(), VAR3: string() }],
@@ -341,7 +342,7 @@ describe('Parallel resolver execution (priority: last)', () => {
     }, 50);
 
     await expect(
-      resolve.async(
+      resolveAsync(
         [resolver1, { VAR1: string(), VAR3: string() }],
         [failingResolver, { VAR1: string(), VAR3: string() }],
         [resolver3, { VAR1: string(), VAR3: string() }],
@@ -368,7 +369,7 @@ describe('Parallel resolver execution (priority: last)', () => {
     }, 60);
 
     const startTime = Date.now();
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [awsSecrets, { DATABASE_URL: url() }],
       [awsParams, { API_KEY: string() }],
       [gcpSecrets, { JWT_SECRET: string() }],
@@ -400,7 +401,7 @@ describe('Performance optimizations - edge cases', () => {
       VAR2: 'value2'
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, {}], // Empty schema
       [resolver2, {}],
       { priority: 'first' }
@@ -421,7 +422,7 @@ describe('Performance optimizations - edge cases', () => {
     }, 30);
 
     const startTime = Date.now();
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver, { VAR: string() }],
       { priority: 'last' }
     );
@@ -442,7 +443,7 @@ describe('Performance optimizations - edge cases', () => {
       OPTIONAL: 'opt-value'
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, {
         REQUIRED: string(),
         OPTIONAL: string({ optional: true })

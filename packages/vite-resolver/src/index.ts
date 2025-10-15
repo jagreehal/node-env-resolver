@@ -199,7 +199,7 @@ export function safeResolve<TServer extends SimpleEnvSchema, TClient extends Sim
 
 // Re-export useful types and utilities
 export type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
-export { string, url, port, postgres, email, number, boolean, enums, secret, custom, duration, file, json, stringArray, numberArray, urlArray, http, https, mysql, mongodb, redis, date, timestamp } from 'node-env-resolver';
+export { string, url, port, postgres, email, number, boolean, enums, secret, custom, duration, file, json, stringArray, numberArray, urlArray, http, https, mysql, mongodb, redis, date, timestamp } from 'node-env-resolver/resolvers';
 
 // Utility for runtime environment detection
 export const isServer = typeof window === 'undefined';

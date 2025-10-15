@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, string, url, postgres, http } from 'node-env-resolver';
+import { resolve, resolveAsync } from 'node-env-resolver';
+import { string, url, postgres, number } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
 import { cliArgs } from 'node-env-resolver/cli';
 import { withComputed } from 'node-env-resolver/utils';
 
 describe('CLI and Computed Fields Examples', () => {
   it('CLI args with env prefix - typical CLI tool pattern', async () => {
     // Simulate: node app.js --port 8080 --database-url postgres://localhost --verbose
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         PORT: 3000,
         DATABASE_URL: postgres(),
@@ -185,7 +187,7 @@ describe('CLI and Computed Fields Examples', () => {
 
   it('Combined: CLI args + computed fields - CLI tool with smart config', async () => {
     // Simulate: node build.js --input ./src --output ./dist --minify --workers 4
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [cliArgs({
         argv: [
           '--input', './src',
@@ -197,7 +199,7 @@ describe('CLI and Computed Fields Examples', () => {
         INPUT: string(),
         OUTPUT: string(),
         MINIFY: false,
-        WORKERS: 'number'
+        WORKERS: number()
       }]
     );
 
@@ -239,7 +241,7 @@ describe('CLI and Computed Fields Examples', () => {
     process.env.SSL_ENABLED = 'false';
 
     // CLI args override env vars
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         HOST: string(),
         PORT: 3000,
@@ -260,7 +262,7 @@ describe('CLI and Computed Fields Examples', () => {
     const serverConfig = withComputed(config, {
       // Compute server URL
       url: (c) => {
-        const protocol = c.SSL_ENABLED ? 'https' : http();
+        const protocol = c.SSL_ENABLED ? 'https' : 'http';
         return `${protocol}://${c.HOST}:${c.PORT}`;
       },
       

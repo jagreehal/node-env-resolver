@@ -3,6 +3,7 @@
  */
 
 import type { Resolver } from './types';
+import { resolveAsync } from './index';
 // Enhanced caching wrapper with TTL support
 export interface CacheOptions {
   /** Time to live in milliseconds (default: 5 minutes) */
@@ -159,7 +160,7 @@ export function retry(resolver: Resolver, maxRetries = 3, delayMs = 1000): Resol
  * import { withPrefix } from 'node-env-resolver/utils';
  *
  * // Maps APP_PORT → PORT, APP_DATABASE_URL → DATABASE_URL
- * const config = await resolve.async(
+ * const config = await resolveAsync(
  *   [withPrefix(processEnv(), 'APP_'), { PORT: 3000, DATABASE_URL: postgres() }]
  * );
  * ```
@@ -275,7 +276,7 @@ export function withComputed<
  * import { withAliases } from 'node-env-resolver/utils';
  *
  * // Tries PORT, then HTTP_PORT, then SERVER_PORT (first found wins)
- * const config = await resolve.async(
+ * const config = await resolveAsync(
  *   [withAliases(processEnv(), {
  *     PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT'],
  *     DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL']
@@ -339,7 +340,7 @@ function applyAliases(
  * import { resolve, processEnv } from 'node-env-resolver';
  * import { withTransform } from 'node-env-resolver/utils';
  *
- * const config = await resolve.async(
+ * const config = await resolveAsync(
  *   [withTransform(processEnv(), {
  *     // Parse comma-separated values
  *     TAGS: (val) => val.split(',').map(s => s.trim()),
@@ -414,7 +415,7 @@ function applyTransforms(
  *
  * // Reads DATABASE_HOST, DATABASE_PORT from env
  * // But schema only needs HOST, PORT
- * const dbConfig = await resolve.async(
+ * const dbConfig = await resolveAsync(
  *   [withNamespace(processEnv(), 'DATABASE'), {
  *     HOST: string(),
  *     PORT: 'port'
@@ -497,8 +498,8 @@ export function withNamespace(
  * ```
  */
 export function watch<T>(
-  schema: Parameters<typeof import('./index').resolve.async>[0],
-  resolvers: Parameters<typeof import('./index').resolve.async>[1],
+  schema: Parameters<typeof import('./index').resolveAsync>[0],
+  resolvers: Parameters<typeof import('./index').resolveAsync>[1],
   options?: {
     /** Callback when config changes */
     onChange?: (config: T) => void;
@@ -520,8 +521,8 @@ export function watch<T>(
   // Initial load
   const loadConfig = async () => {
     try {
-      const { resolve } = await import('./index');
-      currentConfig = await resolve.async(schema, resolvers) as T;
+      await import('./index');
+      currentConfig = await resolveAsync(schema, resolvers) as T;
       return currentConfig;
     } catch (error) {
       console.error('[watch] Failed to load config:', error);

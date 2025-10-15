@@ -3,7 +3,9 @@
  * Combining shorthand and full object syntax for flexibility
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, string, url } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { string, url } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
 import { cached, awsCache } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -54,7 +56,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       SESSION_TIMEOUT: { type: 'number', default: 3600, min: 60, max: 86400 },
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockDotenvProvider(mockDotenv), schema],
       [cached(
         mockAwsSecretsProvider(mockSecrets),
@@ -96,7 +98,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       API_KEY: string({optional:true}),
     };
 
-    const devConfig = await resolve.async(
+    const devConfig = await resolveAsync(
       [processEnv(), devSchema],
       [mockAwsSecretsProvider(mockSecrets), devSchema]
     );
@@ -115,7 +117,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       API_KEY: string({ secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' }),
     };
 
-    const prodConfig = await resolve.async(
+    const prodConfig = await resolveAsync(
       [processEnv(), prodSchema],
       [mockAwsSecretsProvider(mockSecrets), prodSchema],
       {
@@ -154,7 +156,7 @@ describe('AWS Secrets - Mixed Syntax', () => {
       }),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockAwsSecretsProvider(mockSecrets), schema]
     );
 

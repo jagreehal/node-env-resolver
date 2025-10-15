@@ -2,7 +2,8 @@
  * Simple Demo Tests
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv, type Resolver, string, url, port, enums } from 'node-env-resolver';
+import { resolveAsync, type Resolver } from 'node-env-resolver';
+import { processEnv, string, number } from 'node-env-resolver/resolvers';
 
 function createDatabaseConfigResolver(values: Record<string, string>): Resolver {
   return {
@@ -26,14 +27,14 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
         DATABASE_HOST: string(),
-        DATABASE_PORT: 'number',
+        DATABASE_PORT: number(),
       }]
     );
 
@@ -71,14 +72,14 @@ describe('Simple Demo', () => {
         DATABASE_PORT: testCase.port,
       });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production', 'test'] as const,
         }],
         [dbConfig, {
           DATABASE_HOST: string(),
-          DATABASE_PORT: 'number',
+          DATABASE_PORT: number(),
         }]
       );
 
@@ -93,14 +94,14 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
         DATABASE_HOST: string(),
-        DATABASE_PORT: 'number',
+        DATABASE_PORT: number(),
       }]
     );
 
@@ -123,14 +124,14 @@ describe('Simple Demo', () => {
       // Set environment variable
       process.env.NODE_ENV = env;
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production', 'test'] as const,
         }],
         [dbConfig, {
           DATABASE_HOST: string(),
-          DATABASE_PORT: 'number',
+          DATABASE_PORT: number(),
         }]
       );
 
@@ -150,14 +151,14 @@ describe('Simple Demo', () => {
     // Set invalid environment variable
     process.env.NODE_ENV = 'invalid';
 
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
         DATABASE_HOST: string(),
-        DATABASE_PORT: 'number',
+        DATABASE_PORT: number(),
       }]
     )).rejects.toThrow(/must be one of: development, production, test/);
 
@@ -174,14 +175,14 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
         DATABASE_HOST: string(),
-        DATABASE_PORT: 'number',
+        DATABASE_PORT: number(),
       }]
     );
 
@@ -198,14 +199,14 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
         DATABASE_HOST: string(),
-        DATABASE_PORT: 'number',
+        DATABASE_PORT: number(),
       }]
     );
 
@@ -222,14 +223,14 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         PORT: 3000,
         NODE_ENV: ['development', 'production', 'test'] as const,
       }],
       [dbConfig, {
         DATABASE_HOST: string(),
-        DATABASE_PORT: 'number',
+        DATABASE_PORT: number(),
       }]
     );
 
@@ -251,7 +252,7 @@ describe('Simple Demo', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         SYNC_VAR: string()
       }],

@@ -3,7 +3,7 @@
  * Import from 'node-env-resolver/web' to use client-safe environment resolution
  */
 
-import { resolve } from './index';
+import { resolveAsync } from './index';
 import { processEnv, dotenv } from './resolvers';
 import type { Resolver, EnvDefinition, EnvSchema, PolicyOptions, SimpleEnvSchema, InferSimpleSchema } from './types';
 // Runtime detection helper
@@ -89,13 +89,13 @@ export async function resolveClientEnv<
     }
   }
 
-  // Use resolve.async() to handle multiple resolvers
+  // Use resolveAsync() to handle multiple resolvers
   const tuples = resolvers.map(resolver => [resolver, clientSchema as SimpleEnvSchema] as [Resolver, SimpleEnvSchema]);
   const result = tuples.length === 1 
-    ? await resolve.async(tuples[0]!, { strict })
+    ? await resolveAsync(tuples[0]!, { strict })
     : tuples.length === 2
-    ? await resolve.async(tuples[0]!, tuples[1]!, { strict })
-    : await resolve.async(tuples[0]!, tuples[1]!, tuples[2]!, { strict });
+    ? await resolveAsync(tuples[0]!, tuples[1]!, { strict })
+    : await resolveAsync(tuples[0]!, tuples[1]!, tuples[2]!, { strict });
 
   return result as InferClientSchema<TSchema, TPrefix>;
 }
@@ -142,21 +142,21 @@ export async function resolveEnvSplit<
     );
   }
 
-  // Create server environment (full access) using resolve.async()
+  // Create server environment (full access) using resolveAsync()
   const serverTuples = resolvers.map(resolver => [resolver, schema.server] as [Resolver, TServerSchema]);
   const server = serverTuples.length === 1 
-    ? await resolve.async(serverTuples[0]!, { policies, interpolate, strict })
+    ? await resolveAsync(serverTuples[0]!, { policies, interpolate, strict })
     : serverTuples.length === 2
-    ? await resolve.async(serverTuples[0]!, serverTuples[1]!, { policies, interpolate, strict })
-    : await resolve.async(serverTuples[0]!, serverTuples[1]!, serverTuples[2]!, { policies, interpolate, strict });
+    ? await resolveAsync(serverTuples[0]!, serverTuples[1]!, { policies, interpolate, strict })
+    : await resolveAsync(serverTuples[0]!, serverTuples[1]!, serverTuples[2]!, { policies, interpolate, strict });
 
   // Create client environment (filtered)
   const clientTuples = resolvers.map(resolver => [resolver, schema.client] as [Resolver, TClientSchema]);
   const client = clientTuples.length === 1 
-    ? await resolve.async(clientTuples[0]!, { strict })
+    ? await resolveAsync(clientTuples[0]!, { strict })
     : clientTuples.length === 2
-    ? await resolve.async(clientTuples[0]!, clientTuples[1]!, { strict })
-    : await resolve.async(clientTuples[0]!, clientTuples[1]!, clientTuples[2]!, { strict });
+    ? await resolveAsync(clientTuples[0]!, clientTuples[1]!, { strict })
+    : await resolveAsync(clientTuples[0]!, clientTuples[1]!, clientTuples[2]!, { strict });
 
   return { server, client } as {
     server: InferSimpleSchema<TServerSchema>;

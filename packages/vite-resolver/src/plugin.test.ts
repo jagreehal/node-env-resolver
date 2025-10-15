@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { nodeEnvResolverPlugin } from './plugin';
 import { existsSync, readFileSync, unlinkSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
-import { string, url, port } from 'node-env-resolver';
+import { string, url, port } from 'node-env-resolver/resolvers';
 
 describe('nodeEnvResolverPlugin - Type Generation', () => {
   const testTypeFile = './test-generated-types.d.ts';

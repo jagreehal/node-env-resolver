@@ -3,7 +3,8 @@
  * Using detailed schema definitions with AWS resolvers
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, string, url } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { string, url } from 'node-env-resolver/resolvers';
 import { cached, TTL } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -55,7 +56,7 @@ describe('AWS Secrets - Full Object Syntax', () => {
       JWT_SECRET: string({ secret: true }),
     } as const;
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockDotenvProvider(mockDotenv), schema],
       [cached(mockAwsSsmProvider(mockSsm), { ttl: TTL.minutes15, staleWhileRevalidate: true, key: 'ssm-config' }), schema],
       [cached(mockAwsSecretsProvider(mockSecrets), { ttl: TTL.minutes5, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-secrets' }), schema],
@@ -90,7 +91,7 @@ describe('AWS Secrets - Full Object Syntax', () => {
       API_KEY: string({ secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' }),
     } as const;
 
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [mockAwsSecretsProvider(mockSecrets), schema],
       {
         strict: true,
@@ -115,7 +116,7 @@ describe('AWS Secrets - Full Object Syntax', () => {
       STRIPE_SECRET_KEY: string({ secret: true, pattern: '^sk_(live|test)_[a-zA-Z0-9]{24,}$' }),
     } as const;
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [cached(mockAwsSecretsProvider(mockSecrets), {
         ttl: TTL.minutes5,
         maxAge: TTL.hour,

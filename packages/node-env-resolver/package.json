@@ -36,15 +36,15 @@
       "import": "./dist/resolvers.js",
       "require": "./dist/resolvers.cjs"
     },
-    "./utils": {
-      "types": "./dist/utils.d.ts",
-      "import": "./dist/utils.js",
-      "require": "./dist/utils.cjs"
-    },
     "./validators": {
       "types": "./dist/validators.d.ts",
       "import": "./dist/validators.js",
       "require": "./dist/validators.cjs"
+    },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.js",
+      "require": "./dist/utils.cjs"
     },
     "./cli": {
       "types": "./dist/cli.d.ts",

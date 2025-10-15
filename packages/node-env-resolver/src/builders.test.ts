@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, string, number, boolean, postgres, port, custom, enums, stringArray, numberArray, http, json } from './index';
+import { resolve, resolveAsync } from './index';
+import { httpValidator, jsonValidator } from './validators';
+import { string, number, boolean, postgres, port, custom, enums, stringArray, numberArray } from './resolvers';
 
 describe('Builder Functions', () => {
   it('should handle literal default values without ambiguity', async () => {
@@ -33,13 +35,13 @@ describe('Builder Functions', () => {
       }
     };
 
-    const config = await resolve.async([mockProvider, {
+    const config = await resolveAsync([mockProvider, {
       // These use builder functions for type validation
       LOG_LEVEL: string({ default: 'info' }),
       FORMAT: postgres(),
       DB_TYPE: string(),
-      PROTOCOL: http(),
-      JSON_TYPE: json(),
+      PROTOCOL: httpValidator(),
+      JSON_TYPE: jsonValidator(),
       NAME: string(),
       USERNAME: string({ min: 3, max: 20 }),
       DATABASE_URL: postgres(),
@@ -66,7 +68,7 @@ describe('Builder Functions', () => {
       },
     };
 
-    await expect(resolve.async([mockProvider, {
+    await expect(resolveAsync([mockProvider, {
       USERNAME: string({ min: 3, max: 20 }),
     }])).rejects.toThrow(/String too short/);
   });
@@ -81,7 +83,7 @@ describe('Builder Functions', () => {
       },
     };
 
-    await expect(resolve.async([mockProvider, {
+    await expect(resolveAsync([mockProvider, {
       PORT: port(),
     }])).rejects.toThrow(/Invalid port/);
   });
@@ -97,7 +99,7 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolve.async([mockProvider, {
+    const config = await resolveAsync([mockProvider, {
       API_KEY: string({ optional: true }),
       DEBUG: boolean({ default: false }),
       PORT: number({ default: 3000 }),
@@ -136,7 +138,7 @@ describe('Builder Functions', () => {
     });
 
 
-    const config = await resolve.async([mockProvider, {
+    const config = await resolveAsync([mockProvider, {
       CUSTOM_PORT: portValidator,
       CUSTOM_EMAIL: emailValidator,
     }]);
@@ -155,7 +157,7 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolve.async([mockProvider, {
+    const config = await resolveAsync([mockProvider, {
       NODE_ENV: enums(['development', 'production', 'test'] as const),
     }]);
 
@@ -172,7 +174,7 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolve.async([mockProvider, {
+    const config = await resolveAsync([mockProvider, {
       // Arrays still work for enums (backward compatible)
       NODE_ENV: enums(['development', 'production', 'test']),
     }]);
@@ -191,7 +193,7 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolve.async([mockProvider, {
+    const config = await resolveAsync([mockProvider, {
       TAGS: stringArray(),
       PORTS: numberArray(),
     }]);
@@ -225,14 +227,14 @@ describe('Builder Functions', () => {
     delete process.env.TEST_DEBUG;
   });
 
-  it('should export builders from main index for convenience', async () => {
-    // Import from main index should work
-    const indexModule = await import('./index');
-    expect(indexModule.string).toBeDefined();
-    expect(typeof indexModule.string).toBe('function');
-    expect(indexModule.number).toBeDefined();
-    expect(typeof indexModule.number).toBe('function');
-    expect(indexModule.postgres).toBeDefined();
-    expect(typeof indexModule.postgres).toBe('function');
+  it('should export validators from validators subpath', async () => {
+    // Import from validators subpath should work
+    const resolversModule = await import('./resolvers');
+    expect(resolversModule.string).toBeDefined();
+    expect(typeof resolversModule.string).toBe('function');
+    expect(resolversModule.number).toBeDefined();
+    expect(typeof resolversModule.number).toBe('function');
+    expect(resolversModule.postgres).toBeDefined();
+    expect(typeof resolversModule.postgres).toBe('function');
   });
 });

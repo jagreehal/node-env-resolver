@@ -178,7 +178,7 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
   // Import resolve dynamically to avoid circular dependencies with mocks
   const { resolve } = await import('node-env-resolver');
   
-  // TypeScript knows resolve.async exists from type imports
+  // TypeScript knows resolveAsync exists from type imports
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return await (resolve as any).async(
     [awsSsm(ssmOptions), schema],

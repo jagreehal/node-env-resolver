@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, string, url, email, postgres, mysql, mongodb, redis, http, https, number, boolean, enums, port, date, timestamp } from './index';
+import { resolve, resolveAsync } from './index';
+import { string, url, email, postgres, mysql, mongodb, redis, https, number, boolean, enums, port, date, timestamp } from './resolvers';
+import { httpValidator } from './validators';
 import { resolveZod } from './zod';
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
@@ -10,7 +12,7 @@ const mockProvider = (env: Record<string, string>) => ({
 
 describe('Simplified resolve() API', () => {
   it('handles shorthand syntax for types', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -36,7 +38,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('parses shorthand with defaults correctly', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -55,7 +57,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('handles secret and optional modifiers', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -76,7 +78,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('handles regex patterns in shorthand', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -93,7 +95,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('throws on invalid pattern match', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -125,7 +127,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('validates required variables', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -138,7 +140,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('handles enum validation', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -153,7 +155,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('throws on invalid enum value', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -166,7 +168,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('handles email type validation', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -185,7 +187,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('throws on invalid email', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -198,7 +200,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('handles email with default value', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -315,7 +317,7 @@ describe('resolve() - Synchronous environment resolver', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [customProvider, {
         CUSTOM_VALUE: string()
       }]
@@ -330,10 +332,10 @@ describe('resolve() - Synchronous environment resolver', () => {
       async load() {
         return { ASYNC_VALUE: 'async' };
       }
-      // No loadSync method - but that's fine for async resolve.async()
+      // No loadSync method - but that's fine for async resolveAsync()
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [asyncProvider, {
         ASYNC_VALUE: string()
       }],
@@ -353,7 +355,7 @@ describe('resolve() - Synchronous environment resolver', () => {
     };
 
     // This should not throw and should work with other resolvers
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [asyncProvider, {
         PORT: 3000  // Use default from process.env (which has loadSync)
       }],
@@ -378,21 +380,21 @@ describe('resolve() - Synchronous environment resolver', () => {
         // @ts-expect-error - Testing runtime behavior
         DATABASE_URL: zodLikeSchema
       });
-    }).toThrow(/resolve\(\) cannot be used with async validators/);
+    }).toThrow(/resolve\(\) cannot be used with async/);
 
     expect(() => {
       resolve({
         // @ts-expect-error - Testing runtime behavior
         DATABASE_URL: zodLikeSchema
       });
-    }).toThrow(/Use resolve\.async\(\) instead/);
+    }).toThrow(/resolve\(\) cannot be used with async/);
   });
 });
 
 describe('Connection String Types', () => {
   describe('postgres / postgresql', () => {
     it('validates postgres:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgres://user:pass@localhost:5432/mydb' }), {
           DB_URL: postgres()
         }]
@@ -402,7 +404,7 @@ describe('Connection String Types', () => {
     });
 
     it('validates postgresql:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgresql://user:pass@localhost:5432/mydb' }), {
           DB_URL: postgres()
         }]
@@ -412,7 +414,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts minimal postgres URL', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgres://localhost' }), {
           DB_URL: postgres()
         }]
@@ -422,7 +424,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts full postgres URL with all parts', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgres://user:password@host.example.com:5432/database?sslmode=require' }), {
           DB_URL: postgres()
         }]
@@ -432,7 +434,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-postgres protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'http://localhost' }), {
           DB_URL: postgres()
         }]
@@ -440,7 +442,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects invalid URLs', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'mysql://localhost' }), {
           DB_URL: postgres()
         }]
@@ -450,7 +452,7 @@ describe('Connection String Types', () => {
 
   describe('mysql', () => {
     it('validates mysql:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mysql://user:pass@localhost:3306/mydb' }), {
           DB_URL: mysql()
         }]
@@ -460,7 +462,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts minimal mysql URL', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mysql://localhost' }), {
           DB_URL: mysql()
         }]
@@ -470,7 +472,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts mysql URL with options', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mysql://user:pass@host:3306/db?charset=utf8mb4' }), {
           DB_URL: mysql()
         }]
@@ -480,7 +482,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-mysql protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: '//localhost' }), {
           DB_URL: mysql()
         }]
@@ -490,7 +492,7 @@ describe('Connection String Types', () => {
 
   describe('mongodb', () => {
     it('validates mongodb:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb://user:pass@localhost:27017/mydb' }), {
           DB_URL: mongodb()
         }]
@@ -500,7 +502,7 @@ describe('Connection String Types', () => {
     });
 
     it('validates mongodb+srv:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb+srv://user:pass@cluster.mongodb.net/mydb' }), {
           DB_URL: mongodb()
         }]
@@ -510,7 +512,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts minimal mongodb URL', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb://localhost' }), {
           DB_URL: mongodb()
         }]
@@ -520,7 +522,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts mongodb URL with replica set', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb://host1:27017,host2:27017,host3:27017/mydb?replicaSet=rs0' }), {
           DB_URL: mongodb()
         }]
@@ -530,7 +532,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-mongodb protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'http://localhost' }), {
           DB_URL: mongodb()
         }]
@@ -540,7 +542,7 @@ describe('Connection String Types', () => {
 
   describe('redis', () => {
     it('validates redis:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'redis://localhost:6379' }), {
           CACHE_URL: redis()
         }]
@@ -550,7 +552,7 @@ describe('Connection String Types', () => {
     });
 
     it('validates rediss:// protocol (TLS)', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'rediss://user:pass@localhost:6380' }), {
           CACHE_URL: redis()
         }]
@@ -560,7 +562,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts redis URL with database number', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'redis://localhost:6379/0' }), {
           CACHE_URL: redis()
         }]
@@ -570,7 +572,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts redis URL with auth', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'redis://:password@localhost:6379' }), {
           CACHE_URL: redis()
         }]
@@ -580,7 +582,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-redis protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ CACHE_URL: 'http://localhost' }), {
           CACHE_URL: redis()
         }]
@@ -590,9 +592,9 @@ describe('Connection String Types', () => {
 
   describe('http', () => {
     it('validates http:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'http://api.example.com' }), {
-          API_URL: http()
+          API_URL: httpValidator()
         }]
       );
 
@@ -600,9 +602,9 @@ describe('Connection String Types', () => {
     });
 
     it('validates https:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://api.example.com' }), {
-          API_URL: http()
+          API_URL: httpValidator()
         }]
       );
 
@@ -610,9 +612,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts HTTP URL with path and query', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://api.example.com/v1/users?limit=10' }), {
-          API_URL: http()
+          API_URL: httpValidator()
         }]
       );
 
@@ -620,9 +622,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts HTTP URL with port', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'http://localhost:8080/api' }), {
-          API_URL: http()
+          API_URL: httpValidator()
         }]
       );
 
@@ -630,9 +632,9 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-http protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ API_URL: 'ftp://example.com' }), {
-          API_URL: http()
+          API_URL: httpValidator()
         }]
       )).rejects.toThrow(/Invalid HTTP URL/);
     });
@@ -640,7 +642,7 @@ describe('Connection String Types', () => {
 
   describe('https (strict)', () => {
     it('validates https:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://api.example.com' }), {
           API_URL: https()
         }]
@@ -650,7 +652,7 @@ describe('Connection String Types', () => {
     });
 
     it('accepts HTTPS URL with all parts', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://user:pass@api.example.com:443/v1?key=value#section' }), {
           API_URL: https()
         }]
@@ -660,7 +662,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects http:// protocol (not secure)', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ API_URL: 'http://api.example.com' }), {
           API_URL: https()
         }]
@@ -668,7 +670,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects other protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ API_URL: 'ftp://example.com' }), {
           API_URL: https()
         }]
@@ -678,7 +680,7 @@ describe('Connection String Types', () => {
 
   describe('type inference', () => {
     it('infers string type for all connection string types', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           POSTGRES: 'postgres://localhost',
           MYSQL: 'mysql://localhost',
@@ -691,7 +693,7 @@ describe('Connection String Types', () => {
           MYSQL: mysql(),
           MONGODB: mongodb(),
           REDIS: redis(),
-          HTTP: http(),
+          HTTP: httpValidator(),
           HTTPS: https()
         }]
       );
@@ -716,7 +718,7 @@ describe('Connection String Types', () => {
 
   describe('sync version', () => {
     it('validates connection strings synchronously', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           DB_URL: 'postgres://localhost:5432/db',
           CACHE_URL: 'redis://localhost:6379',
@@ -734,7 +736,7 @@ describe('Connection String Types', () => {
     });
 
     it('rejects invalid connection strings synchronously', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'http://localhost' }), {
           DB_URL: postgres()
         }]
@@ -744,7 +746,7 @@ describe('Connection String Types', () => {
 
   describe('edge cases', () => {
     it('handles optional connection strings', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({}), {
           DB_URL: postgres({ optional: true }),
           CACHE_URL: redis({ optional: true })
@@ -756,7 +758,7 @@ describe('Connection String Types', () => {
     });
 
     it('handles connection strings with defaults', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({}), {
           DB_URL: postgres({ default: 'postgres://localhost:5432/defaultdb' })
         }]
@@ -766,7 +768,7 @@ describe('Connection String Types', () => {
     });
 
     it('validates malformed URLs', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'not-a-url' }), {
           DB_URL: postgres()
         }]
@@ -774,7 +776,7 @@ describe('Connection String Types', () => {
     });
 
     it('handles empty protocol part', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'not-a-url' }), {
           DB_URL: postgres()
         }]
@@ -785,7 +787,7 @@ describe('Connection String Types', () => {
   describe('Date and Timestamp Types', () => {
     describe('date', () => {
       it('validates ISO 8601 date (YYYY-MM-DD)', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ EXPIRY_DATE: '2025-12-31' }), {
             EXPIRY_DATE: date()
           }]
@@ -794,7 +796,7 @@ describe('Connection String Types', () => {
       });
 
       it('validates ISO 8601 datetime with time', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ CREATED_AT: '2025-10-02T14:30:00Z' }), {
             CREATED_AT: date()
           }]
@@ -803,7 +805,7 @@ describe('Connection String Types', () => {
       });
 
       it('validates ISO 8601 datetime with milliseconds', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ UPDATED_AT: '2025-10-02T14:30:00.123Z' }), {
             UPDATED_AT: date()
           }]
@@ -812,7 +814,7 @@ describe('Connection String Types', () => {
       });
 
       it('supports required date with !', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({}), {
             REQUIRED_DATE: date()
           }]
@@ -820,7 +822,7 @@ describe('Connection String Types', () => {
       });
 
       it('supports optional date with ?', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
             OPTIONAL_DATE: 'date?'
           }]
@@ -829,7 +831,7 @@ describe('Connection String Types', () => {
       });
 
       it('supports default date', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
             TRIAL_END: 'date:2025-12-31'
           }]
@@ -838,7 +840,7 @@ describe('Connection String Types', () => {
       });
 
       it('throws on invalid date format', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_DATE: '12/31/2025' }), {
             BAD_DATE: date()
           }]
@@ -846,7 +848,7 @@ describe('Connection String Types', () => {
       });
 
       it('throws on invalid date value', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_DATE: '2025-13-32' }), {
             BAD_DATE: date()
           }]
@@ -854,7 +856,7 @@ describe('Connection String Types', () => {
       });
 
       it('throws on non-date string', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_DATE: 'not-a-date' }), {
             BAD_DATE: date()
           }]
@@ -864,7 +866,7 @@ describe('Connection String Types', () => {
 
     describe('timestamp', () => {
       it('validates Unix timestamp', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ SESSION_EXPIRES: '1735689600' }), {
             SESSION_EXPIRES: timestamp()
           }]
@@ -873,7 +875,7 @@ describe('Connection String Types', () => {
       });
 
       it('validates timestamp 0 (epoch)', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ EPOCH: '0' }), {
             EPOCH: timestamp()
           }]
@@ -882,7 +884,7 @@ describe('Connection String Types', () => {
       });
 
       it('validates large timestamp', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ FAR_FUTURE: '253402300799' }), {
             FAR_FUTURE: timestamp()
           }]
@@ -891,7 +893,7 @@ describe('Connection String Types', () => {
       });
 
       it('supports required timestamp with !', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({}), {
             REQUIRED_TS: timestamp()
           }]
@@ -899,7 +901,7 @@ describe('Connection String Types', () => {
       });
 
       it('supports optional timestamp with ?', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
             OPTIONAL_TS: 'timestamp?'
           }]
@@ -908,7 +910,7 @@ describe('Connection String Types', () => {
       });
 
       it('supports default timestamp', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
             TIMEOUT: timestamp({ default: 1735689600 })
           }]
@@ -917,7 +919,7 @@ describe('Connection String Types', () => {
       });
 
       it('throws on negative timestamp', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: '-1' }), {
             BAD_TS: timestamp()
           }]
@@ -925,7 +927,7 @@ describe('Connection String Types', () => {
       });
 
       it('throws on timestamp too large', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: '999999999999' }), {
             BAD_TS: timestamp()
           }]
@@ -933,7 +935,7 @@ describe('Connection String Types', () => {
       });
 
       it('throws on non-numeric timestamp', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: 'not-a-number' }), {
             BAD_TS: timestamp()
           }]
@@ -941,7 +943,7 @@ describe('Connection String Types', () => {
       });
 
       it('throws on decimal timestamp', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: '1735689600.5' }), {
             BAD_TS: timestamp()
           }]
@@ -950,11 +952,11 @@ describe('Connection String Types', () => {
     });
   });
 
-  describe('resolve.async() tuple API', () => {
+  describe('resolveAsync() tuple API', () => {
     it('resolves with single provider tuple', async () => {
       const provider1 = mockProvider({ FOO: 'bar', PORT: '3000' });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [provider1, { FOO: string(), PORT: number() }]
       );
 
@@ -966,7 +968,7 @@ describe('Connection String Types', () => {
       const provider1 = mockProvider({ FOO: 'first', BAR: '100' });
       const provider2 = mockProvider({ FOO: 'second', QUX: 'value' });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [provider1, { FOO: string(), BAR: number() }],
         [provider2, { FOO: string(), QUX: string() }]
       );
@@ -979,7 +981,7 @@ describe('Connection String Types', () => {
     it('supports options as last argument', async () => {
       const provider1 = mockProvider({ REQUIRED: 'value' });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [provider1, { REQUIRED: string(), OPTIONAL: string({optional:true}) }],
         { strict: true }
       );
@@ -989,11 +991,11 @@ describe('Connection String Types', () => {
     });
   });
 
-  describe('resolve.async() tuple API (sync)', () => {
+  describe('resolveAsync() tuple API (sync)', () => {
     it('resolves synchronously with tuples', async () => {
       const provider1 = mockProvider({ FOO: 'bar' });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [provider1, { FOO: string() }]
       );
 
@@ -1004,7 +1006,7 @@ describe('Connection String Types', () => {
       const provider1 = mockProvider({ FOO: 'first' });
       const provider2 = mockProvider({ FOO: 'second', BAR: '42' });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [provider1, { FOO: string() }],
         [provider2, { FOO: string(), BAR: number() }]
       );
@@ -1033,7 +1035,7 @@ describe('Connection String Types', () => {
         return value.toUpperCase();
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           CUSTOM_PORT: '8080',
           CUSTOM_NAME: 'hello',
@@ -1062,7 +1064,7 @@ describe('Connection String Types', () => {
         };
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           USER_DATA: '123:john'
         }), {
@@ -1087,7 +1089,7 @@ describe('Connection String Types', () => {
         return parsed;
       };
 
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({
           SCORE: '150'  // Invalid: too high
         }), {
@@ -1095,7 +1097,7 @@ describe('Connection String Types', () => {
         }]
       )).rejects.toThrow('Number must be between 0 and 100');
 
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({
           SCORE: 'invalid'  // Invalid: not a number
         }), {
@@ -1109,7 +1111,7 @@ describe('Connection String Types', () => {
         return value.toLowerCase() === 'true';
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           ENABLED: 'true'
         }), {
@@ -1125,7 +1127,7 @@ describe('Connection String Types', () => {
         return value.split(',').map(s => s.trim());
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ TAGS: 'react,typescript,node' }), {
           TAGS: customValidator
         }]
@@ -1150,7 +1152,7 @@ describe('Connection String Types', () => {
         }
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           APP_CONFIG: '{"theme": "dark", "size": "16"}'
         }), {
@@ -1167,7 +1169,7 @@ describe('Connection String Types', () => {
   describe('validateDefaults option', () => {
     it('should validate default values when validateDefaults is true', async () => {
       // Test that invalid port values are rejected when provided directly
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ PORT: '99999' }), {
           PORT: port()  // No default, but invalid value provided
         }]
@@ -1176,7 +1178,7 @@ describe('Connection String Types', () => {
 
     it('should not validate defaults when validateDefaults is false (default)', async () => {
       // Test that valid defaults work correctly
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({}), {
           PORT: port({ default: 8080 })  // Valid port default
         }]
@@ -1187,7 +1189,7 @@ describe('Connection String Types', () => {
 
     it('should validate string defaults with min/max', async () => {
       // String too short
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ NAME: 'x' }), {
           NAME: string({ min: 3 })
         }]
@@ -1196,7 +1198,7 @@ describe('Connection String Types', () => {
 
     it('should validate number defaults with min/max', async () => {
       // Number too large
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ SCORE: '150' }), {
           SCORE: number({ max: 100 })
         }]
@@ -1205,7 +1207,7 @@ describe('Connection String Types', () => {
 
     it('should validate enum defaults', async () => {
       // Invalid enum value
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ NODE_ENV: 'staging' }), {
           NODE_ENV: enums(['dev', 'prod'])
         }]
@@ -1214,7 +1216,7 @@ describe('Connection String Types', () => {
 
     it('should validate pattern defaults', async () => {
       // Invalid pattern
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ CODE: 'AB' }), {
           CODE: string({ pattern: '^[A-Z]{3}$' })
         }]
@@ -1223,7 +1225,7 @@ describe('Connection String Types', () => {
 
     it('should validate advanced type defaults (email)', async () => {
       // Invalid email
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ ADMIN_EMAIL: 'not-an-email' }), {
           ADMIN_EMAIL: email()
         }]
@@ -1232,7 +1234,7 @@ describe('Connection String Types', () => {
 
     it('should validate advanced type defaults (postgres URL)', async () => {
       // Invalid postgres URL
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DATABASE_URL: 'http://localhost' }), {
           DATABASE_URL: postgres()
         }]
@@ -1240,7 +1242,7 @@ describe('Connection String Types', () => {
     });
 
     it('should allow valid defaults when validateDefaults is true', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({}), {
           PORT: port({ default: 8080 }),                    // Valid port
           EMAIL: email({ default: 'admin@example.com' }),      // Valid email
@@ -1258,7 +1260,7 @@ describe('Connection String Types', () => {
 
     it('should work with sync resolution', async () => {
       // Invalid timestamp value
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ EXPIRY: '999999999999' }), {
           EXPIRY: timestamp()
         }]
@@ -1266,7 +1268,7 @@ describe('Connection String Types', () => {
     });
 
     it('should validate boolean defaults', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DEBUG: 'true' }), {
           DEBUG: boolean()
         }]
@@ -1277,7 +1279,7 @@ describe('Connection String Types', () => {
 
     it('should catch configuration errors at startup', async () => {
       // This is the main use case - catching bad config early
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ 
           PORT: '0',  // Port 0 is invalid
           HOST: '',  // Empty string with min length

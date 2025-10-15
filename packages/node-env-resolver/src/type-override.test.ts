@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, string, number, enums, url, postgres } from './index';
+import { resolveAsync } from './index';
+import { string, number, enums, url, postgres } from './resolvers';
 import type { InferSimpleSchema } from './types';
 
 describe('Type override behavior with multiple resolvers', () => {
@@ -18,7 +19,7 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { PORT: string() }],  // First schema: string
       [resolver2, { PORT: 3000 }]        // Last schema: number (wins)
     );
@@ -43,7 +44,7 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { API_KEY: string() }],   // Required
       [resolver2, { API_KEY: string({optional:true}) }]   // Optional (last schema wins)
     );
@@ -69,7 +70,7 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { ENDPOINT: string() }],
       [resolver2, { ENDPOINT: url() }]  // Last schema validates as URL
     );
@@ -95,7 +96,7 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { ENV: enums(['development', 'staging']) }],
       [resolver2, { ENV: enums(['production', 'test']) }]  // Last schema
     );
@@ -122,7 +123,7 @@ describe('Type override behavior with multiple resolvers', () => {
 
     // Last schema expects number, but value is string - should fail
     await expect(
-      resolve.async(
+      resolveAsync(
         [resolver1, { VALUE: string() }],
         [resolver2, { VALUE: number() }]  // Stricter
       )
@@ -144,7 +145,7 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [resolver1, { PORT: 8080 }],    // Default 8080
       [resolver2, { PORT: 3000 }]     // Default 3000 (last schema wins)
     );
@@ -174,7 +175,7 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [local, {
         PORT: string({optional:true}),          // Schema type: string | undefined (optional)
         API_KEY: string()
