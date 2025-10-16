@@ -56,18 +56,20 @@ describe('AWS Secrets - Full Object Syntax', () => {
       JWT_SECRET: string({ secret: true }),
     } as const;
 
-    const config = await resolveAsync(
-      [mockDotenvProvider(mockDotenv), schema],
-      [cached(mockAwsSsmProvider(mockSsm), { ttl: TTL.minutes15, staleWhileRevalidate: true, key: 'ssm-config' }), schema],
-      [cached(mockAwsSecretsProvider(mockSecrets), { ttl: TTL.minutes5, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-secrets' }), schema],
-      {
+    const config = await resolveAsync({
+      resolvers: [
+        [mockDotenvProvider(mockDotenv), schema],
+        [cached(mockAwsSsmProvider(mockSsm), { ttl: TTL.minutes15, staleWhileRevalidate: true, key: 'ssm-config' }), schema],
+        [cached(mockAwsSecretsProvider(mockSecrets), { ttl: TTL.minutes5, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-secrets' }), schema]
+      ],
+      options: {
         interpolate: true,
         strict: true,
         policies: {
           allowDotenvInProduction: false,
         },
       }
-    );
+    });
 
     expect(config.NODE_ENV).toBe('production');
     expect(config.PORT).toBe(8080);
@@ -91,12 +93,14 @@ describe('AWS Secrets - Full Object Syntax', () => {
       API_KEY: string({ secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' }),
     } as const;
 
-    await expect(resolveAsync(
-      [mockAwsSecretsProvider(mockSecrets), schema],
-      {
+    await expect(resolveAsync({
+      resolvers: [
+        [mockAwsSecretsProvider(mockSecrets), schema]
+      ],
+      options: {
         strict: true,
       }
-    )).rejects.toThrow();
+    })).rejects.toThrow();
   });
 
   it('should demonstrate production-ready configuration', async () => {
@@ -119,21 +123,23 @@ describe('AWS Secrets - Full Object Syntax', () => {
       STRIPE_SECRET_KEY: string({ secret: true, pattern: '^sk_(live|test)_[a-zA-Z0-9]{24,}$' }),
     } as const;
 
-    const config = await resolveAsync(
-      [processEnv(), schema],
-      [cached(mockAwsSecretsProvider(mockSecrets), {
-        ttl: TTL.minutes5,
-        maxAge: TTL.hour,
-        staleWhileRevalidate: true,
-        key: 'production-secrets'
-      }), schema],
-      {
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), schema],
+        [cached(mockAwsSecretsProvider(mockSecrets), {
+          ttl: TTL.minutes5,
+          maxAge: TTL.hour,
+          staleWhileRevalidate: true,
+          key: 'production-secrets'
+        }), schema]
+      ],
+      options: {
         strict: true,
         policies: {
           allowDotenvInProduction: false,
         },
       }
-    );
+    });
 
     expect(config.DATABASE_PASSWORD).toBe('production-db-password-123');
     expect(config.JWT_SECRET).toBe('jwt-secret-for-production-app-very-long-key');

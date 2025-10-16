@@ -21,22 +21,24 @@ describe('Simple Demo', () => {
   it('should resolve configuration with custom provider', async () => {
     // Set NODE_ENV explicitly for this test
     process.env.NODE_ENV = 'development';
-    
+
     const dbConfig = createDatabaseConfigResolver({
       DATABASE_HOST: 'prod-db.example.com',
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolveAsync(
-      [processEnv(), {
-        PORT: 3000,
-        NODE_ENV: ['development', 'production', 'test'] as const,
-      }],
-      [dbConfig, {
-        DATABASE_HOST: string(),
-        DATABASE_PORT: number(),
-      }]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          PORT: 3000,
+          NODE_ENV: ['development', 'production', 'test'] as const,
+        }],
+        [dbConfig, {
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+        }]
+      ]
+    });
 
     expect(config.PORT).toBe(3000);
     expect(config.NODE_ENV).toBe('development'); // Default from enum
@@ -72,16 +74,18 @@ describe('Simple Demo', () => {
         DATABASE_PORT: testCase.port,
       });
 
-      const config = await resolveAsync(
-        [processEnv(), {
-          PORT: 3000,
-          NODE_ENV: ['development', 'production', 'test'] as const,
-        }],
-        [dbConfig, {
-          DATABASE_HOST: string(),
-          DATABASE_PORT: number(),
-        }]
-      );
+      const config = await resolveAsync({
+        resolvers: [
+          [processEnv(), {
+            PORT: 3000,
+            NODE_ENV: ['development', 'production', 'test'] as const,
+          }],
+          [dbConfig, {
+            DATABASE_HOST: string(),
+            DATABASE_PORT: number(),
+          }]
+        ]
+      });
 
       expect(config.DATABASE_HOST).toBe(testCase.expectedHost);
       expect(config.DATABASE_PORT).toBe(testCase.expectedPort);
@@ -94,16 +98,18 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolveAsync(
-      [processEnv(), {
-        PORT: 3000,
-        NODE_ENV: ['development', 'production', 'test'] as const,
-      }],
-      [dbConfig, {
-        DATABASE_HOST: string(),
-        DATABASE_PORT: number(),
-      }]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          PORT: 3000,
+          NODE_ENV: ['development', 'production', 'test'] as const,
+        }],
+        [dbConfig, {
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+        }]
+      ]
+    });
 
     // TypeScript should know the correct types
     expect(typeof config.PORT).toBe('number');
@@ -124,16 +130,18 @@ describe('Simple Demo', () => {
       // Set environment variable
       process.env.NODE_ENV = env;
 
-      const config = await resolveAsync(
-        [processEnv(), {
-          PORT: 3000,
-          NODE_ENV: ['development', 'production', 'test'] as const,
-        }],
-        [dbConfig, {
-          DATABASE_HOST: string(),
-          DATABASE_PORT: number(),
-        }]
-      );
+      const config = await resolveAsync({
+        resolvers: [
+          [processEnv(), {
+            PORT: 3000,
+            NODE_ENV: ['development', 'production', 'test'] as const,
+          }],
+          [dbConfig, {
+            DATABASE_HOST: string(),
+            DATABASE_PORT: number(),
+          }]
+        ]
+      });
 
       expect(config.NODE_ENV).toBe(env);
     }
@@ -151,16 +159,18 @@ describe('Simple Demo', () => {
     // Set invalid environment variable
     process.env.NODE_ENV = 'invalid';
 
-    await expect(resolveAsync(
-      [processEnv(), {
-        PORT: 3000,
-        NODE_ENV: ['development', 'production', 'test'] as const,
-      }],
-      [dbConfig, {
-        DATABASE_HOST: string(),
-        DATABASE_PORT: number(),
-      }]
-    )).rejects.toThrow(/must be one of: development, production, test/);
+    await expect(resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          PORT: 3000,
+          NODE_ENV: ['development', 'production', 'test'] as const,
+        }],
+        [dbConfig, {
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+        }]
+      ]
+    })).rejects.toThrow(/must be one of: development, production, test/);
 
     // Cleanup
     delete process.env.NODE_ENV;
@@ -175,16 +185,18 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolveAsync(
-      [processEnv(), {
-        PORT: 3000,
-        NODE_ENV: ['development', 'production', 'test'] as const,
-      }],
-      [dbConfig, {
-        DATABASE_HOST: string(),
-        DATABASE_PORT: number(),
-      }]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          PORT: 3000,
+          NODE_ENV: ['development', 'production', 'test'] as const,
+        }],
+        [dbConfig, {
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+        }]
+      ]
+    });
 
     expect(config.PORT).toBe(3000);
     expect(config.DATABASE_PORT).toBe(5432);
@@ -193,22 +205,24 @@ describe('Simple Demo', () => {
   it('should handle string validation', async () => {
     // Set NODE_ENV explicitly for this test
     process.env.NODE_ENV = 'development';
-    
+
     const dbConfig = createDatabaseConfigResolver({
       DATABASE_HOST: 'prod-db.example.com',
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolveAsync(
-      [processEnv(), {
-        PORT: 3000,
-        NODE_ENV: ['development', 'production', 'test'] as const,
-      }],
-      [dbConfig, {
-        DATABASE_HOST: string(),
-        DATABASE_PORT: number(),
-      }]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          PORT: 3000,
+          NODE_ENV: ['development', 'production', 'test'] as const,
+        }],
+        [dbConfig, {
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+        }]
+      ]
+    });
 
     expect(config.DATABASE_HOST).toBe('prod-db.example.com');
     expect(typeof config.DATABASE_HOST).toBe('string');
@@ -223,16 +237,18 @@ describe('Simple Demo', () => {
       DATABASE_PORT: '5432',
     });
 
-    const config = await resolveAsync(
-      [processEnv(), {
-        PORT: 3000,
-        NODE_ENV: ['development', 'production', 'test'] as const,
-      }],
-      [dbConfig, {
-        DATABASE_HOST: string(),
-        DATABASE_PORT: number(),
-      }]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          PORT: 3000,
+          NODE_ENV: ['development', 'production', 'test'] as const,
+        }],
+        [dbConfig, {
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+        }]
+      ]
+    });
 
     // Should have values from both resolvers
     expect(config.PORT).toBe(3000); // From processEnv
@@ -252,14 +268,16 @@ describe('Simple Demo', () => {
       }
     };
 
-    const config = await resolveAsync(
-      [processEnv(), {
-        SYNC_VAR: string()
-      }],
-      [syncProvider, {
-        SYNC_VAR: string()
-      }]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          SYNC_VAR: string()
+        }],
+        [syncProvider, {
+          SYNC_VAR: string()
+        }]
+      ]
+    });
 
     expect(config.SYNC_VAR).toBe('async-value');
   });

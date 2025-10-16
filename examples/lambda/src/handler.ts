@@ -3,37 +3,40 @@
  * Optimized for cold start performance with tree-shaking
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { resolveAsync, processEnv } from 'node-env-resolver';
-import { url, string } from 'node-env-resolver/resolvers';
+import { resolveAsync } from 'node-env-resolver';
+import {  } from 'node-env-resolver/resolvers';
+import { url, string, processEnv } from 'node-env-resolver/resolvers';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 // Define environment once at module level for reuse across invocations
-const envPromise = resolveAsync(
-  [processEnv(), {
-    // Runtime environment
-    NODE_ENV: ['development', 'production'] as const,
+const envPromise = resolveAsync({
+  resolvers: [
+    [processEnv(), {
+      // Runtime environment
+      NODE_ENV: ['development', 'production'] as const,
 
-    // API configuration
-    API_TIMEOUT: 30000,                // Number with default
+      // API configuration
+      API_TIMEOUT: 30000,                // Number with default
 
-    // Feature flags
-    ENABLE_ANALYTICS: false,           // Boolean with default
-  }],
-  [awsSecrets({
-    secretId: `myapp/${process.env.NODE_ENV || 'production'}/secrets`,
-    region: process.env.AWS_REGION || 'us-east-1',
-  }), {
-    // Database connection
-    DATABASE_URL: url(),              // Required secret URL
+      // Feature flags
+      ENABLE_ANALYTICS: false,           // Boolean with default
+    }],
+    [awsSecrets({
+      secretId: `myapp/${process.env.NODE_ENV || 'production'}/secrets`,
+      region: process.env.AWS_REGION || 'us-east-1',
+    }), {
+      // Database connection
+      DATABASE_URL: url(),              // Required secret URL
 
-    // External service keys (from AWS Secrets)
-    STRIPE_SECRET_KEY: string(),  // Required secret
+      // External service keys (from AWS Secrets)
+      STRIPE_SECRET_KEY: string(),  // Required secret
 
-    // Optional services
-    REDIS_URL: url({optional: true}),  // Optional URL
-  }],
-  {} // Empty options object
-);
+      // Optional services
+      REDIS_URL: url({optional: true}),  // Optional URL
+    }]
+  ],
+  options: {} // Empty options object
+});
 
 export const handler = async (
   _event: APIGatewayProxyEvent

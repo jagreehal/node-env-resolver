@@ -4,8 +4,9 @@
  */
 
 import {
-  processEnv, type Resolver, type PolicyOptions
+  type Resolver, type PolicyOptions
 } from './index';
+import { processEnv } from './resolvers';
 import type { SafeResolveResult, ValidationIssue } from './validation-types';
 async function resolveFromResolvers(resolvers: Resolver[], interpolate: boolean, strict: boolean) {
   let env: Record<string, string> = {};

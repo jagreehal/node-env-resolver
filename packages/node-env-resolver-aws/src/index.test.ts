@@ -161,16 +161,22 @@ describe('node-env-resolver/aws', () => {
 
       expect(result).toEqual(expectedConfig);
 
-      // Verify the call structure
+      // Verify the call structure - new config object format
       expect(mockResolveWith).toHaveBeenCalledTimes(1);
       const callArgs = mockResolveWith.mock.calls[0];
-      expect(callArgs[0][0]).toMatchObject({
-        name: 'aws-ssm(/myapp/config)',
-      });
-      expect(callArgs[0][0].load).toBeTypeOf('function');
-      expect(callArgs[0][1]).toMatchObject({ 
-        API_ENDPOINT: expect.any(Function), 
-        TIMEOUT: 30 
+      expect(callArgs[0]).toMatchObject({
+        resolvers: [
+          [
+            expect.objectContaining({
+              name: 'aws-ssm(/myapp/config)',
+              load: expect.any(Function)
+            }),
+            {
+              API_ENDPOINT: expect.any(Function),
+              TIMEOUT: 30
+            }
+          ]
+        ]
       });
     });
 
@@ -186,17 +192,23 @@ describe('node-env-resolver/aws', () => {
         strict: false
       });
 
-      // Verify the call structure
+      // Verify the call structure - new config object format
       expect(mockResolveWith).toHaveBeenCalledTimes(1);
       const callArgs = mockResolveWith.mock.calls[0];
-      expect(callArgs[0][0]).toMatchObject({
-        name: 'aws-ssm(/myapp/config)',
+      expect(callArgs[0]).toMatchObject({
+        resolvers: [
+          [
+            expect.objectContaining({
+              name: 'aws-ssm(/myapp/config)',
+              load: expect.any(Function)
+            }),
+            {
+              API_ENDPOINT: expect.any(Function)
+            }
+          ]
+        ],
+        options: { strict: false }
       });
-      expect(callArgs[0][0].load).toBeTypeOf('function');
-      expect(callArgs[0][1]).toMatchObject({ 
-        API_ENDPOINT: expect.any(Function) 
-      });
-      expect(callArgs[1]).toEqual({ strict: false });
     });
   });
 
@@ -262,16 +274,20 @@ describe('node-env-resolver/aws', () => {
 
       expect(result).toEqual(expectedConfig);
       expect(mockResolveWith).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({
-            name: 'aws-secrets(myapp/secrets)',
-            load: expect.any(Function)
-          }),
-          { 
-            DATABASE_URL: expect.any(Function), 
-            API_KEY: expect.any(Function) 
-          }
-        ]
+        {
+          resolvers: [
+            [
+              expect.objectContaining({
+                name: 'aws-secrets(myapp/secrets)',
+                load: expect.any(Function)
+              }),
+              {
+                DATABASE_URL: expect.any(Function),
+                API_KEY: expect.any(Function)
+              }
+            ]
+          ]
+        }
       );
     });
 
@@ -288,14 +304,18 @@ describe('node-env-resolver/aws', () => {
       });
 
       expect(mockResolveWith).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({
-            name: 'aws-secrets(myapp/secrets)',
-            load: expect.any(Function)
-          }),
-          { DATABASE_URL: expect.any(Function) }
-        ],
-        { strict: false }
+        {
+          resolvers: [
+            [
+              expect.objectContaining({
+                name: 'aws-secrets(myapp/secrets)',
+                load: expect.any(Function)
+              }),
+              { DATABASE_URL: expect.any(Function) }
+            ]
+          ],
+          options: { strict: false }
+        }
       );
     });
   });

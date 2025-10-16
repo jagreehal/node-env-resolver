@@ -78,15 +78,17 @@ describe('Safe Resolve Demo', () => {
       },
     };
 
-    const result = await safeResolveAsync(
-      [processEnv(), {
-        NODE_ENV: ['development', 'production', 'test'] as const,
-        PORT: 3000,
-      }],
-      [mockSecrets, {
-        DATABASE_URL: url(),
-      }]
-    );
+    const result = await safeResolveAsync({
+      resolvers: [
+        [processEnv(), {
+          NODE_ENV: ['development', 'production', 'test'] as const,
+          PORT: 3000,
+        }],
+        [mockSecrets, {
+          DATABASE_URL: url(),
+        }]
+      ]
+    });
 
     console.log('Multi-resolver result:', result);
     expect(result.success).toBe(true);

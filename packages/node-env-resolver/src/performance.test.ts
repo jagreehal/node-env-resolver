@@ -62,12 +62,14 @@ describe('Early termination optimization (priority: first)', () => {
       DATABASE_URL: 'should-not-be-used'
     });
 
-    const config = await resolveAsync(
-      [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+        [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+        [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      ],
+      options: { priority: 'first' }
+    });
 
     // First resolver should be called
     expect(resolver1.loadCalled).toBe(true);
@@ -98,12 +100,14 @@ describe('Early termination optimization (priority: first)', () => {
       EXTRA_VAR: 'should-not-be-called'
     });
 
-    const config = await resolveAsync(
-      [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+          [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      { priority: 'first' }
-    );
+      ],
+      options: { priority: 'first' }
+    });
 
     // First two resolvers should be called
     expect(resolver1.loadCalled).toBe(true);
@@ -130,16 +134,19 @@ describe('Early termination optimization (priority: first)', () => {
     });
 
     const config = await resolveAsync(
-      [resolver1, { 
-        REQUIRED_VAR: string(),
-        OPTIONAL_VAR: string({ optional: true })
-      }],
-      [resolver2, {
-        REQUIRED_VAR: string(),
-        OPTIONAL_VAR: string({ optional: true })
-      }],
-      { priority: 'first' }
-    );
+      {
+        resolvers: [
+          [resolver1, {
+            REQUIRED_VAR: string(),
+            OPTIONAL_VAR: string({ optional: true })
+          }],
+          [resolver2, {
+            REQUIRED_VAR: string(),
+            OPTIONAL_VAR: string({ optional: true })
+          }]
+        ],
+        options: { priority: 'first' }
+      });
 
     // Only first resolver should be called (all keys satisfied)
     expect(resolver1.loadCalled).toBe(true);
@@ -160,17 +167,13 @@ describe('Early termination optimization (priority: first)', () => {
       VAR2: 'value2-from-second'
     });
 
-    const config = await resolveAsync(
-      [resolver1, { 
-        VAR1: string(),
-        VAR2: string({ default: 'default-value' })
-      }],
-      [resolver2, {
-        VAR1: string(),
-        VAR2: string({ default: 'default-value' })
-      }],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { VAR1: string(), VAR2: string({ default: 'default-value' }) }],
+        [resolver2, { VAR1: string(), VAR2: string({ default: 'default-value' }) }],
+      ],
+      options: { priority: 'first' }
+    });
 
     // Only first resolver should be called (all keys satisfied)
     expect(resolver1.loadCalled).toBe(true);
@@ -198,12 +201,14 @@ describe('Early termination optimization (priority: first)', () => {
     }, 100); // Slow remote call
 
     const startTime = Date.now();
-    const config = await resolveAsync(
-      [localResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      [awsSecretsResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      [parameterStoreResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [localResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+        [awsSecretsResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+        [parameterStoreResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+      ],
+      options: { priority: 'first' }
+    });
     const duration = Date.now() - startTime;
 
     // Only local resolver should be called
@@ -236,12 +241,14 @@ describe('Parallel resolver execution (priority: last)', () => {
     }, 50); // 50ms delay
 
     const startTime = Date.now();
-    const config = await resolveAsync(
-      [resolver1, { VAR1: string() }],
-      [resolver2, { VAR2: string() }],
-      [resolver3, { VAR3: string() }],
-      { priority: 'last' } // Default, but explicit
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { VAR1: string() }],
+        [resolver2, { VAR2: string() }],
+        [resolver3, { VAR3: string() }],
+      ],
+      options: { priority: 'last' } // Default, but explicit
+    });
     const duration = Date.now() - startTime;
 
     // All resolvers should be called
@@ -275,12 +282,14 @@ describe('Parallel resolver execution (priority: last)', () => {
       VAR3: 'only-in-third'
     }, 10);
 
-    const config = await resolveAsync(
-      [resolver1, { SHARED_VAR: string(), VAR1: string() }],
-      [resolver2, { SHARED_VAR: string(), VAR2: string() }],
-      [resolver3, { SHARED_VAR: string(), VAR3: string() }],
-      { priority: 'last' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { SHARED_VAR: string(), VAR1: string() }],
+        [resolver2, { SHARED_VAR: string(), VAR2: string() }],
+        [resolver3, { SHARED_VAR: string(), VAR3: string() }],
+      ],
+      options: { priority: 'last' }
+    });
 
     // All resolvers should be called
     expect(resolver1.loadCalled).toBe(true);
@@ -311,12 +320,14 @@ describe('Parallel resolver execution (priority: last)', () => {
     });
 
     // With strict: false, should continue despite failure
-    const config = await resolveAsync(
-      [resolver1, { VAR1: string(), VAR3: string() }],
-      [failingResolver, { VAR1: string(), VAR3: string() }],
-      [resolver3, { VAR1: string(), VAR3: string() }],
-      { priority: 'last', strict: false }
-    );
+    const config = await resolveAsync({ 
+      resolvers: [
+        [resolver1, { VAR1: string(), VAR3: string() }],
+        [failingResolver, { VAR1: string(), VAR3: string() }],
+        [resolver3, { VAR1: string(), VAR3: string() }],
+      ],
+      options: { priority: 'last', strict: false }
+    });
 
     expect(resolver1.loadCalled).toBe(true);
     expect(resolver3.loadCalled).toBe(true);
@@ -342,12 +353,14 @@ describe('Parallel resolver execution (priority: last)', () => {
     }, 50);
 
     await expect(
-      resolveAsync(
+      resolveAsync({
+        resolvers: [  
         [resolver1, { VAR1: string(), VAR3: string() }],
         [failingResolver, { VAR1: string(), VAR3: string() }],
         [resolver3, { VAR1: string(), VAR3: string() }],
-        { priority: 'last', strict: true }
-      )
+        ],
+        options: { priority: 'last', strict: true }
+      })
     ).rejects.toThrow('Resolver failed');
 
     // All resolvers should have been called (parallel)
@@ -369,12 +382,14 @@ describe('Parallel resolver execution (priority: last)', () => {
     }, 60);
 
     const startTime = Date.now();
-    const config = await resolveAsync(
-      [awsSecrets, { DATABASE_URL: url() }],
-      [awsParams, { API_KEY: string() }],
-      [gcpSecrets, { JWT_SECRET: string() }],
-      { priority: 'last' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [awsSecrets, { DATABASE_URL: url() }],
+        [awsParams, { API_KEY: string() }],
+        [gcpSecrets, { JWT_SECRET: string() }],
+      ],
+      options: { priority: 'last' }
+    });
     const duration = Date.now() - startTime;
 
     // All resolvers should be called
@@ -401,11 +416,13 @@ describe('Performance optimizations - edge cases', () => {
       VAR2: 'value2'
     });
 
-    const config = await resolveAsync(
-      [resolver1, {}], // Empty schema
-      [resolver2, {}],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, {}], // Empty schema
+        [resolver2, {}],
+      ],
+      options: { priority: 'first' }
+    });
 
     // With empty schema (no keys to satisfy), both resolvers run
     // Early termination requires all schema keys to be satisfied; with 0 keys, that's immediately true
@@ -422,10 +439,12 @@ describe('Performance optimizations - edge cases', () => {
     }, 30);
 
     const startTime = Date.now();
-    const config = await resolveAsync(
-      [resolver, { VAR: string() }],
-      { priority: 'last' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver, { VAR: string() }],
+      ],
+      options: { priority: 'last' }
+    });
     const duration = Date.now() - startTime;
 
     expect(resolver.loadCalled).toBe(true);
@@ -443,17 +462,19 @@ describe('Performance optimizations - edge cases', () => {
       OPTIONAL: 'opt-value'
     });
 
-    const config = await resolveAsync(
-      [resolver1, {
+    const config = await resolveAsync({ 
+      resolvers: [
+        [resolver1, {
         REQUIRED: string(),
         OPTIONAL: string({ optional: true })
-      }],
-      [resolver2, {
-        REQUIRED: string(),
-        OPTIONAL: string({ optional: true })
-      }],
-      { priority: 'first' }
-    );
+        }],
+        [resolver2, {
+          REQUIRED: string(),
+          OPTIONAL: string({ optional: true })
+        }],
+      ],
+      options: { priority: 'first' }
+    });
 
     // Both should be called (first doesn't have all keys - OPTIONAL is missing)
     expect(resolver1.loadCalled).toBe(true);

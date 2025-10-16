@@ -33,12 +33,13 @@ describe('Priority option - async resolve()', () => {
       API_KEY: 'secret123'
     });
 
-    const config = await resolveAsync(
-      [resolver1, { DATABASE_URL: postgres(), PORT: number() }],
-      [resolver2, { DATABASE_URL: postgres(), API_KEY: string() }],
-      // Default: priority: 'last'
-    );
-
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { DATABASE_URL: postgres(), PORT: number() }],
+        [resolver2, { DATABASE_URL: postgres(), API_KEY: string() }],
+      ],
+      options: { priority: 'last' }
+    });
     expect(config.DATABASE_URL).toBe('postgres://aws:5432/db'); // AWS wins
     expect(config.PORT).toBe(8080); // Only in resolver1
     expect(config.API_KEY).toBe('secret123'); // Only in resolver2
@@ -48,12 +49,13 @@ describe('Priority option - async resolve()', () => {
     const resolver1 = createResolver('first', { VAR: 'first-value' });
     const resolver2 = createResolver('second', { VAR: 'second-value' });
 
-    const config = await resolveAsync(
-      [resolver1, { VAR: string() }],
-      [resolver2, { VAR: string() }],
-      { priority: 'last' }
-    );
-
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { VAR: string() }],
+        [resolver2, { VAR: string() }],
+      ],
+      options: { priority: 'last' }
+    });
     expect(config.VAR).toBe('second-value'); // Last wins
   });
 
@@ -68,11 +70,13 @@ describe('Priority option - async resolve()', () => {
       API_KEY: 'secret123'
     });
 
-    const config = await resolveAsync(
-      [resolver1, { DATABASE_URL: postgres(), PORT: number() }],
-      [resolver2, { DATABASE_URL: postgres(), API_KEY: string() }],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { DATABASE_URL: postgres(), PORT: number() }],
+        [resolver2, { DATABASE_URL: postgres(), API_KEY: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(config.DATABASE_URL).toBe('postgres://local:5432/db'); // Local wins
     expect(config.PORT).toBe(8080); // Only in resolver1
@@ -90,11 +94,13 @@ describe('Priority option - async resolve()', () => {
       SUFFIX: 'second-value' // Won't override
     });
 
-    const config = await resolveAsync(
-      [resolver1, { PREFIX: string(), SUFFIX: string() }],
-      [resolver2, { PREFIX: string(), SUFFIX: string() }],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { PREFIX: string(), SUFFIX: string() }],
+        [resolver2, { PREFIX: string(), SUFFIX: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(config.PREFIX).toBe('dev-'); // First value not overwritten
     expect(config.SUFFIX).toBe('first-value'); // First value not overwritten
@@ -111,11 +117,13 @@ describe('Priority option - async resolve()', () => {
       VAR2: 'second-value' // Will set (VAR2 was undefined)
     });
 
-    const config = await resolveAsync(
-      [resolver1, { VAR1: string(), VAR2: string() }], 
-      [resolver2, { VAR1: string(), VAR2: string() }],
-      { priority: 'first' }
-    );
+      const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { VAR1: string(), VAR2: string() }], 
+        [resolver2, { VAR1: string(), VAR2: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(config.VAR1).toBe('first-value'); // First set, skip second
     expect(config.VAR2).toBe('second-value'); // First didn't set, second sets
@@ -126,12 +134,14 @@ describe('Priority option - async resolve()', () => {
     const resolver2 = createResolver('second', { B: 'B2' });
     const resolver3 = createResolver('third', { A: 'A3', B: 'B3', C: 'C3' });
 
-    const config = await resolveAsync(
-      [resolver1, { A: string() }],
-      [resolver2, { B: string() }],
-      [resolver3, { A: string(), B: string(), C: string() }],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { A: string() }],
+        [resolver2, { B: string() }],
+        [resolver3, { A: string(), B: string(), C: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(config.A).toBe('A1'); // First resolver wins
     expect(config.B).toBe('B2'); // Second resolver wins (first didn't provide)
@@ -144,11 +154,13 @@ describe('Priority option - safeResolve()', () => {
     const resolver1 = createResolver('first', { VAR: 'first' });
     const resolver2 = createResolver('second', { VAR: 'second' });
 
-    const result = await safeResolveAsync(
-      [resolver1, { VAR: string() }],
-      [resolver2, { VAR: string() }],
-      { priority: 'last' }
-    );
+    const result = await safeResolveAsync({
+      resolvers: [
+        [resolver1, { VAR: string() }],
+        [resolver2, { VAR: string() }],
+      ],
+      options: { priority: 'last' }
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -160,11 +172,13 @@ describe('Priority option - safeResolve()', () => {
     const resolver1 = createResolver('first', { VAR: 'first' });
     const resolver2 = createResolver('second', { VAR: 'second' });
 
-    const result = await safeResolveAsync(
-      [resolver1, { VAR: string() }],
-      [resolver2, { VAR: string() }],
-      { priority: 'first' }
-    );
+    const result = await safeResolveAsync({
+      resolvers: [
+        [resolver1, { VAR: string() }],
+        [resolver2, { VAR: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -178,11 +192,13 @@ describe('Priority option - sync resolveAsync()', () => {
     const resolver1 = createResolver('first', { VAR: 'first' });
     const resolver2 = createResolver('second', { VAR: 'second' });
 
-    const config = await resolveAsync(
-      [resolver1, { VAR: string() }],
-      [resolver2, { VAR: string() }],
-      // Default: priority: 'last'
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { VAR: string() }],
+        [resolver2, { VAR: string() }],
+      ],
+      options: { priority: 'last' }
+    });
 
     expect(config.VAR).toBe('second');
   });
@@ -191,11 +207,13 @@ describe('Priority option - sync resolveAsync()', () => {
     const resolver1 = createResolver('first', { VAR: 'first' });
     const resolver2 = createResolver('second', { VAR: 'second' });
 
-    const config = await resolveAsync(
-      [resolver1, { VAR: string() }],
-      [resolver2, { VAR: string() }],
-      { priority: 'first' }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { VAR: string() }],
+        [resolver2, { VAR: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(config.VAR).toBe('first');
   });
@@ -206,11 +224,13 @@ describe('Priority option - sync saferesolveAsync()', () => {
     const resolver1 = createResolver('first', { VAR: 'first' });
     const resolver2 = createResolver('second', { VAR: 'second' });
 
-    const result = await safeResolveAsync(
-      [resolver1, { VAR: string() }],
-      [resolver2, { VAR: string() }],
-      { priority: 'last' }
-    );
+    const result = await safeResolveAsync({
+      resolvers: [
+        [resolver1, { VAR: string() }],
+        [resolver2, { VAR: string() }],
+      ],
+      options: { priority: 'last' }
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -222,11 +242,13 @@ describe('Priority option - sync saferesolveAsync()', () => {
     const resolver1 = createResolver('first', { VAR: 'first' });
     const resolver2 = createResolver('second', { VAR: 'second' });
 
-    const result = await safeResolveAsync(
-      [resolver1, { VAR: string() }],
-      [resolver2, { VAR: string() }],
-      { priority: 'first' }
-    );
+    const result = await safeResolveAsync({
+      resolvers: [
+        [resolver1, { VAR: string() }],
+        [resolver2, { VAR: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
@@ -248,14 +270,13 @@ describe('Priority option - real-world use cases', () => {
       DEBUG: 'false'
     });
 
-    const config = await resolveAsync(
-      [dotenvResolver, { DATABASE_URL: postgres(), DEBUG: boolean() }],
-      [awsResolver, { DATABASE_URL: postgres(), API_KEY: string(), DEBUG: boolean() }],
-      { 
-        priority: 'first', // Local .env takes precedence
-        policies: { allowDotenvInProduction: true }
-      }
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [dotenvResolver, { DATABASE_URL: postgres(), DEBUG: boolean() }],
+        [awsResolver, { DATABASE_URL: postgres(), API_KEY: string(), DEBUG: boolean() }],
+      ],
+      options: { priority: 'first', policies: { allowDotenvInProduction: true } }
+    });
 
     expect(config.DATABASE_URL).toBe('postgres://localhost:5432/dev'); // Local wins
     expect(config.DEBUG).toBe(true); // Local debug wins
@@ -273,11 +294,13 @@ describe('Priority option - real-world use cases', () => {
       API_KEY: 'secure-key'
     });
 
-    const config = await resolveAsync(
-      [processEnvResolver, { DATABASE_URL: postgres(), PORT: number() }],
-      [awsResolver, { DATABASE_URL: postgres(), API_KEY: string() }],
-      // Default: priority: 'last' - AWS wins
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnvResolver, { DATABASE_URL: postgres(), PORT: number() }],
+        [awsResolver, { DATABASE_URL: postgres(), API_KEY: string() }],
+      ],
+      options: { priority: 'last' }
+    });
 
     expect(config.DATABASE_URL).toBe('postgres://secure-prod:5432/app'); // AWS wins
     expect(config.PORT).toBe(8080); // From process.env (not in AWS)
@@ -300,17 +323,17 @@ describe('Priority option - real-world use cases', () => {
       // No DATABASE_URL or PORT
     });
 
-    const config = await resolveAsync(
+    const config = await resolveAsync({
+      resolvers: [
         [processEnvResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
-      [dotenvResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
-      [awsResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
-      { priority: 'first' }
-    );
+        [dotenvResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
+        [awsResolver, { PORT: number(), DATABASE_URL: postgres(), API_KEY: string() }],
+      ],
+      options: { priority: 'first' }
+    });
 
     expect(config.PORT).toBe(8080); // From process.env (first)
     expect(config.DATABASE_URL).toBe('postgres://from-dotenv:5432/db'); // From dotenv (second)
     expect(config.API_KEY).toBe('from-aws'); // From AWS (third)
   });
-
-  
 });

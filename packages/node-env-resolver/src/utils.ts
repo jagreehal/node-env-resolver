@@ -498,8 +498,7 @@ export function withNamespace(
  * ```
  */
 export function watch<T>(
-  schema: Parameters<typeof import('./index').resolveAsync>[0],
-  resolvers: Parameters<typeof import('./index').resolveAsync>[1],
+  config: Parameters<typeof import('./index').resolveAsync>[0],
   options?: {
     /** Callback when config changes */
     onChange?: (config: T) => void;
@@ -522,7 +521,7 @@ export function watch<T>(
   const loadConfig = async () => {
     try {
       await import('./index');
-      currentConfig = await resolveAsync(schema, resolvers) as T;
+      currentConfig = await resolveAsync(config) as T;
       return currentConfig;
     } catch (error) {
       console.error('[watch] Failed to load config:', error);
