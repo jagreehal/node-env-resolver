@@ -6,8 +6,8 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolveEnvSplit } from 'node-env-resolver/web';
-import { processEnv, string, url, email, port, boolean } from 'node-env-resolver/resolvers';
-import { dotenv } from 'node-env-resolver/resolvers';
+import { processEnv, dotenv } from 'node-env-resolver/resolvers';
+import { string, url, email, port, boolean } from 'node-env-resolver/validators';
 
 // Mock process.env for testing
 const originalEnv = process.env;

@@ -3,8 +3,15 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolve, safeResolve, type SimpleEnvSchema, resolveAsync } from './index';
-import {  jsonValidator } from './validators';
-import { secrets, toml, json, string, port, url, boolean, processEnv } from './resolvers';
+
+import { json, secrets, toml, processEnv } from './resolvers';
+import {
+  string,
+  port,
+  url,
+  boolean,
+  json as jsonValidator,
+} from './validators';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -95,18 +102,14 @@ describe('JSON Type Validation', () => {
     // Test JSON object
     process.env.TEST_JSON_OBJ = '{"key": "value", "count": 42}';
     const objResult = await resolveAsync({
-      resolvers: [
-        [processEnv(), { TEST_JSON_OBJ: jsonValidator() }]
-      ]
+      resolvers: [[processEnv(), { TEST_JSON_OBJ: jsonValidator() }]],
     });
     expect(objResult.TEST_JSON_OBJ).toEqual({ key: 'value', count: 42 });
 
     // Test JSON array
     process.env.TEST_JSON_ARR = '[1, 2, 3, "test"]';
     const arrResult = await resolveAsync({
-      resolvers: [
-        [processEnv(), { TEST_JSON_ARR: jsonValidator() }]
-      ]
+      resolvers: [[processEnv(), { TEST_JSON_ARR: jsonValidator() }]],
     });
     expect(arrResult.TEST_JSON_ARR).toEqual([1, 2, 3, 'test']);
 
@@ -117,12 +120,15 @@ describe('JSON Type Validation', () => {
     
     const primResult = await resolveAsync({
       resolvers: [
-        [processEnv(), { 
-          TEST_JSON_NUM: jsonValidator(),
-          TEST_JSON_BOOL: jsonValidator(),
-          TEST_JSON_NULL: jsonValidator()
-        }]
-      ]
+        [
+          processEnv(),
+          {
+            TEST_JSON_NUM: jsonValidator(),
+            TEST_JSON_BOOL: jsonValidator(),
+            TEST_JSON_NULL: jsonValidator(),
+          },
+        ],
+      ],
     });
     
     expect(primResult.TEST_JSON_NUM).toBe(123);
@@ -140,11 +146,11 @@ describe('JSON Type Validation', () => {
   it('should reject invalid JSON strings', async () => {
     process.env.TEST_INVALID_JSON = '{invalid json}';
 
-    await expect(resolveAsync({
-      resolvers: [
-        [processEnv(), { TEST_INVALID_JSON: jsonValidator() }]
-      ]
-    })).rejects.toThrow();
+    await expect(
+      resolveAsync({
+        resolvers: [[processEnv(), { TEST_INVALID_JSON: jsonValidator() }]],
+      }),
+    ).rejects.toThrow();
 
     delete process.env.TEST_INVALID_JSON;
   });
@@ -153,9 +159,7 @@ describe('JSON Type Validation', () => {
     process.env.TEST_JSON_PARSE = '{"nested": {"value": 123}}';
     
     const result = await resolveAsync({
-      resolvers: [
-        [processEnv(), { TEST_JSON_PARSE: jsonValidator() }]
-      ]
+      resolvers: [[processEnv(), { TEST_JSON_PARSE: jsonValidator() }]],
     });
     
     // Should be an object, not a string
@@ -206,15 +210,12 @@ describe('JSON Resolver', () => {
       DEBUG: 'true'
     }));
 
-    const config = await resolveAsync(
-      {
-      resolvers: [
-        [json(configFile), {
-          PORT: port(),
-          NODE_ENV: string(),
-          DEBUG: boolean()
-        }]
-      ]
+    const config = await resolveAsync({
+      resolvers: [[json(configFile), {
+        PORT: port(),
+        NODE_ENV: string(),
+        DEBUG: boolean()
+      }]]
     });
 
     expect(config.PORT).toBe(3000);

@@ -17,7 +17,7 @@ import { readFileSync } from 'fs';
 /**
  * Inline file validator to avoid importing the entire validators module
  */
-function validateFile(value: string, key?: string): { valid: boolean; value?: string; error?: string } {
+function file(value: string, key?: string): { valid: boolean; value?: string; error?: string } {
   try {
     const resolvedPath = resolve(process.cwd(), value);
     const content = readFileSync(resolvedPath, 'utf8').trim();
@@ -572,7 +572,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         if (defTyped.type === 'file' && effectiveSecretsDir) {
           const fileName = key.toLowerCase().replace(/_/g, '-');
           const filePath = join(effectiveSecretsDir, fileName);
-          const fileResult = validateFile(filePath, key);
+          const fileResult = file(filePath, key);
 
           if (fileResult.valid) {
             validationResult = { success: true, value: fileResult.value };
@@ -778,7 +778,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
         if (defTyped.type === 'file' && effectiveSecretsDir) {
           const fileName = key.toLowerCase().replace(/_/g, '-');
           const filePath = join(effectiveSecretsDir, fileName);
-          const fileResult = validateFile(filePath, key);
+          const fileResult = file(filePath, key);
 
           if (fileResult.valid) {
             validationResult = { success: true, value: fileResult.value };

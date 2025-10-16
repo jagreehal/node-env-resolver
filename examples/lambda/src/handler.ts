@@ -4,8 +4,8 @@
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { resolveAsync } from 'node-env-resolver';
-import {  } from 'node-env-resolver/resolvers';
-import { url, string, processEnv } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { url, string } from 'node-env-resolver/validators';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 // Define environment once at module level for reuse across invocations

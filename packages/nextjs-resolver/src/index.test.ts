@@ -155,7 +155,7 @@ describe('node-env-resolver-nextjs', () => {
     it('handles invalid enum values', () => {
       process.env.NODE_ENV = 'invalid';
 
-      // Now properly validates enums and throws errors
+      // Now properly validates oneOf and throws errors
       expect(() => resolve({
         server: {
           NODE_ENV: ['development', 'production'] as const
@@ -441,7 +441,7 @@ describe('node-env-resolver-nextjs', () => {
     it('provides clear error messages for invalid enum values', () => {
       process.env.INVALID_ENUM = 'invalid-value';
 
-      // Now properly validates enums and throws errors
+      // Now properly validates oneOf and throws errors
       expect(() => resolve({
         server: {
           INVALID_ENUM: ['valid1', 'valid2'] as const

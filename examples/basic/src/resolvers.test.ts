@@ -4,7 +4,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolve, safeResolve, getAuditLog,  safeResolveAsync, resolveAsync } from 'node-env-resolver';
-import { processEnv, string, number } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { string, number } from 'node-env-resolver/validators';
 import { cached } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 

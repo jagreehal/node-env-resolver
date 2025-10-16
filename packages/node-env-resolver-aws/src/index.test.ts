@@ -7,7 +7,7 @@ const mockResolveWith = vi.hoisted(() => vi.fn());
 const mockSafeResolveWith = vi.hoisted(() => vi.fn());
 
 import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index';
-import { string, url } from 'node-env-resolver/resolvers';
+import { string, url } from 'node-env-resolver/validators';
 
 // Mock AWS SDK clients
 vi.mock('@aws-sdk/client-secrets-manager', () => ({

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { cliArgs } from './cli';
 import { resolveAsync } from './index';
-import { postgres, string, number } from './resolvers';
+import { postgres, string, number } from './validators';
 import { processEnv } from './resolvers';
 
 describe('cliArgs resolver', () => {

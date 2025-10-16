@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolve, resolveAsync, safeResolve, safeResolveAsync, SyncResolver, AsyncResolver, isSyncResolver, isAsyncOnlyResolver } from './index';
-import { dotenv, json, processEnv, string, enums, number } from './resolvers';
+import { string, oneOf, number } from './validators';
+import { dotenv, processEnv, json } from './resolvers';
+
 
 describe('Sync Resolvers', () => {
   beforeEach(() => {
@@ -361,7 +363,7 @@ describe('Sync Resolvers', () => {
         NUMBER_VAR: 3000,  // Has default, won't fail
         BOOL_VAR: false,   // Has default, won't fail
         OPTIONAL: string({optional:true}), // Optional, won't fail
-        ENUM: enums(['dev', 'prod'])
+        ENUM: oneOf(['dev', 'prod'])
       });
 
       // TypeScript should infer these types correctly

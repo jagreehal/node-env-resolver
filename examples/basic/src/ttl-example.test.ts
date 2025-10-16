@@ -3,7 +3,7 @@
  * Demonstrates various TTL caching configurations
  */
 import { describe, it, expect } from 'vitest';
-import { string, url } from 'node-env-resolver/resolvers';
+import { string, url } from 'node-env-resolver/validators';
 import { cached, TTL, awsCache } from 'node-env-resolver/utils';
 import { resolveAsync, type Resolver } from 'node-env-resolver';
 

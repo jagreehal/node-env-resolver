@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolve, resolveAsync, getAuditLog, clearAuditLog, SyncResolver, AsyncResolver } from './index';
-import { string, url, port } from './resolvers';
+import { string, url, port } from './validators';
 
 describe('Audit Logging', () => {
   beforeEach(() => {
