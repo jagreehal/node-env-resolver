@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveAsync } from './index';
-import { string, number, enums, url, postgres } from './resolvers';
+import { string, number, oneOf, url, postgres } from './validators';
 import type { InferSimpleSchema } from './types';
 
 describe('Type override behavior with multiple resolvers', () => {
@@ -104,8 +104,8 @@ describe('Type override behavior with multiple resolvers', () => {
 
     const config = await resolveAsync({
       resolvers: [
-        [resolver1, { ENV: enums(['development', 'staging']) }],
-        [resolver2, { ENV: enums(['production', 'test']) }]  // Last schema
+        [resolver1, { ENV: oneOf(['development', 'staging']) }],
+        [resolver2, { ENV: oneOf(['production', 'test']) }]  // Last schema
       ]
     });
 

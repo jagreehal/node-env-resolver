@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { resolveAsync, safeResolveAsync } from './index';
-import { string, postgres, number, boolean } from './resolvers';
+import { string, postgres, number, boolean } from './validators';
 import type { Resolver } from './types';
 
 // Helper to create mock resolvers

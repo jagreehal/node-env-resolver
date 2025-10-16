@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolve, resolveAsync } from './index';
 import {
-  string,
-  stringArray,
-  numberArray,
-  urlArray,
-  duration,
-  file,
-  number,
   dotenv,
-  json,
+  json as jsonResolver,
 } from './resolvers';
+import { string, stringArray, numberArray, urlArray, duration, file, number } from './validators';
+
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -505,18 +500,18 @@ describe('Advanced Features', () => {
       // Create a JSON config file in the current working directory
       const jsonFile = path.join(testDir, 'test-config.json');
       fs.writeFileSync(jsonFile, JSON.stringify({ JSON_TEST: 'value-from-json' }));
-      
+
       // Use relative path from current working directory
       const relativePath = path.relative(process.cwd(), jsonFile);
-      
+
       const config = await resolveAsync({
         resolvers: [
-          [json(relativePath), {
+          [jsonResolver(relativePath), {
             JSON_TEST: string()
           }]
         ]
       });
-      
+
       expect(config.JSON_TEST).toBe('value-from-json');
     });
   });

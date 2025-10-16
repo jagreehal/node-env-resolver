@@ -5,8 +5,8 @@
  * using the new resolveAsync() tuple API
  */
 import { describe, it, expect, vi } from 'vitest';
-import { string, number, postgres, boolean } from 'node-env-resolver/resolvers';
 import { processEnv } from 'node-env-resolver/resolvers';
+import { string, number, postgres, boolean } from 'node-env-resolver/validators';
 import { AsyncResolver, resolveAsync, type Resolver } from 'node-env-resolver';
 
 // ============================================================================

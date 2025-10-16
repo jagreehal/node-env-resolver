@@ -4,7 +4,7 @@
  *
  * IMPORTANT: Next.js config files must be synchronous.
  * resolve() is synchronous and works with ALL validator types:
- * - Basic types: string, number, boolean, enums, custom
+ * - Basic types: string, number, boolean, oneOf, custom
  * - Advanced types: postgres, url, email, json, port, etc.
  */
 
@@ -18,7 +18,7 @@ export {
   email,
   number,
   boolean,
-  enums,
+  oneOf,
   secret,
   custom,
   duration,
@@ -34,7 +34,7 @@ export {
   redis,
   date,
   timestamp,
-} from 'node-env-resolver/resolvers';
+} from 'node-env-resolver/validators';
 
 // Safe resolve result types (Zod-like)
 export interface SafeResolveResult<T> {
@@ -84,7 +84,7 @@ export interface NextjsOptions extends Omit<ResolveOptions, 'resolvers'> {
  *
  * IMPORTANT: Next.js config files must be synchronous.
  * This function is synchronous and supports ALL validator types:
- * - Basic types: string, number, boolean, enums, custom
+ * - Basic types: string, number, boolean, oneOf, custom
  * - Advanced types: postgres, url, email, json, port, date, etc.
  *
  * @example

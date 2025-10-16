@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { string, url } from 'node-env-resolver/resolvers';
 import { processEnv } from 'node-env-resolver/resolvers';
+import { string, url } from 'node-env-resolver/validators';
 import { resolveAsync } from 'node-env-resolver';
 
 // Helper to create mock provider

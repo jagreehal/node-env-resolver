@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { withComputed } from './utils';
 import { resolve } from './index';
-import { enums, number, string } from './resolvers';
+import { oneOf, number, string } from './validators';
 
 describe('withComputed utility', () => {
   describe('basic functionality', () => {
@@ -92,7 +92,7 @@ describe('withComputed utility', () => {
       const config = resolve({
         HOST: string(),
         PORT: number(),
-        NODE_ENV: enums(['development', 'production', 'test'])
+        NODE_ENV: oneOf(['development', 'production', 'test'])
       });
       
       const configWithComputed = withComputed(config, {

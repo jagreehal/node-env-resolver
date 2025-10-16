@@ -2,7 +2,8 @@
  * Basic usage example tests
  */
 import { describe, it, expect } from 'vitest';
-import { processEnv, url } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { url } from 'node-env-resolver/validators';
 import { resolveAsync } from 'node-env-resolver';
 
 // Helper to create mock provider

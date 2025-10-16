@@ -4,8 +4,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolveAsync } from 'node-env-resolver';
-import { string, url, number } from 'node-env-resolver/resolvers';
 import { processEnv } from 'node-env-resolver/resolvers';
+import { string, url, number } from 'node-env-resolver/validators';
 import { cached, awsCache } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 

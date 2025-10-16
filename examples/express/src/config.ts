@@ -3,7 +3,7 @@
  * Perfect for Express.js applications with multiple deployment environments
  */
 import { resolve } from 'node-env-resolver';
-import { url, string } from 'node-env-resolver/resolvers';
+import { url, string } from 'node-env-resolver/validators';
 
 
 export const config = await resolve({

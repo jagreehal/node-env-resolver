@@ -36,7 +36,7 @@ function inferType(definition: unknown): string {
   if (typeof definition === 'number') return 'number';
   if (typeof definition === 'boolean') return 'boolean';
   
-  // Handle array enums
+  // Handle array oneOf
   if (Array.isArray(definition)) {
     const values = definition.map(v => `'${v}'`).join(' | ');
     return values;

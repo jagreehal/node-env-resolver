@@ -4,7 +4,7 @@
  * @example
  * ```typescript
  * import { resolve } from 'node-env-resolver';
- * import { postgres, string } from 'node-env-resolver/resolvers';
+ * import { postgres, string } from 'node-env-resolver/validators';
  *
  * const config = resolve({
  *   PORT: 3000,                              // number with default
@@ -64,7 +64,14 @@ import { processEnv } from './process-env';
 
 
 
-// Helper to build default resolvers (just processEnv)
+/**
+ * Helper to build default resolvers (just processEnv)
+ * Only uses process.env for consistency across all environments
+ * Users can explicitly add dotenv() if they want .env file support
+ *
+ * @returns Array of default sync resolvers
+ * @private
+ */
 function buildDefaultResolvers(): SyncResolver[] {
   // Only use process.env for consistency across all environments
   // Users can explicitly add dotenv() from 'node-env-resolver/resolvers' if they want .env file support
@@ -85,12 +92,25 @@ export interface SafeResolveError {
 
 export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
 
-// Helper functions for new object-based API
+/**
+ * Type guard to check if argument is a config object
+ *
+ * @param arg - Argument to check
+ * @returns True if argument is a config object
+ * @private
+ */
 function isConfigObject(arg: unknown): arg is ResolveConfig | ResolveAsyncConfig {
   return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && 
     ('resolvers' in arg || 'schema' in arg || 'options' in arg);
 }
 
+/**
+ * Type guard to check if argument is a simple schema object
+ *
+ * @param arg - Argument to check
+ * @returns True if argument is a simple schema
+ * @private
+ */
 function isSimpleSchema(arg: unknown): arg is SimpleEnvSchema {
   return typeof arg === 'object' && arg !== null && !Array.isArray(arg) &&
     !('resolvers' in arg) && !('schema' in arg) && !('options' in arg);
@@ -206,7 +226,7 @@ function resolve(arg1: unknown, arg2?: unknown): unknown {
  * @example
  * ```typescript
  * import { resolveAsync } from 'node-env-resolver';
- * import { postgres, string } from 'node-env-resolver/resolvers';
+ * import { postgres, string } from 'node-env-resolver/validators';
  * import { awsSecrets, dotenv } from 'node-env-resolver/resolvers';
  *
  * // Works with async-only resolvers
@@ -290,7 +310,14 @@ async function resolveAsync(
 
 
 
-// Safe resolve implementation (doesn't throw, returns result object)
+/**
+ * Safe resolve implementation (doesn't throw, returns result object)
+ *
+ * @param arg1 - Schema object or config object
+ * @param arg2 - Optional resolve options
+ * @returns Safe resolve result with success/error information
+ * @private
+ */
 function safeResolve<T extends SimpleEnvSchema>(
   arg1: T | ResolveConfig<T>,
   arg2?: Partial<ResolveOptions>
@@ -400,7 +427,7 @@ function safeResolve<T extends SimpleEnvSchema>(
  * @example
  * ```typescript
  * import { safeResolveAsync } from 'node-env-resolver';
- * import { postgres } from 'node-env-resolver/resolvers';
+ * import { postgres } from 'node-env-resolver/validators';
  * import { awsSecrets, dotenv } from 'node-env-resolver/resolvers';
  *
  * // Works with async resolvers

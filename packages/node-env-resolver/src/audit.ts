@@ -2,6 +2,9 @@
  * Audit logging for environment variable resolution
  */
 
+/**
+ * Types of audit events that can be logged
+ */
 export type AuditEventType =
   | 'validation_success'
   | 'validation_failure'
@@ -10,14 +13,24 @@ export type AuditEventType =
   | 'provider_error'
   | 'resolver_error';
 
+/**
+ * Individual audit event record
+ */
 export interface AuditEvent {
+  /** Type of audit event */
   type: AuditEventType;
+  /** Timestamp when the event occurred */
   timestamp: number;
+  /** Environment variable key (if applicable) */
   key?: string;
+  /** Source resolver name (if applicable) */
   source?: string;
+  /** Error message (if applicable) */
   error?: string;
+  /** Additional metadata about the event */
   metadata?: Record<string, unknown>;
-  sessionId?: string; // For tracking per-config audit logs
+  /** Session ID for tracking per-config audit logs */
+  sessionId?: string;
 }
 
 const auditLog: AuditEvent[] = [];
@@ -38,6 +51,12 @@ export function attachAuditSession(config: object): string {
   return sessionId;
 }
 
+/**
+ * Log an audit event to the audit log
+ * Automatically manages log size to prevent memory leaks
+ *
+ * @param event - Audit event to log
+ */
 export function logAuditEvent(event: AuditEvent): void {
   auditLog.push(event);
   // Keep only last 1000 events to prevent memory leaks
@@ -69,6 +88,10 @@ export function getAuditLog(config?: object): readonly AuditEvent[] {
   return auditLog.filter(event => event.sessionId === sessionId);
 }
 
+/**
+ * Clear all audit events from the audit log
+ * Useful for testing or memory management
+ */
 export function clearAuditLog(): void {
   auditLog.length = 0;
 }

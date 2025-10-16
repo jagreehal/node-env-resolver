@@ -16,6 +16,33 @@ export interface CacheOptions {
   key?: string;
 }
 
+/**
+ * Wrap a resolver with caching functionality
+ * Provides TTL-based caching with stale-while-revalidate support
+ *
+ * @param resolver - Resolver to wrap with caching
+ * @param options - Cache configuration options
+ * @returns Cached resolver that implements the same interface
+ *
+ * @example
+ * ```ts
+ * import { cached, TTL } from 'node-env-resolver/utils';
+ * import { awsSecrets } from 'node-env-resolver-aws';
+ *
+ * // Cache AWS secrets for 5 minutes
+ * const cachedResolver = cached(
+ *   awsSecrets({ secretId: 'prod/config' }),
+ *   { ttl: TTL.minutes5 }
+ * );
+ *
+ * // With stale-while-revalidate
+ * const resilientResolver = cached(awsSecrets(), {
+ *   ttl: TTL.minutes5,
+ *   maxAge: TTL.hour,
+ *   staleWhileRevalidate: true
+ * });
+ * ```
+ */
 export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver {
   const {
     ttl = 300000, // 5 minutes default
@@ -105,7 +132,21 @@ export const TTL = {
   day: 24 * 60 * 60 * 1000,
 } as const;
 
-// Helper function to create AWS-friendly cache configuration
+/**
+ * Helper function to create AWS-friendly cache configuration
+ * Provides sensible defaults for AWS services (5min TTL, 1hr maxAge, stale-while-revalidate enabled)
+ *
+ * @param options - Cache configuration options
+ * @returns Cache options optimized for AWS services
+ *
+ * @example
+ * ```ts
+ * import { awsCache } from 'node-env-resolver/utils';
+ * import { awsSecrets } from 'node-env-resolver-aws';
+ *
+ * const resolver = cached(awsSecrets(), awsCache({ ttl: 10 * 60 * 1000 }));
+ * ```
+ */
 export function awsCache(options: {
   /** Cache duration for AWS secrets/parameters (default: 5 minutes) */
   ttl?: number;
@@ -122,7 +163,24 @@ export function awsCache(options: {
   };
 }
 
-// Retry wrapper
+/**
+ * Wrap a resolver with retry functionality
+ * Automatically retries failed requests with exponential backoff
+ *
+ * @param resolver - Resolver to wrap with retry logic
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param delayMs - Initial delay between retries in milliseconds (default: 1000)
+ * @returns Resolver with retry functionality
+ *
+ * @example
+ * ```ts
+ * import { retry } from 'node-env-resolver/utils';
+ * import { awsSecrets } from 'node-env-resolver-aws';
+ *
+ * // Retry up to 5 times with 2 second initial delay
+ * const resilientResolver = retry(awsSecrets(), 5, 2000);
+ * ```
+ */
 export function retry(resolver: Resolver, maxRetries = 3, delayMs = 1000): Resolver {
   return {
     name: `retry(${resolver.name})`,

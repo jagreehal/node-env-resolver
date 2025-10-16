@@ -190,6 +190,9 @@ importers:
 
   examples/vite-app:
     dependencies:
+      node-env-resolver:
+        specifier: workspace:*
+        version: link:../../packages/node-env-resolver
       node-env-resolver-vite:
         specifier: workspace:*
         version: link:../../packages/vite-resolver

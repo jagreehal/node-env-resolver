@@ -5,8 +5,13 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import type { Resolver } from './types';
+/**
+ * Options for the dotenv resolver
+ */
 export interface DotenvOptions {
+  /** Path to the .env file (default: '.env') */
   path?: string;
+  /** Enable environment-specific file loading (default: false) */
   expand?: boolean;
 }
 
@@ -64,6 +69,25 @@ const parseDotenv = (content: string) => {
   return env;
 };
 
+/**
+ * Load configuration from .env files
+ * Supports environment-specific files when expand=true
+ *
+ * @param options Path string or options object
+ * @returns Resolver that loads from .env file(s)
+ *
+ * @example
+ * ```ts
+ * import { dotenv } from 'node-env-resolver/providers';
+ *
+ * // Simple .env file
+ * const resolver = dotenv('.env');
+ *
+ * // Environment-specific files
+ * const resolver = dotenv({ path: '.env', expand: true });
+ * // Loads: .env.defaults, .env, .env.local, .env.development, .env.development.local
+ * ```
+ */
 export function dotenv(options?: string | DotenvOptions): Resolver {
   const opts = typeof options === 'string' ? { path: options, expand: false } : { path: options?.path ?? '.env', expand: options?.expand ?? false };
 
@@ -112,6 +136,20 @@ export function dotenv(options?: string | DotenvOptions): Resolver {
   };
 }
 
+/**
+ * Resolver that reads from process.env
+ * This is the default resolver used when no custom resolvers are provided
+ *
+ * @returns Resolver that loads environment variables from process.env
+ *
+ * @example
+ * ```ts
+ * import { processEnv } from 'node-env-resolver/providers';
+ *
+ * const resolver = processEnv();
+ * const env = await resolver.load(); // { PORT: '3000', NODE_ENV: 'development', ... }
+ * ```
+ */
 export function processEnv(): Resolver {
   return {
     name: 'process.env',

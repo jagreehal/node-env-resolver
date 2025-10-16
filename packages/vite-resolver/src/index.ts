@@ -4,12 +4,42 @@
  *
  * Vite handles .env files via process.env automatically.
  * resolve() is synchronous and works with ALL validator types:
- * - Basic types: string, number, boolean, enums, pattern, custom
+ * - Basic types: string, number, boolean, oneOf, pattern, custom
  * - Advanced types: postgres, url, email, json, port, etc.
  */
 
 import { resolve as nodeEnvResolve } from 'node-env-resolver';
 import type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema } from 'node-env-resolver';
+
+// Re-export all validators for convenience
+export {
+  string,
+  url,
+  port,
+  postgres,
+  email,
+  number,
+  boolean,
+  oneOf,
+  secret,
+  custom,
+  duration,
+  file,
+  json,
+  stringArray,
+  numberArray,
+  urlArray,
+  http,
+  https,
+  mysql,
+  mongodb,
+  redis,
+  date,
+  timestamp,
+} from 'node-env-resolver/validators';
+
+// Re-export useful types
+export type { EnvDefinition } from 'node-env-resolver';
 
 // Safe resolve result types (Zod-like)
 export interface SafeResolveResult<T> {
@@ -54,7 +84,7 @@ export interface ViteOptions extends Omit<ResolveOptions, 'resolvers'> {
  *
  * Vite handles .env files automatically.
  * This function is synchronous and supports ALL validator types:
- * - Basic types: string, number, boolean, enums, pattern, custom
+ * - Basic types: string, number, boolean, oneOf, pattern, custom
  * - Advanced types: postgres, url, email, json, port, date, etc.
  *
  * @example
@@ -196,10 +226,6 @@ export function safeResolve<TServer extends SimpleEnvSchema, TClient extends Sim
     };
   }
 }
-
-// Re-export useful types and utilities
-export type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
-export { string, url, port, postgres, email, number, boolean, enums, secret, custom, duration, file, json, stringArray, numberArray, urlArray, http, https, mysql, mongodb, redis, date, timestamp } from 'node-env-resolver/resolvers';
 
 // Utility for runtime environment detection
 export const isServer = typeof window === 'undefined';

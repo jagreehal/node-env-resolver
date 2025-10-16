@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolve, resolveAsync } from './index';
-import { stringArray, numberArray, string, duration, file, boolean } from './resolvers';
+import { stringArray, numberArray, string, duration, file, boolean } from './validators';
 import { processEnv } from './resolvers';
 
 describe('Type Inference for New Features', () => {

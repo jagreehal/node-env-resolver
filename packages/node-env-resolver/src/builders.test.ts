@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { resolve, resolveAsync } from './index';
-import { httpValidator, jsonValidator } from './validators';
-import { string, number, boolean, postgres, port, custom, enums, stringArray, numberArray } from './resolvers';
+import {
+  http,
+  json, string,
+  number,
+  boolean,
+  postgres,
+  port,
+  custom,
+  oneOf,
+  stringArray,
+  numberArray,
+} from './validators';
 
 describe('Builder Functions', () => {
   it('should handle literal default values without ambiguity', async () => {
@@ -42,8 +52,8 @@ describe('Builder Functions', () => {
           LOG_LEVEL: string({ default: 'info' }),
           FORMAT: postgres(),
           DB_TYPE: string(),
-          PROTOCOL: httpValidator(),
-          JSON_TYPE: jsonValidator(),
+          PROTOCOL: http(),
+          JSON_TYPE: json(),
           NAME: string(),
           USERNAME: string({ min: 3, max: 20 }),
           DATABASE_URL: postgres(),
@@ -180,7 +190,7 @@ describe('Builder Functions', () => {
     const config = await resolveAsync({
       resolvers: [
         [mockProvider, {
-          NODE_ENV: enums(['development', 'production', 'test'] as const),
+          NODE_ENV: oneOf(['development', 'production', 'test'] as const),
         }]
       ]
     });
@@ -201,8 +211,8 @@ describe('Builder Functions', () => {
     const config = await resolveAsync({
       resolvers: [
         [mockProvider, {
-          // Arrays still work for enums (backward compatible)
-          NODE_ENV: enums(['development', 'production', 'test']),
+          // Arrays still work for oneOf (backward compatible)
+          NODE_ENV: oneOf(['development', 'production', 'test']),
         }]
       ]
     });
@@ -261,12 +271,12 @@ describe('Builder Functions', () => {
 
   it('should export validators from validators subpath', async () => {
     // Import from validators subpath should work
-    const resolversModule = await import('./resolvers');
-    expect(resolversModule.string).toBeDefined();
-    expect(typeof resolversModule.string).toBe('function');
-    expect(resolversModule.number).toBeDefined();
-    expect(typeof resolversModule.number).toBe('function');
-    expect(resolversModule.postgres).toBeDefined();
-    expect(typeof resolversModule.postgres).toBe('function');
+    const validatorsModule = await import('./validators');
+    expect(validatorsModule.string).toBeDefined();
+    expect(typeof validatorsModule.string).toBe('function');
+    expect(validatorsModule.number).toBeDefined();
+    expect(typeof validatorsModule.number).toBe('function');
+    expect(validatorsModule.postgres).toBeDefined();
+    expect(typeof validatorsModule.postgres).toBe('function');
   });
 });

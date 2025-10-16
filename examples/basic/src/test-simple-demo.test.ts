@@ -3,7 +3,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolveAsync, type Resolver } from 'node-env-resolver';
-import { processEnv, string, number } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { string, number } from 'node-env-resolver/validators';
 
 function createDatabaseConfigResolver(values: Record<string, string>): Resolver {
   return {

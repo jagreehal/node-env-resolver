@@ -1,7 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { resolve, resolveAsync } from './index';
-import { string, url, email, postgres, mysql, mongodb, redis, https, number, boolean, enums, port, date, timestamp } from './resolvers';
-import { httpValidator } from './validators';
+import {
+  string,
+  url,
+  email,
+  postgres,
+  mysql,
+  mongodb,
+  redis,
+  http,
+  https,
+  number,
+  boolean,
+  oneOf,
+  port,
+  date,
+  timestamp,
+} from './validators';
 import { resolveZod } from './zod';
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
@@ -26,7 +41,7 @@ describe('Simplified resolve() API', () => {
           PORT: 3000,                    // number with default
           DATABASE_URL: url(),          // required secret url
           API_KEY: string({optional:true}),            // optional string
-          NODE_ENV: enums(['dev', 'prod']),     // enum
+          NODE_ENV: oneOf(['dev', 'prod']),     // enum
           DEBUG: false,                  // boolean with default
         }]
       ]
@@ -160,7 +175,7 @@ describe('Simplified resolve() API', () => {
             return { ENV_MODE: 'staging' } as Record<string, string>;
           },
         }, {
-          ENV_MODE: enums(['dev', 'staging', 'prod']),
+          ENV_MODE: oneOf(['dev', 'staging', 'prod']),
         }]
       ]
     });
@@ -177,7 +192,7 @@ describe('Simplified resolve() API', () => {
             return { ENV_MODE: 'invalid' } as Record<string, string>;
           },
         }, {
-          ENV_MODE: enums(['dev', 'staging', 'prod']),
+          ENV_MODE: oneOf(['dev', 'staging', 'prod']),
         }]
       ]
     })).rejects.toThrow(/Allowed values: dev, staging, prod/);
@@ -302,11 +317,11 @@ describe('resolve() - Synchronous environment resolver', () => {
     expect(config.MISSING_OPTIONAL).toBeUndefined();
   });
 
-  it('validates enums in sync mode', () => {
+  it('validates oneOf in sync mode', () => {
     process.env.NODE_ENV = 'development';
 
     const config = resolve({
-      NODE_ENV: enums(['development', 'production', 'test'])
+      NODE_ENV: oneOf(['development', 'production', 'test'])
     });
 
     expect(config.NODE_ENV).toBe('development');
@@ -320,7 +335,7 @@ describe('resolve() - Synchronous environment resolver', () => {
 
     expect(() => {
       resolve({
-        INVALID_ENV: enums(['valid1', 'valid2'])
+        INVALID_ENV: oneOf(['valid1', 'valid2'])
       });
     }).toThrow('Environment validation failed');
 
@@ -663,7 +678,7 @@ describe('Connection String Types', () => {
       const config = await resolveAsync({
       resolvers: [
         [mockProvider({ API_URL: 'http://api.example.com' }), {
-          API_URL: httpValidator()
+          API_URL: http()
         }]
       ]
     });
@@ -675,7 +690,7 @@ describe('Connection String Types', () => {
       const config = await resolveAsync({
       resolvers: [
         [mockProvider({ API_URL: 'https://api.example.com' }), {
-          API_URL: httpValidator()
+          API_URL: http()
         }]
       ]
     });
@@ -687,7 +702,7 @@ describe('Connection String Types', () => {
       const config = await resolveAsync({
       resolvers: [
         [mockProvider({ API_URL: 'https://api.example.com/v1/users?limit=10' }), {
-          API_URL: httpValidator()
+          API_URL: http()
         }]
       ]
     });
@@ -699,7 +714,7 @@ describe('Connection String Types', () => {
       const config = await resolveAsync({
       resolvers: [
         [mockProvider({ API_URL: 'http://localhost:8080/api' }), {
-          API_URL: httpValidator()
+          API_URL: http()
         }]
       ]
     });
@@ -711,7 +726,7 @@ describe('Connection String Types', () => {
       await expect(resolveAsync({
       resolvers: [
         [mockProvider({ API_URL: 'ftp://example.com' }), {
-          API_URL: httpValidator()
+          API_URL: http()
         }]
       ]
     })).rejects.toThrow(/Invalid HTTP URL/);
@@ -780,7 +795,7 @@ describe('Connection String Types', () => {
           MYSQL: mysql(),
           MONGODB: mongodb(),
           REDIS: redis(),
-          HTTP: httpValidator(),
+          HTTP: http(),
           HTTPS: https()
         }]
       ]
@@ -1380,10 +1395,10 @@ describe('Connection String Types', () => {
       await expect(resolveAsync({
       resolvers: [
         [mockProvider({ NODE_ENV: 'staging' }), {
-          NODE_ENV: enums(['dev', 'prod'])
+          NODE_ENV: oneOf(['dev', 'prod'])
         }]
       ]
-    })).rejects.toThrow(/Invalid enum value/);
+    })).rejects.toThrow(/Invalid value/);
     });
 
     it('should validate pattern defaults', async () => {
@@ -1425,7 +1440,7 @@ describe('Connection String Types', () => {
           [mockProvider({}), {
             PORT: port({ default: 8080 }),                    // Valid port
             EMAIL: email({ default: 'admin@example.com' }),      // Valid email
-            NODE_ENV: enums(['dev', 'prod'], { default: 'dev' }),  // Valid enum
+            NODE_ENV: oneOf(['dev', 'prod'], { default: 'dev' }),  // Valid enum
             NAME: string({ default: 'test', min: 3, max: 10 })            // Valid string
           }]
         ],

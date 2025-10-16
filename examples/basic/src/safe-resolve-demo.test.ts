@@ -4,7 +4,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { safeResolve, safeResolveAsync } from 'node-env-resolver';
-import { number, processEnv, string, url } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { number, string, url } from 'node-env-resolver/validators';
 
 describe('Safe Resolve Demo', () => {
   it('should demonstrate safeResolve vs resolve behavior', () => {

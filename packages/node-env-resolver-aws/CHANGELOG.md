@@ -61,7 +61,7 @@
   - **51% smaller main bundle**: Reduced from 32KB to 15.60KB
   - **45% smaller gzipped**: Reduced from 7.80KB to 4.31KB
   - Moved `processEnv` into main index to avoid importing heavy resolvers
-  - Inlined `validateFile` function to prevent pulling in entire validators module
+  - Inlined `file` function to prevent pulling in entire validators module
   - Perfect for Cloudflare Workers (only 1.5% of 1MB limit)
 
   #### **API Enhancements**
@@ -307,7 +307,7 @@
   import { cached, TTL, awsCache } from 'node-env-resolver/utils';
 
   // Step 3: If using validators directly
-  import { validateUrl, validateEmail } from 'node-env-resolver/validators';
+  import { url, email } from 'node-env-resolver/validators';
   ```
 
   ### Update Zod Safe Resolve

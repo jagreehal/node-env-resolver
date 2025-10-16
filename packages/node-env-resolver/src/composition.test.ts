@@ -7,7 +7,7 @@
 import { describe, it, expect, expectTypeOf } from 'vitest';
 import { env } from './builder';
 import type { Resolver } from './index';
-import { string, number, enums } from './resolvers';
+import { string, number, oneOf } from './validators';
 // Mock custom resolver
 function createCustomResolver(values: Record<string, string>): Resolver {
   return {
@@ -115,7 +115,7 @@ describe('Resolver Composition - Type Safety', () => {
     process.env.NODE_ENV = 'development';
 
     const config = env({
-      NODE_ENV: enums(['development', 'production']),
+      NODE_ENV: oneOf(['development', 'production']),
     }).resolve();
 
     expectTypeOf(config.NODE_ENV).toEqualTypeOf<string>();
