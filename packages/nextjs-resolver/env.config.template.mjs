@@ -19,37 +19,37 @@ export const env = await resolveNextEnv({
   server: {
     // Database
     DATABASE_URL: { 
-      type: 'url', 
+      type: url(), 
       secret: true,
       description: 'Database connection URL' 
     },
     
     // Authentication
     NEXTAUTH_SECRET: { 
-      type: 'string', 
+      type: string(), 
       secret: true,
       description: 'Secret for NextAuth.js' 
     },
     NEXTAUTH_URL: { 
-      type: 'url',
+      type: url(),
       description: 'Canonical URL of your site' 
     },
     
     // External APIs (server-side)
     STRIPE_SECRET_KEY: { 
-      type: 'string', 
+      type: string(), 
       secret: true, 
       optional: true,
       description: 'Stripe secret key for payments' 
     },
     RESEND_API_KEY: { 
-      type: 'string', 
+      type: string(), 
       secret: true, 
       optional: true,
       description: 'Resend API key for email sending' 
     },
     OPENAI_API_KEY: { 
-      type: 'string', 
+      type: string(), 
       secret: true, 
       optional: true,
       description: 'OpenAI API key' 
@@ -57,7 +57,7 @@ export const env = await resolveNextEnv({
     
     // App Configuration
     NODE_ENV: { 
-      type: 'string', 
+      type: string(), 
       enum: ['development', 'test', 'production'],
       description: 'Application environment' 
     },
@@ -76,25 +76,25 @@ export const env = await resolveNextEnv({
   client: {
     // App URLs
     NEXT_PUBLIC_APP_URL: { 
-      type: 'url',
+      type: url(),
       description: 'Public URL of your application' 
     },
     
     // External services (client-side)
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: { 
-      type: 'string', 
+      type: string(), 
       optional: true,
       description: 'Stripe publishable key for client-side payments' 
     },
     
     // Analytics & Tracking
     NEXT_PUBLIC_GA_ID: { 
-      type: 'string', 
+      type: string(), 
       optional: true,
       description: 'Google Analytics measurement ID' 
     },
     NEXT_PUBLIC_POSTHOG_KEY: { 
-      type: 'string', 
+      type: string(), 
       optional: true,
       description: 'PostHog API key for analytics' 
     },

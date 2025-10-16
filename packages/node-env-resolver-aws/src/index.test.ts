@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock functions must be defined before any imports that use them
+const mockSecretsManagerSend = vi.hoisted(() => vi.fn());
+const mockSsmSend = vi.hoisted(() => vi.fn());
+const mockResolveWith = vi.hoisted(() => vi.fn());
+const mockSafeResolveWith = vi.hoisted(() => vi.fn());
+
 import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index';
-const mockSecretsManagerSend = vi.fn();
-const mockSsmSend = vi.fn();
-const mockResolveWith = vi.fn();
-const mockSafeResolveWith = vi.fn();
+import { string, url } from 'node-env-resolver/resolvers';
 
 // Mock AWS SDK clients
 vi.mock('@aws-sdk/client-secrets-manager', () => ({
@@ -23,12 +27,11 @@ vi.mock('@aws-sdk/client-ssm', () => ({
 
 // Mock node-env-resolver
 vi.mock('node-env-resolver', () => ({
-  resolve: {
-    async: mockResolveWith,
-  },
-  safeResolve: {
-    async: mockSafeResolveWith,
-  },
+  resolveAsync: mockResolveWith,
+  safeResolveAsync: mockSafeResolveWith,
+  processEnv: vi.fn(),
+  string: vi.fn(),
+  url: vi.fn(),
 }));
 
 describe('node-env-resolver/aws', () => {
@@ -55,7 +58,7 @@ describe('node-env-resolver/aws', () => {
       });
 
       const provider = awsSecrets({ secretId: 'test-secret' });
-      const result = await provider.load();
+      const result = await provider.load!();
 
       expect(result).toEqual({
         DATABASE_URL: 'postgres://localhost:5432/test',
@@ -72,7 +75,7 @@ describe('node-env-resolver/aws', () => {
         secretId: 'simple-secret',
         parseJson: false
       });
-      const result = await provider.load();
+      const result = await provider.load!();
 
       expect(result).toEqual({
         'simple-secret': 'simple-secret-value',
@@ -84,7 +87,7 @@ describe('node-env-resolver/aws', () => {
 
       const provider = awsSecrets({ secretId: 'missing-secret' });
       
-      await expect(provider.load()).rejects.toThrow('Secret not found');
+      await expect(provider.load!()).rejects.toThrow('Secret not found');
     });
   });
 
@@ -103,7 +106,7 @@ describe('node-env-resolver/aws', () => {
       });
 
       const provider = awsSsm({ path: '/app/config', recursive: true });
-      const result = await provider.load();
+      const result = await provider.load!();
 
       expect(result).toEqual({
         DATABASE_URL: 'postgres://localhost:5432/app',
@@ -122,7 +125,7 @@ describe('node-env-resolver/aws', () => {
       const provider = awsSsm({ 
         path: '/app/DATABASE_URL'
       });
-      const result = await provider.load();
+      const result = await provider.load!();
 
       expect(result).toEqual({
         DATABASE_URL: 'postgres://localhost:5432/app',
@@ -136,7 +139,7 @@ describe('node-env-resolver/aws', () => {
         path: '/app/MISSING_PARAM'
       });
 
-      await expect(provider.load()).rejects.toThrow('Parameter not found');
+      await expect(provider.load!()).rejects.toThrow('Parameter not found');
     });
   });
 
@@ -152,17 +155,23 @@ describe('node-env-resolver/aws', () => {
       const result = await resolveSsm({
         path: '/myapp/config'
       }, {
-        API_ENDPOINT: 'url',
+        API_ENDPOINT: url(),
         TIMEOUT: 30
       });
 
       expect(result).toEqual(expectedConfig);
-      expect(mockResolveWith).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
-          { API_ENDPOINT: 'url', TIMEOUT: 30 }
-        ]
-      );
+
+      // Verify the call structure
+      expect(mockResolveWith).toHaveBeenCalledTimes(1);
+      const callArgs = mockResolveWith.mock.calls[0];
+      expect(callArgs[0][0]).toMatchObject({
+        name: 'aws-ssm(/myapp/config)',
+      });
+      expect(callArgs[0][0].load).toBeTypeOf('function');
+      expect(callArgs[0][1]).toMatchObject({ 
+        API_ENDPOINT: expect.any(Function), 
+        TIMEOUT: 30 
+      });
     });
 
     it('should pass additional resolve options', async () => {
@@ -172,18 +181,22 @@ describe('node-env-resolver/aws', () => {
         path: '/myapp/config',
         region: 'us-west-2'
       }, {
-        API_ENDPOINT: 'url'
+        API_ENDPOINT: url()
       }, {
         strict: false
       });
 
-      expect(mockResolveWith).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({ name: 'aws-ssm(/myapp/config)' }),
-          { API_ENDPOINT: 'url' }
-        ],
-        { strict: false }
-      );
+      // Verify the call structure
+      expect(mockResolveWith).toHaveBeenCalledTimes(1);
+      const callArgs = mockResolveWith.mock.calls[0];
+      expect(callArgs[0][0]).toMatchObject({
+        name: 'aws-ssm(/myapp/config)',
+      });
+      expect(callArgs[0][0].load).toBeTypeOf('function');
+      expect(callArgs[0][1]).toMatchObject({ 
+        API_ENDPOINT: expect.any(Function) 
+      });
+      expect(callArgs[1]).toEqual({ strict: false });
     });
   });
 
@@ -202,7 +215,7 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSsm({
         path: '/myapp/config'
       }, {
-        API_ENDPOINT: 'url',
+        API_ENDPOINT: url(),
         TIMEOUT: 30
       });
 
@@ -221,7 +234,7 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSsm({
         path: '/myapp/config'
       }, {
-        API_ENDPOINT: 'url'
+        API_ENDPOINT: url()
       });
 
       expect(result).toEqual({
@@ -243,15 +256,21 @@ describe('node-env-resolver/aws', () => {
       const result = await resolveSecrets({
         secretId: 'myapp/secrets'
       }, {
-        DATABASE_URL: 'url',
-        API_KEY: 'string'
+        DATABASE_URL: url(),
+        API_KEY: string()
       });
 
       expect(result).toEqual(expectedConfig);
       expect(mockResolveWith).toHaveBeenCalledWith(
         [
-          expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
-          { DATABASE_URL: 'url', API_KEY: 'string' }
+          expect.objectContaining({
+            name: 'aws-secrets(myapp/secrets)',
+            load: expect.any(Function)
+          }),
+          { 
+            DATABASE_URL: expect.any(Function), 
+            API_KEY: expect.any(Function) 
+          }
         ]
       );
     });
@@ -263,15 +282,18 @@ describe('node-env-resolver/aws', () => {
         secretId: 'myapp/secrets',
         region: 'eu-west-1'
       }, {
-        DATABASE_URL: 'url'
+        DATABASE_URL: url()
       }, {
         strict: false
       });
 
       expect(mockResolveWith).toHaveBeenCalledWith(
         [
-          expect.objectContaining({ name: 'aws-secrets(myapp/secrets)' }),
-          { DATABASE_URL: 'url' }
+          expect.objectContaining({
+            name: 'aws-secrets(myapp/secrets)',
+            load: expect.any(Function)
+          }),
+          { DATABASE_URL: expect.any(Function) }
         ],
         { strict: false }
       );
@@ -293,8 +315,8 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSecrets({
         secretId: 'myapp/secrets'
       }, {
-        DATABASE_URL: 'url',
-        API_KEY: 'string'
+        DATABASE_URL: url(),
+        API_KEY: string()
       });
 
       expect(result).toEqual({
@@ -312,7 +334,7 @@ describe('node-env-resolver/aws', () => {
       const result = await safeResolveSecrets({
         secretId: 'myapp/secrets'
       }, {
-        DATABASE_URL: 'url'
+        DATABASE_URL: url()
       });
 
       expect(result).toEqual({

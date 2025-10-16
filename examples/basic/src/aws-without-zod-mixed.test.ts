@@ -3,7 +3,9 @@
  * Combining shorthand and full object syntax for flexibility
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { string, url, number } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
 import { cached, awsCache } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -42,19 +44,19 @@ describe('AWS Secrets - Mixed Syntax', () => {
       NODE_ENV: ['development', 'production', 'test'] as const,
       PORT: 3000,
       DEBUG: false,
-      DATABASE_PASSWORD: 'string',
-      API_KEY: 'string?',
-      JWT_SECRET: 'string',
+      DATABASE_PASSWORD: string(),
+      API_KEY: string({optional:true}),
+      JWT_SECRET: string(),
 
       // Full object syntax for complex validation
-      DATABASE_URL: { type: 'url', secret: true },
-      REDIS_URL: { type: 'url', optional: true },
-      MAX_CONNECTIONS: { type: 'number', default: 100, min: 1, max: 1000 },
-      LOG_LEVEL: { type: 'string', enum: ['debug', 'info', 'warn', 'error'] as const, default: 'info' },
-      SESSION_TIMEOUT: { type: 'number', default: 3600, min: 60, max: 86400 },
+      DATABASE_URL: url({ secret: true }),
+      REDIS_URL: url({ optional: true }),
+      MAX_CONNECTIONS: number({ default: 100, min: 1, max: 1000 }),
+      LOG_LEVEL: string({ enum: ['debug', 'info', 'warn', 'error'] as const, default: 'info' }),
+      SESSION_TIMEOUT: number({ default: 3600, min: 60, max: 86400 }),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockDotenvProvider(mockDotenv), schema],
       [cached(
         mockAwsSecretsProvider(mockSecrets),
@@ -92,11 +94,11 @@ describe('AWS Secrets - Mixed Syntax', () => {
     const devSchema = {
       NODE_ENV: ['development', 'production', 'test'] as const,
       PORT: 3000,
-      DATABASE_PASSWORD: 'string',
-      API_KEY: 'string?',
+      DATABASE_PASSWORD: string(),
+      API_KEY: string({optional:true}),
     };
 
-    const devConfig = await resolve.async(
+    const devConfig = await resolveAsync(
       [processEnv(), devSchema],
       [mockAwsSecretsProvider(mockSecrets), devSchema]
     );
@@ -111,11 +113,11 @@ describe('AWS Secrets - Mixed Syntax', () => {
     const prodSchema = {
       NODE_ENV: ['development', 'production', 'test'] as const,
       PORT: 8080,
-      DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
-      API_KEY: { type: 'string', secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' },
+      DATABASE_PASSWORD: string({ secret: true, min: 10 }),
+      API_KEY: string({ secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' }),
     };
 
-    const prodConfig = await resolve.async(
+    const prodConfig = await resolveAsync(
       [processEnv(), prodSchema],
       [mockAwsSecretsProvider(mockSecrets), prodSchema],
       {
@@ -138,25 +140,23 @@ describe('AWS Secrets - Mixed Syntax', () => {
 
     const schema = {
       // Simple validation
-      SIMPLE_STRING: 'string',
+      SIMPLE_STRING: string(),
 
       // Complex validation
-      COMPLEX_STRING: {
-        type: 'string',
+      COMPLEX_STRING: string({
         min: 5,
         max: 50,
         pattern: '^[a-z-]+$'
-      },
+      }),
 
       // Optional with default
-      OPTIONAL_STRING: {
-        type: 'string',
+      OPTIONAL_STRING: string({
         optional: true,
         default: 'default-value'
-      },
+      }),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockAwsSecretsProvider(mockSecrets), schema]
     );
 

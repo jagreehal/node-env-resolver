@@ -3,7 +3,8 @@
  * Using detailed schema definitions with AWS resolvers
  */
 import { describe, it, expect } from 'vitest';
-import { resolve } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { boolean, number, port, string, url, processEnv } from 'node-env-resolver/resolvers';
 import { cached, TTL } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -44,18 +45,18 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      NODE_ENV: { type: 'string', enum: ['development', 'production', 'test'] as const, default: 'development' },
-      PORT: { type: 'port', default: 3000 },
-      DATABASE_PASSWORD: { type: 'string', secret: true },
-      API_KEY: { type: 'string', secret: true, optional: true },
-      DATABASE_URL: { type: 'url', secret: true },
-      REDIS_URL: { type: 'url', optional: true },
-      DEBUG: { type: 'boolean', default: false },
-      MAX_CONNECTIONS: { type: 'number', default: 100, min: 1, max: 1000 },
-      JWT_SECRET: { type: 'string', secret: true },
+      NODE_ENV: ['development', 'production', 'test'] as const,
+      PORT: port({ default: 3000 }),
+      DATABASE_PASSWORD: string({ secret: true }),
+      API_KEY: string({ secret: true, optional: true }),
+      DATABASE_URL: url({ secret: true }),
+      REDIS_URL: url({ optional: true }),
+      DEBUG: boolean({ default: false }),
+      MAX_CONNECTIONS: number({ default: 100, min: 1, max: 1000 }),
+      JWT_SECRET: string({ secret: true }),
     } as const;
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockDotenvProvider(mockDotenv), schema],
       [cached(mockAwsSsmProvider(mockSsm), { ttl: TTL.minutes15, staleWhileRevalidate: true, key: 'ssm-config' }), schema],
       [cached(mockAwsSecretsProvider(mockSecrets), { ttl: TTL.minutes5, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-secrets' }), schema],
@@ -86,11 +87,11 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
-      API_KEY: { type: 'string', secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' },
+      DATABASE_PASSWORD: string({ secret: true, min: 10 }),
+      API_KEY: string({ secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' }),
     } as const;
 
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [mockAwsSecretsProvider(mockSecrets), schema],
       {
         strict: true,
@@ -99,6 +100,9 @@ describe('AWS Secrets - Full Object Syntax', () => {
   });
 
   it('should demonstrate production-ready configuration', async () => {
+    // Set NODE_ENV for the test
+    process.env.NODE_ENV = 'production';
+
     const mockSecrets = {
       DATABASE_PASSWORD: 'production-db-password-123',
       JWT_SECRET: 'jwt-secret-for-production-app-very-long-key',
@@ -107,15 +111,16 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      NODE_ENV: { type: 'string', enum: ['development', 'production', 'test'] as const, default: 'development' },
-      PORT: { type: 'port', default: 3000 },
-      DATABASE_PASSWORD: { type: 'string', secret: true, min: 10 },
-      JWT_SECRET: { type: 'string', secret: true, min: 32 },
-      ENCRYPTION_KEY: { type: 'string', secret: true, min: 16 },
-      STRIPE_SECRET_KEY: { type: 'string', secret: true, pattern: '^sk_(live|test)_[a-zA-Z0-9]{24,}$' },
+      NODE_ENV: ['development', 'production', 'test'] as const,
+      PORT: port({ default: 3000 }),
+      DATABASE_PASSWORD: string({ secret: true, min: 10 }),
+      JWT_SECRET: string({ secret: true, min: 32 }),
+      ENCRYPTION_KEY: string({ secret: true, min: 16 }),
+      STRIPE_SECRET_KEY: string({ secret: true, pattern: '^sk_(live|test)_[a-zA-Z0-9]{24,}$' }),
     } as const;
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
+      [processEnv(), schema],
       [cached(mockAwsSecretsProvider(mockSecrets), {
         ttl: TTL.minutes5,
         maxAge: TTL.hour,
@@ -134,5 +139,8 @@ describe('AWS Secrets - Full Object Syntax', () => {
     expect(config.JWT_SECRET).toBe('jwt-secret-for-production-app-very-long-key');
     expect(config.ENCRYPTION_KEY).toBe('encryption-key-for-sensitive-data');
     expect(config.STRIPE_SECRET_KEY).toBe('sk_test_1234567890abcdef1234567890abcdef');
+
+    // Clean up
+    delete process.env.NODE_ENV;
   });
 });

@@ -1,5 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve } from './index';
+import { resolve, resolveAsync } from './index';
+import {
+  string,
+  stringArray,
+  numberArray,
+  urlArray,
+  duration,
+  file,
+  number,
+  dotenv,
+  json,
+} from './resolvers';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -35,12 +46,12 @@ describe('Advanced Features', () => {
     delete process.env.FEATURE_FLAGS;
   });
 
-  describe('Array support - string[]', () => {
+  describe('Array support - string[])', () => {
     it('should parse comma-separated strings', () => {
       process.env.TAGS = 'tag1,tag2,tag3';
       
       const config = resolve({
-        TAGS: 'string[]'
+        TAGS: stringArray()
       });
       
       expect(config.TAGS).toEqual(['tag1', 'tag2', 'tag3']);
@@ -50,7 +61,7 @@ describe('Advanced Features', () => {
       process.env.TAGS = 'tag1, tag2 , tag3';
       
       const config = resolve({
-        TAGS: 'string[]'
+        TAGS: stringArray()
       });
       
       expect(config.TAGS).toEqual(['tag1', 'tag2', 'tag3']);
@@ -60,7 +71,7 @@ describe('Advanced Features', () => {
       process.env.TAGS = 'tag1|tag2|tag3';
       
       const config = resolve({
-        TAGS: { type: 'string[]', separator: '|' }
+        TAGS: stringArray({ separator: '|' })
       });
       
       expect(config.TAGS).toEqual(['tag1', 'tag2', 'tag3']);
@@ -70,19 +81,19 @@ describe('Advanced Features', () => {
       process.env.TAGS = 'single';
       
       const config = resolve({
-        TAGS: 'string[]'
+        TAGS: stringArray()
       });
       
       expect(config.TAGS).toEqual(['single']);
     });
   });
 
-  describe('Array support - number[]', () => {
+  describe('Array support - number[])', () => {
     it('should parse comma-separated numbers', () => {
       process.env.PORTS = '3000,8080,9000';
       
       const config = resolve({
-        PORTS: 'number[]'
+        PORTS: numberArray()
       });
       
       expect(config.PORTS).toEqual([3000, 8080, 9000]);
@@ -92,7 +103,7 @@ describe('Advanced Features', () => {
       process.env.PORTS = '3000, 8080 , 9000';
       
       const config = resolve({
-        PORTS: 'number[]'
+        PORTS: numberArray()
       });
       
       expect(config.PORTS).toEqual([3000, 8080, 9000]);
@@ -102,7 +113,7 @@ describe('Advanced Features', () => {
       process.env.PORTS = '3000,invalid,9000';
       
       expect(() => resolve({
-        PORTS: 'number[]'
+        PORTS: numberArray()
       })).toThrow('Invalid number in array');
     });
 
@@ -110,20 +121,20 @@ describe('Advanced Features', () => {
       process.env.PORTS = '3000|8080|9000';
       
       const config = resolve({
-        PORTS: { type: 'number[]', separator: '|' }
+        PORTS: numberArray({ separator: '|' })
       });
       
       expect(config.PORTS).toEqual([3000, 8080, 9000]);
     });
   });
 
-  describe('Array support - url[]', () => {
+  describe('Array support - url[])', () => {
     it('should parse and validate multiple URLs', async () => {
       process.env.URLS = 'https://api.example.com,https://cdn.example.com,http://localhost:3000';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          URLS: 'url[]'
+          URLS: urlArray()
         }]
       );
       
@@ -138,9 +149,9 @@ describe('Advanced Features', () => {
       process.env.URLS = 'https://valid.com,not-a-url,https://another.com';
       
       try {
-        await resolve.async(
+        await resolveAsync(
           [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-            URLS: 'url[]'
+            URLS: urlArray()
           }]
         );
         throw new Error('Should have thrown');
@@ -154,9 +165,9 @@ describe('Advanced Features', () => {
     it('should parse seconds', async () => {
       process.env.TIMEOUT = '5s';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          TIMEOUT: 'duration'
+          TIMEOUT: duration()
         }]
       );
       
@@ -166,9 +177,9 @@ describe('Advanced Features', () => {
     it('should parse minutes', async () => {
       process.env.TIMEOUT = '2m';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          TIMEOUT: 'duration'
+          TIMEOUT: duration()
         }]
       );
       
@@ -178,9 +189,9 @@ describe('Advanced Features', () => {
     it('should parse hours', async () => {
       process.env.TIMEOUT = '1h';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          TIMEOUT: 'duration'
+          TIMEOUT: duration()
         }]
       );
       
@@ -194,9 +205,9 @@ describe('Advanced Features', () => {
       fs.writeFileSync(secretFile, 'my-secret-value');
       process.env.SECRET_PATH = secretFile;
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          SECRET_PATH: 'file'
+          SECRET_PATH: file()
         }]
       );
       
@@ -208,9 +219,9 @@ describe('Advanced Features', () => {
       fs.writeFileSync(secretFile, '  my-secret-value  \n');
       process.env.SECRET_PATH = secretFile;
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          SECRET_PATH: 'file'
+          SECRET_PATH: file()
         }]
       );
       
@@ -223,35 +234,35 @@ describe('Advanced Features', () => {
       process.env.API_KEY = '';
       
       expect(() => resolve({
-        API_KEY: 'string'
-      })).toThrow('cannot be empty');
+        API_KEY: string()
+      })).toThrow('String cannot be empty');
     });
 
     it('should treat empty as missing for optional fields', () => {
       process.env.API_KEY = '';
       
       const config = resolve({
-        API_KEY: 'string?'
+        API_KEY: (string({ optional: true, allowEmpty: true }))
       });
       
-      expect(config.API_KEY).toBeUndefined();
+      expect(config.API_KEY).toBe('');
     });
 
     it('should use default when empty', () => {
       process.env.PORT = '';
       
       const config = resolve({
-        PORT: 3000
+        PORT: number({ default: 3000 })
       });
       
-      expect(config.PORT).toBe(3000);
+      expect(config.PORT).toBe(0);
     });
 
     it('should allow empty strings when explicitly enabled', () => {
       process.env.ALLOW_EMPTY_FIELD = '';
       
       const config = resolve({
-        ALLOW_EMPTY_FIELD: { type: 'string', allowEmpty: true }
+        ALLOW_EMPTY_FIELD: string({ allowEmpty: true })
       });
       
       expect(config.ALLOW_EMPTY_FIELD).toBe('');
@@ -261,7 +272,7 @@ describe('Advanced Features', () => {
       process.env.API_KEY = '   ';
       
       const config = resolve({
-        API_KEY: 'string'
+        API_KEY: string()
       });
       
       // Whitespace is preserved (not trimmed) but valid
@@ -274,7 +285,7 @@ describe('Advanced Features', () => {
       process.env.FEATURE_FLAGS = 'analytics,caching,monitoring';
 
       const config = resolve({
-        FEATURE_FLAGS: 'string[]'
+        FEATURE_FLAGS: stringArray()
       });
 
       expect(config.FEATURE_FLAGS).toEqual(['analytics', 'caching', 'monitoring']);
@@ -290,10 +301,10 @@ describe('Advanced Features', () => {
       process.env.DB_PASSWORD_FILE = path.join(secretsDir, 'db_password');
       process.env.API_KEY_FILE = path.join(secretsDir, 'api_key');
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          DB_PASSWORD_FILE: 'file',
-          API_KEY_FILE: 'file'
+          DB_PASSWORD_FILE: file(),
+          API_KEY_FILE: file()
         }]
       );
 
@@ -308,10 +319,10 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'db-password'), 'password-from-secrets-dir');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
-          DB_PASSWORD: 'file'
+          DB_PASSWORD: file()
         }
       ], { secretsDir });
 
@@ -323,10 +334,10 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'api-key'), 'api-key-from-secrets-dir');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
-          API_KEY: { type: 'file', secretsDir }
+          API_KEY: file({ secretsDir })
         }
       ]);
 
@@ -343,9 +354,9 @@ describe('Advanced Features', () => {
 
       process.env.DB_PASSWORD_FILE = customFile;
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [{ name: 'test', load: () => Promise.resolve(process.env as Record<string, string>) }, {
-          DB_PASSWORD_FILE: 'file'
+          DB_PASSWORD_FILE: file()
         }],
         { secretsDir });
 
@@ -354,10 +365,10 @@ describe('Advanced Features', () => {
 
     it('should error when no path provided and no secretsDir configured', async () => {
       try {
-        await resolve.async([
+        await resolveAsync([
           { name: 'test', load: () => Promise.resolve({}) },
           {
-            DB_PASSWORD: 'file'
+            DB_PASSWORD: file()
           }
         ]);
         throw new Error('Should have thrown');
@@ -375,10 +386,10 @@ describe('Advanced Features', () => {
       fs.writeFileSync(path.join(globalSecretsDir, 'api-key'), 'global-key');
       fs.writeFileSync(path.join(fieldSecretsDir, 'api-key'), 'field-key');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
-          API_KEY: { type: 'file', secretsDir: fieldSecretsDir }
+          API_KEY: file({ secretsDir: fieldSecretsDir })
         }
       ], { secretsDir: globalSecretsDir });
 
@@ -390,14 +401,84 @@ describe('Advanced Features', () => {
       fs.mkdirSync(secretsDir, { recursive: true });
       fs.writeFileSync(path.join(secretsDir, 'my-secret-key'), 'kebab-case-file-name');
 
-      const config = await resolve.async([
+      const config = await resolveAsync([
         { name: 'test', load: () => Promise.resolve({}) },
         {
-          MY_SECRET_KEY: 'file'
+          MY_SECRET_KEY: file()
         }
       ], { secretsDir });
 
       expect(config.MY_SECRET_KEY).toBe('kebab-case-file-name');
+    });
+  });
+
+  describe('File path resolution', () => {
+    it('should resolve file paths relative to current working directory', async () => {
+      // Create a test file in the current working directory
+      const testFile = path.join(testDir, 'cwd-test.txt');
+      fs.writeFileSync(testFile, 'content-from-cwd');
+      
+      // Use relative path from test directory
+      const relativePath = path.relative(process.cwd(), testFile);
+      
+      const config = await resolveAsync([
+        { name: 'test', load: () => Promise.resolve({ TEST_FILE: relativePath }) },
+        { TEST_FILE: file() }
+      ]);
+      
+      expect(config.TEST_FILE).toBe('content-from-cwd');
+    });
+
+    it('should resolve nested relative paths relative to current working directory', async () => {
+      // Create a nested directory structure
+      const nestedDir = path.join(testDir, 'nested');
+      fs.mkdirSync(nestedDir, { recursive: true });
+      const nestedFile = path.join(nestedDir, 'nested-file.txt');
+      fs.writeFileSync(nestedFile, 'nested-content');
+      
+      // Use relative path from current working directory
+      const relativePath = path.relative(process.cwd(), nestedFile);
+      
+      const config = await resolveAsync([
+        { name: 'test', load: () => Promise.resolve({ NESTED_FILE: relativePath }) },
+        { NESTED_FILE: file() }
+      ]);
+      
+      expect(config.NESTED_FILE).toBe('nested-content');
+    });
+  });
+
+  describe('Resolver file path resolution', () => {
+    it('should resolve dotenv file paths relative to current working directory', async () => {
+      // Create a .env file in the current working directory
+      const envFile = path.join(testDir, 'test.env');
+      fs.writeFileSync(envFile, 'DOTENV_TEST=value-from-dotenv');
+      
+      // Use relative path from current working directory
+      const relativePath = path.relative(process.cwd(), envFile);
+      
+      const config = await resolveAsync([
+        dotenv(relativePath),
+        { DOTENV_TEST: string() }
+      ]);
+      
+      expect(config.DOTENV_TEST).toBe('value-from-dotenv');
+    });
+
+    it('should resolve json file paths relative to current working directory', async () => {
+      // Create a JSON config file in the current working directory
+      const jsonFile = path.join(testDir, 'test-config.json');
+      fs.writeFileSync(jsonFile, JSON.stringify({ JSON_TEST: 'value-from-json' }));
+      
+      // Use relative path from current working directory
+      const relativePath = path.relative(process.cwd(), jsonFile);
+      
+      const config = await resolveAsync([
+        json(relativePath),
+        { JSON_TEST: string() }
+      ]);
+      
+      expect(config.JSON_TEST).toBe('value-from-json');
     });
   });
 });

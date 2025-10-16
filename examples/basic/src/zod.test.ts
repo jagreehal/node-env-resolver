@@ -4,8 +4,8 @@
  * This example shows how to use Zod schemas with node-env-resolver
  * using the Standard Schema specification.
  */
-import { describe, it, expect, vi } from 'vitest';
-import { processEnv } from 'node-env-resolver';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { processEnv } from 'node-env-resolver/resolvers';
 import { resolveZod, resolveSyncZod, safeResolveSyncZod } from 'node-env-resolver/zod';
 import * as z from 'zod';
 

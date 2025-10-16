@@ -3,7 +3,8 @@
  * Demonstrates the new safeResolve and safeResolveSync functions
  */
 import { describe, it, expect } from 'vitest';
-import { safeResolve, processEnv } from 'node-env-resolver';
+import { safeResolve, safeResolveAsync } from 'node-env-resolver';
+import { number, processEnv, string, url } from 'node-env-resolver/resolvers';
 
 describe('Safe Resolve Demo', () => {
   it('should demonstrate safeResolve vs resolve behavior', () => {
@@ -14,13 +15,13 @@ describe('Safe Resolve Demo', () => {
     // ❌ This would throw an error if validation fails
     // const config = resolve({
     //   PORT: 'number',
-    //   MISSING_VAR: 'string', // This would cause an error
+    //   MISSING_VAR: string(), // This would cause an error
     // });
 
     // ✅ This returns a result object instead of throwing
     const safeResult = safeResolve({
-      PORT: 'number',
-      MISSING_VAR: 'string', // This fails validation
+      PORT: number(),
+      MISSING_VAR: string(), // This fails validation
     });
 
     console.log('Safe resolve result:', safeResult);
@@ -28,7 +29,7 @@ describe('Safe Resolve Demo', () => {
 
     // ✅ This works when validation passes
     const successResult = safeResolve({
-      PORT: 'number',
+      PORT: number(),
       NODE_ENV: ['development', 'production', 'test'] as const,
     });
 
@@ -49,7 +50,7 @@ describe('Safe Resolve Demo', () => {
 
     // ✅ Works with resolvers
     const result = safeResolve({
-      PORT: 'number',
+      PORT: number(),
       DEBUG: false, // boolean with default
     });
 
@@ -63,7 +64,7 @@ describe('Safe Resolve Demo', () => {
     delete process.env.PORT;
   });
 
-  it('should demonstrate safeResolve.async with multiple resolvers', async () => {
+  it('should demonstrate saferesolveAsync with multiple resolvers', async () => {
     process.env.NODE_ENV = 'production';
     process.env.PORT = '3000';
 
@@ -77,13 +78,13 @@ describe('Safe Resolve Demo', () => {
       },
     };
 
-    const result = await safeResolve.async(
+    const result = await safeResolveAsync(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
       }],
       [mockSecrets, {
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
       }]
     );
 

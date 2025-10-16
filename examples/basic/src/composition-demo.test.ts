@@ -2,11 +2,12 @@
  * Resolver Composition Demo Tests
  *
  * Shows how to explicitly compose environment variables from multiple resolvers
- * using the new resolve.async() tuple API
+ * using the new resolveAsync() tuple API
  */
 import { describe, it, expect, vi } from 'vitest';
-import { resolve, processEnv } from 'node-env-resolver';
-import type { Resolver } from 'node-env-resolver';
+import { string, number, postgres, boolean } from 'node-env-resolver/resolvers';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { AsyncResolver, resolveAsync, type Resolver } from 'node-env-resolver';
 
 // ============================================================================
 // Custom Resolver Examples
@@ -57,16 +58,19 @@ describe('Resolver Composition Demo', () => {
         DATABASE_PORT: '5432',
       });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
           // Local variables (from .env or process.env)
           PORT: 3000,
           NODE_ENV: ['development', 'production', 'test'] as const,
+          // Database config variables
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
         }],
         [dbConfig, {
           // Database config variables
-          DATABASE_HOST: 'string',
-          DATABASE_PORT: 'number',
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
         }]
       );
 
@@ -82,14 +86,16 @@ describe('Resolver Composition Demo', () => {
         DATABASE_PORT: '5432',
       });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production', 'test'] as const,
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
         }],
         [dbConfig, {
-          DATABASE_HOST: 'string',
-          DATABASE_PORT: 'number',
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
         }]
       );
 
@@ -113,17 +119,19 @@ describe('Resolver Composition Demo', () => {
 
       const apiResolver = await createAPIConfigResolver();
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
           // Local has API_KEY set
-          API_KEY: 'string', // secret
+          API_KEY: string(), // secret
           PORT: 3000,
+          FEATURE_FLAG_NEW_UI: boolean(),
+          RATE_LIMIT: number(),
         }],
         [apiResolver, {
           // API service also provides API_KEY - this will override!
-          API_KEY: 'string',
-          FEATURE_FLAG_NEW_UI: 'boolean',
-          RATE_LIMIT: 'number',
+          API_KEY: string(),
+          FEATURE_FLAG_NEW_UI: boolean(),
+          RATE_LIMIT: number(),
         }]
       );
 
@@ -152,15 +160,15 @@ describe('Resolver Composition Demo', () => {
         }
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
-          TEST_VAR: 'string'
+          TEST_VAR: string()
         }],
         [provider1, {
-          TEST_VAR: 'string'
+          TEST_VAR: string()
         }],
         [provider2, {
-          TEST_VAR: 'string'
+          TEST_VAR: string()
         }]
       );
 
@@ -177,7 +185,7 @@ describe('Resolver Composition Demo', () => {
 
       const apiConfig = await createAPIConfigResolver();
 
-      const secretsResolver: Resolver = {
+      const secretsResolver: AsyncResolver = {
         name: 'secrets-manager',
         async load() {
           return {
@@ -190,23 +198,28 @@ describe('Resolver Composition Demo', () => {
       // Set NODE_ENV explicitly for this test
       process.env.NODE_ENV = 'development';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
           // Base local config
           PORT: 3000,
           NODE_ENV: ['development', 'production'] as const,
+          DATABASE_URL: postgres(),
+          API_KEY: string(),
+          FEATURE_FLAG_NEW_UI: boolean(),
+          JWT_SECRET: string(),
+          ENCRYPTION_KEY: string(),
         }],
         [dbConfig, {
-          DATABASE_URL: 'postgres',
+          DATABASE_URL: postgres(),
         }],
         [apiConfig, {
-          API_KEY: 'string',
-          FEATURE_FLAG_NEW_UI: 'boolean',
+          API_KEY: string(),
+          FEATURE_FLAG_NEW_UI: boolean(),
         }],
         [secretsResolver, {
-          JWT_SECRET: 'string',
-          ENCRYPTION_KEY: 'string',
-        }]
+          JWT_SECRET: string(),
+          ENCRYPTION_KEY: string(),
+        }],
       );
 
       expect(config.PORT).toBe(3000);
@@ -238,22 +251,28 @@ describe('Resolver Composition Demo', () => {
       // Set NODE_ENV explicitly for this test
       process.env.NODE_ENV = 'development';
       
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
           PORT: 3000,
           NODE_ENV: ['development', 'production'] as const,
+          DATABASE_URL: postgres(),
+          API_KEY: string(),
+          FEATURE_FLAG_NEW_UI: boolean(),
+          JWT_SECRET: string(),
+          ENCRYPTION_KEY: string(),
         }],
         [dbConfig, {
-          DATABASE_URL: 'postgres',
+          DATABASE_URL: postgres(),
         }],
         [apiConfig, {
-          API_KEY: 'string',
-          FEATURE_FLAG_NEW_UI: 'boolean',
+          API_KEY: string(),
+          FEATURE_FLAG_NEW_UI: boolean(),
         }],
         [secretsResolver, {
-          JWT_SECRET: 'string',
-          ENCRYPTION_KEY: 'string',
-        }]
+          JWT_SECRET: string(),
+          ENCRYPTION_KEY: string(),
+        }],
+        {} // Empty options object
       );
 
       // Perfect type inference for all variables
@@ -292,12 +311,12 @@ describe('Resolver Composition Demo', () => {
       // Set up process.env for testing
       process.env.FOO = 'from-process-env';
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
-          FOO: 'string'  // ← from processEnv
+          FOO: string()  // ← from processEnv
         }],
         [customResolver, {
-          QUZ: 'string'  // ← explicitly from customResolver only
+          QUZ: string()  // ← explicitly from customResolver only
         }]
       );
 
@@ -322,12 +341,12 @@ describe('Resolver Composition Demo', () => {
       // Set up process.env for testing
       process.env.FOO = 'from-process-env';
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
-          FOO: 'string'  // ← from processEnv
+          FOO: string()  // ← from processEnv
         }],
         [customResolver, {
-          FOO: 'string'  // ← customResolver overrides processEnv
+          FOO: string()  // ← customResolver overrides processEnv
         }]
       );
 
@@ -346,12 +365,12 @@ describe('Resolver Composition Demo', () => {
         }
       }));
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
-          TEST_VAR: 'string'
+          TEST_VAR: string()
         }],
         [mockProvider(), {
-          TEST_VAR: 'string'
+          TEST_VAR: string()
         }]
       );
 
@@ -364,16 +383,16 @@ describe('Resolver Composition Demo', () => {
     it('should work with API config resolver', async () => {
       const apiResolver = await createAPIConfigResolver();
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
-          API_KEY: 'string',
-          FEATURE_FLAG_NEW_UI: 'boolean',
-          RATE_LIMIT: 'number',
+          API_KEY: string(),
+          FEATURE_FLAG_NEW_UI: boolean(),
+          RATE_LIMIT: number(),
         }],
         [apiResolver, {
-          API_KEY: 'string',
-          FEATURE_FLAG_NEW_UI: 'boolean',
-          RATE_LIMIT: 'number',
+          API_KEY: string(),
+          FEATURE_FLAG_NEW_UI: boolean(),
+          RATE_LIMIT: number(),
         }]
       );
 
@@ -389,16 +408,16 @@ describe('Resolver Composition Demo', () => {
         DATABASE_NAME: 'test-db'
       });
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
-          DATABASE_HOST: 'string',
-          DATABASE_PORT: 'number',
-          DATABASE_NAME: 'string',
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+          DATABASE_NAME: string(),
         }],
         [dbConfig, {
-          DATABASE_HOST: 'string',
-          DATABASE_PORT: 'number',
-          DATABASE_NAME: 'string',
+          DATABASE_HOST: string(),
+          DATABASE_PORT: number(),
+          DATABASE_NAME: string(),
         }]
       );
 
@@ -418,12 +437,12 @@ describe('Resolver Composition Demo', () => {
         }
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [processEnv(), {
-          SYNC_VAR: 'string'
+          SYNC_VAR: string()
         }],
         [syncProvider, {
-          SYNC_VAR: 'string'
+          SYNC_VAR: string()
         }]
       );
 
@@ -440,20 +459,20 @@ describe('Resolver Composition Demo', () => {
         }
       };
 
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [processEnv(), {
-          TEST_VAR: 'string'
+          TEST_VAR: string()
         }],
         [errorProvider, {
-          TEST_VAR: 'string'
+          TEST_VAR: string()
         }]
       )).rejects.toThrow('Resolver failed to load');
     });
 
     it('should handle missing required variables', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [processEnv(), {
-          REQUIRED_VAR: 'string'
+          REQUIRED_VAR: string()
         }]
       )).rejects.toThrow(/Missing required environment variable/);
     });

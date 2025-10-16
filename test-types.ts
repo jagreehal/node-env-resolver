@@ -1,4 +1,4 @@
-import { resolve, resolveSync } from './packages/node-env-resolver/src/index';
+import { boolean, number, resolve, resolveSync, string, url } from './packages/node-env-resolver/src/index';
 async function testTypes() {
   // ============================================
   // ASYNC - Simple usage
@@ -8,12 +8,12 @@ async function testTypes() {
   process.env.DEBUG = 'true';
   process.env.NODE_ENV = 'development';
 
-  const config = await resolve({
-    PORT: 'number',
-    DATABASE_URL: 'url',
-    DEBUG: 'boolean',
+  const config = resolve({
+    PORT: number(),
+    DATABASE_URL: url(),
+    DEBUG: boolean(),
     NODE_ENV: ['development', 'production'] as const,
-    OPTIONAL: 'string?'
+    OPTIONAL: string({optional:true})
   });
 
   // TypeScript should infer these types correctly:
@@ -43,11 +43,11 @@ async function testTypes() {
 
   const composedConfig = await resolve({
     PORT: 3000,
-    APP_NAME: 'string'
+    APP_NAME: string()
   })
   .from(mockProvider, {
-    SECRET_KEY: 'string',
-    API_ENDPOINT: 'url'
+    SECRET_KEY: string(),
+    API_ENDPOINT: url()
   })
   .compose();
 
@@ -68,7 +68,7 @@ async function testTypes() {
   const syncConfig = resolveSync({
     SYNC_PORT: 'number',
     SYNC_DEBUG: 'boolean',
-    SYNC_OPTIONAL: 'string?'
+    SYNC_OPTIONAL: string({optional:true})
   });
 
   // Access properties directly with correct types:
@@ -89,7 +89,7 @@ async function testTypes() {
   process.env.BAR = '123';
 
   const syncComposed = resolveSync({
-    FOO: 'string'
+    FOO: string()
   })
   .from(mockProvider, {
     BAR: 'number'
@@ -110,7 +110,7 @@ async function testTypes() {
     PORT: 3000,                              // number with default
     DEBUG: false,                            // boolean with default
     NODE_ENV: ['dev', 'prod'] as const,      // enum
-    OPTIONAL: 'string?',                     // optional string
+    OPTIONAL: string({optional:true}),                     // optional string
     URL_WITH_DEFAULT: 'url:http://localhost' // url with default
   });
 

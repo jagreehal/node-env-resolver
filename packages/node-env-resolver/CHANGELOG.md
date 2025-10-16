@@ -8,11 +8,11 @@
 
   The asynchronous resolver method has been renamed to better indicate its asynchronous behavior:
   - **Before**: `resolve.with()`
-  - **After**: `resolve.async()`
+  - **After**: `resolveAsync()`
 
   **Migration Guide:**
 
-  Replace all instances of `resolve.with()` with `resolve.async()`:
+  Replace all instances of `resolve.with()` with `resolveAsync()`:
 
   ```typescript
   // Before
@@ -22,7 +22,7 @@
   ]);
 
   // After
-  const config = await resolve.async([
+  const config = await resolveAsync([
     processEnv(),
     { NODE_ENV: ['development', 'production', 'test'] as const },
   ]);
@@ -37,9 +37,9 @@
 
 ### Breaking Changes
 
-- **API Change**: Simplified resolver syntax and renamed `resolve.async()` to `resolve.async()`
+- **API Change**: Simplified resolver syntax and renamed `resolveAsync()` to `resolveAsync()`
   - New consistent array syntax for custom resolvers across sync and async APIs
-  - The `resolve.async()` method has been renamed to `resolve.async()` to better indicate its asynchronous nature
+  - The `resolveAsync()` method has been renamed to `resolveAsync()` to better indicate its asynchronous nature
   - Added TypeScript interfaces `SyncResolver` and `AsyncOnlyResolver` for compile-time type safety
   - Type guards `isSyncResolver()` and `isAsyncOnlyResolver()` added for runtime checks
 
@@ -47,15 +47,15 @@
 
   ```ts
   // Before (v3.0.1)
-  const config = await resolve.async(
+  const config = await resolveAsync(
     [processEnv(), schema],
     [awsSecrets(), schema],
   );
 
   // After - Cleaner array syntax
-  const config = await resolve.async([
+  const config = await resolveAsync([
     awsSecrets(),
-    { PORT: 3000, DATABASE_URL: 'postgres' },
+    { PORT: 3000, DATABASE_URL: postgres() },
   ]);
   ```
 
@@ -65,20 +65,20 @@
   // Simple: uses process.env by default
   const config = resolve({
     PORT: 3000,
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
   });
 
   // With custom resolver: array syntax (consistent with async)
-  const config = resolve([dotenv(), { PORT: 3000, DATABASE_URL: 'postgres' }]);
+  const config = resolve([dotenv(), { PORT: 3000, DATABASE_URL: postgres() }]);
   ```
 
 ### Features
 
 - Added compile-time type checking to prevent async-only resolvers in synchronous contexts
 - Improved developer experience with clearer API naming conventions
-- `resolve.async()` now accepts both sync and async resolvers - sync resolvers are automatically wrapped in Promises
-  - Better DX: Use any resolver type with `resolve.async()` without worrying about sync/async compatibility
-  - Example: `await resolve.async([processEnv(), { PORT: 3000 }])` works seamlessly
+- `resolveAsync()` now accepts both sync and async resolvers - sync resolvers are automatically wrapped in Promises
+  - Better DX: Use any resolver type with `resolveAsync()` without worrying about sync/async compatibility
+  - Example: `await resolveAsync([processEnv(), { PORT: 3000 }])` works seamlessly
 
 ## 3.0.1
 
@@ -245,9 +245,9 @@
   // After - use built-in types
   import { resolve } from 'node-env-resolver';
   const config = resolve({
-    DATABASE_URL: 'postgres',
+    DATABASE_URL: postgres(),
     EMAIL: 'email',
-    API_URL: 'url',
+    API_URL: url(),
   });
   ```
 
@@ -381,7 +381,7 @@
   const config = resolve({ PORT: 3000 });
   ```
 
-  ### `resolve.async()` now uses tuple syntax
+  ### `resolveAsync()` now uses tuple syntax
 
   Custom providers are now specified using a cleaner tuple syntax instead of options:
 
@@ -392,13 +392,13 @@
   });
 
   // ✅ New
-  await resolve.async([customProvider(), schema]);
+  await resolveAsync([customProvider(), schema]);
   ```
 
   Multiple providers can be chained:
 
   ```ts
-  await resolve.async(
+  await resolveAsync(
     [awsSsm(), schema1],
     [processEnv(), schema2],
     { policies: { ... } }  // options last
@@ -430,13 +430,13 @@
 
   ### AWS package API updated
 
-  The AWS convenience functions now use the new `resolve.async()` API internally:
+  The AWS convenience functions now use the new `resolveAsync()` API internally:
 
   ```ts
   // Your code doesn't need to change, but the implementation
   // now uses the cleaner tuple syntax internally
-  const config = await resolveSsm({ APP_NAME: 'string' });
-  const config = await resolveSecrets({ API_KEY: 'string' });
+  const config = await resolveSsm({ APP_NAME: string() });
+  const config = await resolveSecrets({ API_KEY: string() });
   ```
 
   ### Standard Schema moved to dev dependencies
@@ -445,13 +445,13 @@
 
   ## New Features (from previous release)
   - Added `safeResolve()` and `safeResolveSync()` for non-throwing error handling
-  - Support for custom async providers via `resolve.async()`
+  - Support for custom async providers via `resolveAsync()`
   - Improved error messages with actionable hints
   - Enhanced type safety throughout the API
 
   ## Migration Guide
   1. **Simple schemas**: Remove `await` from `resolve()` calls
-  2. **Custom providers**: Change from `resolve(schema, { resolvers: [...] })` to `resolve.async([provider(), schema])`
+  2. **Custom providers**: Change from `resolve(schema, { resolvers: [...] })` to `resolveAsync([provider(), schema])`
   3. **Next.js**: Change imports from `resolveSync` to `resolve`
   4. **AWS**: Update to latest version - API is compatible but implementation improved
 
@@ -459,7 +459,7 @@
   - **Simpler mental model**: Most environment resolution is synchronous (process.env, .env files)
   - **Better performance**: No unnecessary Promises for sync operations
   - **Cleaner syntax**: Tuple syntax is more intuitive than nested options
-  - **Explicit async**: When you need async providers, use `resolve.async()` - the async nature is clear from the API
+  - **Explicit async**: When you need async providers, use `resolveAsync()` - the async nature is clear from the API
 
   ## Documentation
   - Completely rewritten README with examples for all use cases

@@ -25,7 +25,7 @@ async function resolveFromResolvers(resolvers: Resolver[], interpolate: boolean,
   let env: Record<string, string> = {};
   for (const resolver of resolvers) {
     try {
-      const data = await resolver.load();
+      const data = resolver.load ? await resolver.load() : {};
       env = { ...env, ...data };
     } catch (error) {
       if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`);

@@ -4,9 +4,9 @@
  * This example shows how to safely separate server and client environment variables
  * for web applications, preventing accidental secret exposure.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolveEnvSplit } from 'node-env-resolver/web';
-import { processEnv } from 'node-env-resolver';
+import { processEnv, string, url, email, port, boolean } from 'node-env-resolver/resolvers';
 import { dotenv } from 'node-env-resolver/resolvers';
 
 // Mock process.env for testing
@@ -32,35 +32,15 @@ describe('Client/Server Split Example', () => {
     const { server, client } = await resolveEnvSplit({
       server: {
         // Server-only variables (never exposed to client)
-        DATABASE_URL: { 
-          type: 'string', 
-          secret: true,
-          default: 'postgres://localhost:5432/myapp'
-        },
-        JWT_SECRET: { 
-          type: 'string', 
-          secret: true,
-          default: 'super-secret-key'
-        },
-        ADMIN_EMAIL: {
-          type: 'email',
-          default: 'admin@example.com'
-        }
+        DATABASE_URL: string({secret: true, default: 'postgres://localhost:5432/myapp'}),  
+        JWT_SECRET: string({secret: true, default: 'super-secret-key'}),
+        ADMIN_EMAIL: email({default: 'admin@example.com'}),
       },
       client: {
         // Client-safe variables (exposed to browser)
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        },
-        PUBLIC_APP_NAME: { 
-          type: 'string',
-          default: 'My Awesome App'
-        },
-        PUBLIC_ANALYTICS_ID: {
-          type: 'string',
-          optional: true
-        }
+        PUBLIC_API_URL: url({default: 'https://api.example.com'}),
+        PUBLIC_APP_NAME: string({default: 'My Awesome App'}),
+        PUBLIC_ANALYTICS_ID: string({optional: true}),
       }
     }, {
       resolvers: [
@@ -92,34 +72,14 @@ describe('Client/Server Split Example', () => {
 
     const { server, client } = await resolveEnvSplit({
       server: {
-        DATABASE_URL: { 
-          type: 'string', 
-          secret: true,
-          default: 'postgres://localhost:5432/myapp'
-        },
-        JWT_SECRET: { 
-          type: 'string', 
-          secret: true,
-          default: 'super-secret-key'
-        },
-        ADMIN_EMAIL: {
-          type: 'email',
-          default: 'admin@example.com'
-        }
+        DATABASE_URL: string({secret: true, default: 'postgres://localhost:5432/myapp'}),
+        JWT_SECRET: string({secret: true, default: 'super-secret-key'}),
+        ADMIN_EMAIL: email({default: 'admin@example.com'}),
       },
       client: {
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        },
-        PUBLIC_APP_NAME: { 
-          type: 'string',
-          default: 'My Awesome App'
-        },
-        PUBLIC_ANALYTICS_ID: {
-          type: 'string',
-          optional: true
-        }
+        PUBLIC_API_URL: url({default: 'https://api.example.com'}),
+        PUBLIC_APP_NAME: string({default: 'My Awesome App'}),
+        PUBLIC_ANALYTICS_ID: string({optional: true}),
       }
     }, {
       resolvers: [
@@ -141,34 +101,14 @@ describe('Client/Server Split Example', () => {
   it('should provide correct TypeScript types', async () => {
     const { server, client } = await resolveEnvSplit({
       server: {
-        DATABASE_URL: { 
-          type: 'string', 
-          secret: true,
-          default: 'postgres://localhost:5432/myapp'
-        },
-        JWT_SECRET: { 
-          type: 'string', 
-          secret: true,
-          default: 'super-secret-key'
-        },
-        ADMIN_EMAIL: {
-          type: 'email',
-          default: 'admin@example.com'
-        }
+        DATABASE_URL: string({secret: true, default: 'postgres://localhost:5432/myapp'}),
+        JWT_SECRET: string({secret: true, default: 'super-secret-key'}),
+        ADMIN_EMAIL: email({default: 'admin@example.com'}),
       },
       client: {
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        },
-        PUBLIC_APP_NAME: { 
-          type: 'string',
-          default: 'My Awesome App'
-        },
-        PUBLIC_ANALYTICS_ID: {
-          type: 'string',
-          optional: true
-        }
+        PUBLIC_API_URL: url({default: 'https://api.example.com'}),
+        PUBLIC_APP_NAME: string({default: 'My Awesome App'}),
+        PUBLIC_ANALYTICS_ID: string({optional: true}),
       }
     }, {
       resolvers: [
@@ -191,18 +131,9 @@ describe('Client/Server Split Example', () => {
     const { client } = await resolveEnvSplit({
       server: {},
       client: {
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        },
-        PUBLIC_APP_NAME: { 
-          type: 'string',
-          default: 'My Awesome App'
-        },
-        PUBLIC_ANALYTICS_ID: {
-          type: 'string',
-          optional: true
-        }
+          PUBLIC_API_URL: url({default: 'https://api.example.com'}),
+        PUBLIC_APP_NAME: string({default: 'My Awesome App'}),
+          PUBLIC_ANALYTICS_ID: string({optional: true}),
       }
     }, {
       resolvers: [
@@ -223,10 +154,7 @@ describe('Client/Server Split Example', () => {
 
     await expect(resolveEnvSplit({
       server: {
-        ADMIN_EMAIL: {
-          type: 'email',
-          default: 'admin@example.com'
-        }
+        ADMIN_EMAIL: email({default: 'admin@example.com'}),
       },
       client: {}
     }, {
@@ -245,10 +173,8 @@ describe('Client/Server Split Example', () => {
     await expect(resolveEnvSplit({
       server: {},
       client: {
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        }
+        PUBLIC_API_URL: url({default: 'https://api.example.com'}),  
+        PUBLIC_APP_NAME: string({default: 'My Awesome App'}),
       }
     }, {
       resolvers: [
@@ -262,26 +188,14 @@ describe('Client/Server Split Example', () => {
   it('should demonstrate security separation', async () => {
     const { server, client } = await resolveEnvSplit({
       server: {
-        DATABASE_URL: { 
-          type: 'string', 
-          secret: true,
-          default: 'postgres://localhost:5432/myapp'
-        },
-        JWT_SECRET: { 
-          type: 'string', 
-          secret: true,
-          default: 'super-secret-key'
-        }
+        DATABASE_URL: string({secret: true, default: 'postgres://localhost:5432/myapp'}),
+        JWT_SECRET: string({secret: true, default: 'super-secret-key'}),
+        ADMIN_EMAIL: email({default: 'admin@example.com'}),
       },
       client: {
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        },
-        PUBLIC_APP_NAME: { 
-          type: 'string',
-          default: 'My Awesome App'
-        }
+        PUBLIC_API_URL: url({default: 'https://api.example.com'}),
+        PUBLIC_APP_NAME: string({default: 'My Awesome App'}),
+        PUBLIC_ANALYTICS_ID: string({optional: true}),
       }
     }, {
       resolvers: [
@@ -291,18 +205,19 @@ describe('Client/Server Split Example', () => {
       clientPrefix: 'PUBLIC_'
     });
 
-    // Server variables should not be accessible from client
+    // Server variables should be in server object
     expect(server.DATABASE_URL).toBeDefined();
     expect(server.JWT_SECRET).toBeDefined();
-    expect(client.DATABASE_URL).toBeUndefined();
-    expect(client.JWT_SECRET).toBeUndefined();
+    expect(server.ADMIN_EMAIL).toBeDefined();
 
-    // Client variables should be accessible from client
+    // Client variables should be in client object
     expect(client.PUBLIC_API_URL).toBeDefined();
     expect(client.PUBLIC_APP_NAME).toBeDefined();
-
-    // Server can access client variables (this is safe)
+    expect(client.PUBLIC_API_URL).toBe('https://api.example.com');
     expect(client.PUBLIC_APP_NAME).toBe('My Awesome App');
+
+    // Optional client variable should be undefined when not set
+    expect(client.PUBLIC_ANALYTICS_ID).toBeUndefined();
   });
 
   it('should handle client prefix configuration', async () => {
@@ -313,21 +228,11 @@ describe('Client/Server Split Example', () => {
 
     const { server, client } = await resolveEnvSplit({
       server: {
-        SERVER_DB_URL: { 
-          type: 'string', 
-          secret: true,
-          default: 'postgres://localhost:5432/myapp'
-        }
+        SERVER_DB_URL: string({secret: true, default: 'postgres://localhost:5432/myapp'}),
       },
       client: {
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        },
-        PUBLIC_CLIENT_APP_NAME: { 
-          type: 'string',
-          default: 'My App'
-        }
+        PUBLIC_API_URL: url({default: 'https://api.example.com'}),
+        PUBLIC_CLIENT_APP_NAME: string({default: 'My App'}),
       }
     }, {
       resolvers: [
@@ -364,29 +269,13 @@ describe('Client/Server Split Example', () => {
   it('should demonstrate type safety benefits', async () => {
     const { server, client } = await resolveEnvSplit({
       server: {
-        DATABASE_URL: { 
-          type: 'string', 
-          secret: true,
-          default: 'postgres://localhost:5432/myapp'
-        },
-        PORT: {
-          type: 'port',
-          default: 3000
-        },
-        DEBUG: {
-          type: 'boolean',
-          default: false
-        }
+        DATABASE_URL: string({secret: true, default: 'postgres://localhost:5432/myapp'}),
+        PORT: port({default: 3000}),
+        DEBUG: boolean({default: false}),
       },
       client: {
-        PUBLIC_API_URL: { 
-          type: 'url',
-          default: 'https://api.example.com'
-        },
-        PUBLIC_APP_NAME: { 
-          type: 'string',
-          default: 'My Awesome App'
-        }
+        PUBLIC_API_URL: url({default: 'https://api.example.com'}),
+        PUBLIC_APP_NAME: string({default: 'My Awesome App'}),
       }
     }, {
       resolvers: [

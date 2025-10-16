@@ -7,6 +7,39 @@ import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-sec
 import { SSMClient, GetParametersByPathCommand, GetParameterCommand } from '@aws-sdk/client-ssm';
 import type { Resolver, SimpleEnvSchema, InferSimpleSchema, ResolveOptions } from 'node-env-resolver';
 
+// Re-export main functions for convenience (same as nextjs package pattern)
+export { resolveAsync, safeResolveAsync, processEnv } from 'node-env-resolver';
+
+// Re-export commonly used validators for convenience
+export {
+  string,
+  number,
+  boolean,
+  url,
+  email,
+  port,
+  json,
+  postgres,
+  mysql,
+  mongodb,
+  redis,
+  http,
+  https,
+  enums,
+  secret,
+  custom,
+  duration,
+  file,
+  date,
+  timestamp,
+  stringArray,
+  numberArray,
+  urlArray,
+} from 'node-env-resolver/resolvers';
+
+// Re-export useful types
+export type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema, EnvDefinition, Resolver } from 'node-env-resolver';
+
 // Re-export safe resolve types from node-env-resolver
 export interface SafeResolveResult<T> {
   success: true;
@@ -165,7 +198,7 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
  * const config = await resolveSsm({
  *   path: '/myapp/config'
  * }, {
- *   API_ENDPOINT: 'url',
+ *   API_ENDPOINT: url(),
  *   TIMEOUT: 30
  * });
  * ```
@@ -176,11 +209,10 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<InferSimpleSchema<T>> {
   // Import resolve dynamically to avoid circular dependencies with mocks
-  const { resolve } = await import('node-env-resolver');
+  const { resolveAsync } = await import('node-env-resolver');
   
-  // TypeScript knows resolve.async exists from type imports
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return await (resolve as any).async(
+  // TypeScript knows resolveAsync exists from type imports
+  return await resolveAsync(
     [awsSsm(ssmOptions), schema],
     ...(resolveOptions ? [resolveOptions] : [])
   ) as InferSimpleSchema<T>;
@@ -194,7 +226,7 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
  * const result = await safeResolveSsm({
  *   path: '/myapp/config'
  * }, {
- *   API_ENDPOINT: 'url'
+ *   API_ENDPOINT: url()
  * });
  *
  * if (result.success) {
@@ -211,10 +243,10 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
     // Import safeResolve dynamically to avoid circular dependencies with mocks
-    const { safeResolve } = await import('node-env-resolver');
+    const { safeResolveAsync } = await import('node-env-resolver');
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (safeResolve as any).async(
+     
+    const result = await safeResolveAsync(
       [awsSsm(ssmOptions), schema],
       ...(resolveOptions ? [resolveOptions] : [])
     );
@@ -239,8 +271,8 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
  * const config = await resolveSecrets({
  *   secretId: 'myapp/production/secrets'
  * }, {
- *   DATABASE_URL: 'url',
- *   API_KEY: 'string'
+ *   DATABASE_URL: url(),
+ *   API_KEY: string()
  * });
  * ```
  */
@@ -250,10 +282,10 @@ export async function resolveSecrets<T extends SimpleEnvSchema>(
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<InferSimpleSchema<T>> {
   // Import resolve dynamically to avoid circular dependencies with mocks
-  const { resolve } = await import('node-env-resolver');
+  const { resolveAsync } = await import('node-env-resolver');
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return await (resolve as any).async(
+   
+  return await resolveAsync(
     [awsSecrets(secretsOptions), schema],
     ...(resolveOptions ? [resolveOptions] : [])
   ) as InferSimpleSchema<T>;
@@ -267,7 +299,7 @@ export async function resolveSecrets<T extends SimpleEnvSchema>(
  * const result = await safeResolveSecrets({
  *   secretId: 'myapp/secrets'
  * }, {
- *   DATABASE_URL: 'url'
+ *   DATABASE_URL: url()
  * });
  *
  * if (result.success) {
@@ -284,10 +316,9 @@ export async function safeResolveSecrets<T extends SimpleEnvSchema>(
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
     // Import safeResolve dynamically to avoid circular dependencies with mocks
-    const { safeResolve } = await import('node-env-resolver');
+    const { safeResolveAsync } = await import('node-env-resolver');
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (safeResolve as any).async(
+    const result = await safeResolveAsync(
       [awsSecrets(secretsOptions), schema],
       ...(resolveOptions ? [resolveOptions] : [])
     );

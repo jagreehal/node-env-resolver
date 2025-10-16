@@ -5,7 +5,7 @@
 ## TL;DR
 
 * Use `resolve({...})` for the simple case (reads **process.env** only, synchronous).
-* Use `resolve.async([provider, schema], … [, options])` when you need **multiple async resolvers** (e.g. dotenv + AWS Secrets).
+* Use `resolveAsync([provider, schema], … [, options])` when you need **multiple async resolvers** (e.g. dotenv + AWS Secrets).
 * **NEW:** `resolve()` now supports **multiple sync resolvers** using the same tuple syntax.
 * Merge rule is **left → right**, **last tuple wins** on key conflicts (default).
 * Use `priority: 'first'` option to reverse precedence (first tuple wins).
@@ -24,9 +24,9 @@ import { resolve } from 'node-env-resolver';
 
 const config = resolve({
   PORT: 3000,
-  DATABASE_URL: 'url',
+  DATABASE_URL: url(),
   DEBUG: false,
-  API_KEY: 'string?'
+  API_KEY: string({optional:true})
 });
 
 // Types:
@@ -42,8 +42,8 @@ import { safeResolve } from 'node-env-resolver';
 
 const result = safeResolve({
   PORT: 'number',
-  DATABASE_URL: 'url',
-  API_KEY: 'string',
+  DATABASE_URL: url(),
+  API_KEY: string(),
 });
 
 if (result.success) {
@@ -61,9 +61,9 @@ if (result.success) {
 import { resolve, processEnv } from 'node-env-resolver';
 import { dotenv } from 'node-env-resolver/resolvers';
 
-const config = await resolve.async(
+const config = await resolveAsync(
   [dotenv({ path: '.env', expand: true }), {
-    DATABASE_URL: 'url',
+    DATABASE_URL: url(),
     DEBUG: false
   }],
   [processEnv(), {
@@ -81,7 +81,7 @@ import { dotenv, json } from 'node-env-resolver/resolvers';
 // Both dotenv() and json() have loadSync() - works synchronously!
 const config = resolve(
   [dotenv(), { PORT: 3000 }],
-  [json('config.json'), { DATABASE_URL: 'postgres' }],
+  [json('config.json'), { DATABASE_URL: postgres() }],
   { priority: 'last' }  // Priority works in sync mode too
 );
 ```
@@ -91,9 +91,9 @@ const config = resolve(
 import { safeResolve, processEnv } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const result = await safeResolve.async(
+const result = await saferesolveAsync(
   [processEnv(), { PORT: 3000 }],
-  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'postgres' }]
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: postgres() }]
 );
 
 if (!result.success) {
@@ -112,16 +112,16 @@ Control merge behaviour when multiple resolvers provide the same variable:
 
 ```ts
 // priority: 'last' (default) - later resolvers override earlier ones
-const config = await resolve.async(
-  [processEnv(), { DATABASE_URL: 'url' }],
-  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }]
+const config = await resolveAsync(
+  [processEnv(), { DATABASE_URL: url() }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: url() }]
   // AWS wins (last resolver)
 );
 
 // priority: 'first' - earlier resolvers take precedence
-const config = await resolve.async(
-  [dotenv(), { DATABASE_URL: 'url' }],
-  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }],
+const config = await resolveAsync(
+  [dotenv(), { DATABASE_URL: url() }],
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: url() }],
   { priority: 'first' }
   // dotenv wins (first resolver)
 );
@@ -140,18 +140,18 @@ const config = await resolve.async(
 
 **✅ CORRECT** - Spread arguments directly, no wrapper array:
 ```ts
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
-  [dotenv(), { DATABASE_URL: 'url' }]
+  [dotenv(), { DATABASE_URL: url() }]
 );
 ```
 
 **❌ WRONG** - Don't wrap in extra array:
 ```ts
 // This will fail with "Invalid environment variable name: 0, 1"
-await resolve.async([
+await resolveAsync([
   [processEnv(), { PORT: 3000 }],
-  [dotenv(), { DATABASE_URL: 'url' }]
+  [dotenv(), { DATABASE_URL: url() }]
 ]);
 ```
 
@@ -162,7 +162,7 @@ await resolve.async([
 **For single source:**
 ```ts
 resolve(
-  { PORT: 3000, DATABASE_URL: 'url' },
+  { PORT: 3000, DATABASE_URL: url() },
   {
     strict: true,        // Fail on validation errors (default: true)
     interpolate: false,  // ${VAR} expansion (default: true)
@@ -173,9 +173,9 @@ resolve(
 
 **For multiple sources (`.async`):**
 ```ts
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
-  [dotenv(),     { DATABASE_URL: 'url' }],
+  [dotenv(),     { DATABASE_URL: url() }],
   {
     priority: 'first' | 'last',  // Merge strategy (default: 'last')
     strict: true,                 // Fail on resolver errors (default: true)
@@ -244,7 +244,7 @@ const config = await resolveSsm({
   region: 'us-east-1',
   recursive: true
 }, {
-  API_ENDPOINT: 'url',
+  API_ENDPOINT: url(),
   TIMEOUT: 30
 });
 
@@ -253,15 +253,15 @@ const secrets = await resolveSecrets({
   secretId: 'myapp/production/secrets',
   region: 'us-east-1'
 }, {
-  DATABASE_URL: 'url',
-  API_KEY: 'string'
+  DATABASE_URL: url(),
+  API_KEY: string()
 });
 
 // Safe versions (return result object)
 const result = await safeResolveSecrets({
   secretId: 'myapp/secrets'
 }, {
-  DATABASE_URL: 'url'
+  DATABASE_URL: url()
 });
 
 if (result.success) {
@@ -277,10 +277,10 @@ if (result.success) {
 import { resolve } from 'node-env-resolver';
 import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
-  [awsSecrets({ secretId: 'prod/db' }), { DATABASE_URL: 'postgres' }],
-  [awsSsm({ path: '/myapp/config', recursive: true }), { API_KEY: 'string' }]
+  [awsSecrets({ secretId: 'prod/db' }), { DATABASE_URL: postgres() }],
+  [awsSsm({ path: '/myapp/config', recursive: true }), { API_KEY: string() }]
 );
 ```
 
@@ -304,7 +304,7 @@ const databaseResolver: Resolver = {
 };
 
 // Use it
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [databaseResolver, { FEATURE_FLAGS: 'json' }]
 );
@@ -322,7 +322,7 @@ function apiResolver(url: string): Resolver {
   };
 }
 
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [apiResolver('https://config.example.com/api'), { RATE_LIMIT: 'number' }]
 );
@@ -356,9 +356,9 @@ const stableAws = cached(
   awsCache()  // Use AWS defaults
 );
 
-await resolve.async(
+await resolveAsync(
   [processEnv(), { PORT: 3000 }],
-  [stableAws, { DATABASE_URL: 'url', API_KEY: 'string' }]
+  [stableAws, { DATABASE_URL: url(), API_KEY: string() }]
 );
 ```
 
@@ -411,13 +411,13 @@ awsCache()  // Returns:
 ```ts
 // ✅ CORRECT - Call resolve() every time, let cached() wrapper handle caching
 export const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'app/secrets' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
     ), {
-      DATABASE_URL: 'url',
-      API_KEY: 'string',
+      DATABASE_URL: url(),
+      API_KEY: string(),
     }]
   );
 };
@@ -496,7 +496,7 @@ NODE_ENV: ['development','production'] as const    // enum union
 
 ```ts
 API_KEY: {
-  type: 'string',
+  type: string(),
   optional: true,
   pattern: '^sk_[a-zA-Z0-9]+$',
   min: 32,
@@ -526,7 +526,7 @@ const isValidEmail = (value: string): string => {
 const config = resolve({
   CUSTOM_PORT: portValidator,
   ADMIN_EMAIL: isValidEmail,
-  DATABASE_URL: 'postgres'
+  DATABASE_URL: postgres()
 });
 ```
 
@@ -576,7 +576,7 @@ Environment validation failed:
 **Do**
 
 * Prefer `resolve({...})` if only `process.env` is needed.
-* Use `resolve.async([provider, schema], …)` for multiple async resolvers.
+* Use `resolveAsync([provider, schema], …)` for multiple async resolvers.
 * **NEW:** Use `resolve([resolver1, schema1], [resolver2, schema2], options)` for multiple **sync** resolvers.
 * Use `priority: 'first'` for development workflows where local overrides should win.
 * **NEW:** Use `getAuditLog(config)` to get audit events for a specific config object.
@@ -599,7 +599,7 @@ Environment validation failed:
 * Don't mix overlapping keys across resolvers unless there's an explicit override reason.
 * Don't cache the result of `resolve()` - cache the resolver instead.
 * Don't forget `as const` for enum arrays.
-* Don't use `{ type: 'string', notEmpty: true }` - empty rejection is the default.
+* Don't use `{ type: string(), notEmpty: true }` - empty rejection is the default.
 * Don't manually parse comma-separated values - use `'string[]'` or `'number[]'`.
 * Don't manually parse durations - use `'duration'` type.
 * Don't hardcode file paths when using Docker/K8s - use `secretsDir` option.
@@ -615,8 +615,8 @@ import { safeResolve } from 'node-env-resolver';
 
 const result = safeResolve({
   PORT: 'number',
-  DATABASE_URL: 'postgres',
-  API_KEY: 'string'
+  DATABASE_URL: postgres(),
+  API_KEY: string()
 });
 
 if (!result.success) {
@@ -635,16 +635,16 @@ const app = createApp(result.data);
 import { resolve, processEnv, dotenv } from 'node-env-resolver';
 
 // Development: local .env overrides everything
-const config = await resolve.async(
-  [dotenv(), { DATABASE_URL: 'url', DEBUG: false }],
+const config = await resolveAsync(
+  [dotenv(), { DATABASE_URL: url(), DEBUG: false }],
   [processEnv(), { PORT: 3000, NODE_ENV: ['development','production'] as const }],
   { priority: 'first' }  // .env wins
 );
 
 // Production: cloud secrets override process.env
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
-  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: 'url' }]
+  [awsSecrets({ secretId: 'prod/secrets' }), { DATABASE_URL: url() }]
   // Default priority: 'last' - AWS wins
 );
 ```
@@ -655,14 +655,14 @@ const config = await resolve.async(
 import { resolve, processEnv, cached, retry, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolve.async(
+const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [
     cached(
       retry(awsSecrets({ secretId: 'prod/secrets' }), { attempts: 3 }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
     ),
-    { DATABASE_URL: 'url', API_KEY: 'string' }
+    { DATABASE_URL: url(), API_KEY: string() }
   ]
 );
 ```
@@ -676,8 +676,8 @@ import { resolveSecrets, safeResolveSsm } from 'node-env-resolver-aws';
 const secrets = await resolveSecrets({
   secretId: 'myapp/production/secrets'
 }, {
-  DATABASE_URL: 'url',
-  API_KEY: 'string'
+  DATABASE_URL: url(),
+  API_KEY: string()
 });
 
 // SSM Parameter Store (safe version)
@@ -685,7 +685,7 @@ const result = await safeResolveSsm({
   path: '/myapp/config',
   recursive: true
 }, {
-  API_ENDPOINT: 'url'
+  API_ENDPOINT: url()
 });
 
 if (!result.success) {
@@ -708,7 +708,7 @@ const dbResolver: Resolver = {
   }
 };
 
-const result = await safeResolve.async(
+const result = await saferesolveAsync(
   [processEnv(), { PORT: 3000, NODE_ENV: ['dev', 'prod'] as const }],
   [dbResolver, { FEATURE_FLAGS: 'json', RATE_LIMIT: 'number' }]
 );
@@ -727,13 +727,13 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 // Define config loader (called every invocation)
 export const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'lambda/config' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
     ), {
-      DATABASE_URL: 'url',
-      API_KEY: 'string',
+      DATABASE_URL: url(),
+      API_KEY: string(),
     }]
   );
 };
@@ -754,13 +754,13 @@ import { resolve, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'myapp/production' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
     ), {
-      DATABASE_URL: 'url',
-      STRIPE_KEY: 'string',
+      DATABASE_URL: url(),
+      STRIPE_KEY: string(),
     }]
   );
 };
@@ -782,12 +782,12 @@ import { resolve, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
-  return await resolve.async(
+  return await resolveAsync(
     [cached(
       awsSecrets({ secretId: 'myapp/nextjs' }),
       { ttl: TTL.minutes5, staleWhileRevalidate: true }
     ), {
-      DATABASE_URL: 'url',
+      DATABASE_URL: url(),
     }]
   );
 };
@@ -828,9 +828,9 @@ import { cliArgs } from 'node-env-resolver/cli';
 
 // $ node build.js --input ./src --output ./dist --minify --workers 4
 
-const config = await resolve.async(
-  [processEnv(), { INPUT: 'string', OUTPUT: 'string', MINIFY: false, WORKERS: 'number' }],
-  [cliArgs(), { INPUT: 'string', OUTPUT: 'string', MINIFY: false, WORKERS: 'number' }]
+const config = await resolveAsync(
+  [processEnv(), { INPUT: string(), OUTPUT: string(), MINIFY: false, WORKERS: 'number' }],
+  [cliArgs(), { INPUT: string(), OUTPUT: string(), MINIFY: false, WORKERS: 'number' }]
 );
 
 // config.INPUT === './src' (from CLI)
@@ -858,7 +858,7 @@ const config = resolve({
 // CORS origins
 process.env.ALLOWED_ORIGINS = 'https://app.com,https://api.com,http://localhost:3000';
 
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   ALLOWED_ORIGINS: 'url[]'  // Each URL is validated
 }]);
 
@@ -879,7 +879,7 @@ process.env.CACHE_TTL = '5m';
 process.env.SESSION_DURATION = '2h30m';
 process.env.RETRY_BACKOFF = '500ms';
 
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   TIMEOUT: 'duration',          // 30000 ms
   CACHE_TTL: 'duration',        // 300000 ms
   SESSION_DURATION: 'duration', // 9000000 ms
@@ -897,7 +897,7 @@ import { resolve, processEnv } from 'node-env-resolver';
 // K8s mounts secrets to /run/secrets/db-password, /run/secrets/api-key
 
 // Method 1: Using secretsDir (recommended, zero config)
-const config = await resolve.async([
+const config = await resolveAsync([
   processEnv(),
   {
     DB_PASSWORD: 'file',  // Reads /run/secrets/db-password (auto kebab-case)
@@ -907,12 +907,12 @@ const config = await resolve.async([
 
 // Method 2: Explicit file path in env var (Go ecosystem pattern)
 process.env.DB_PASSWORD_FILE = '/run/secrets/db_password';
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   DB_PASSWORD_FILE: 'file'  // Reads file at that path
 }]);
 
 // Method 3: Per-field secretsDir override
-const config = await resolve.async([processEnv(), {
+const config = await resolveAsync([processEnv(), {
   DB_PASSWORD: { type: 'file', secretsDir: '/custom/secrets' },
   API_KEY: 'file'  // Uses global secretsDir
 }], { secretsDir: '/run/secrets' });
@@ -944,7 +944,7 @@ const config = resolve({
 // Add computed properties (lazy getters)
 const appConfig = withComputed(config, {
   // Build server URL
-  url: (c) => `${c.SSL_ENABLED ? 'https' : 'http'}://${c.HOST}:${c.PORT}`,
+  url: (c) => `${c.SSL_ENABLED ? 'https' : http()}://${c.HOST}:${c.PORT}`,
   
   // Environment checks
   isProd: (c) => c.NODE_ENV === 'production',
@@ -984,17 +984,17 @@ process.env.API_KEY = '';  // Empty!
 
 // ❌ This throws: "API_KEY cannot be empty"
 const config = resolve({
-  API_KEY: 'string'  // Required, empty rejected
+  API_KEY: string()  // Required, empty rejected
 });
 
 // ✅ Use optional to allow empty → undefined
 const config = resolve({
-  API_KEY: 'string?'  // Empty becomes undefined
+  API_KEY: string({optional:true})  // Empty becomes undefined
 });
 
 // ✅ Or explicitly allow empty strings (rare)
 const config = resolve({
-  ALLOW_EMPTY: { type: 'string', allowEmpty: true }  // '' is valid
+  ALLOW_EMPTY: { type: string(), allowEmpty: true }  // '' is valid
 });
 ```
 
@@ -1007,11 +1007,11 @@ import { resolve, getAuditLog } from 'node-env-resolver';
 
 const appConfig = resolve({
   PORT: 3000,
-  API_KEY: 'string'
+  API_KEY: string()
 }, { enableAudit: true });
 
 const dbConfig = resolve({
-  DATABASE_URL: 'postgres',
+  DATABASE_URL: postgres(),
   DB_POOL_SIZE: 10
 }, { enableAudit: true });
 
@@ -1048,7 +1048,7 @@ resolve(schema: Schema, options?: ResolveOptions): TypedConfig
 resolve(...tuples: [SyncResolver, Schema][], options?: ResolveOptions): TypedConfig
 
 // Primary - throws on error (multiple sources, async - supports both sync and async resolvers)
-resolve.async(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<MergedConfig>
+resolveAsync(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<MergedConfig>
 
 // Safe - returns result object (single source: process.env)
 safeResolve(schema: Schema, options?: ResolveOptions): { success: true, data: TypedConfig } | { success: false, error: string }
@@ -1057,7 +1057,7 @@ safeResolve(schema: Schema, options?: ResolveOptions): { success: true, data: Ty
 safeResolve(...tuples: [SyncResolver, Schema][], options?: ResolveOptions): { success: true, data: TypedConfig } | { success: false, error: string }
 
 // Safe - returns result object (multiple sources, async)
-safeResolve.async(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<{ success: true, data: MergedConfig } | { success: false, error: string }>
+saferesolveAsync(...tuples: [Resolver, Schema][], options?: ResolveOptions): Promise<{ success: true, data: MergedConfig } | { success: false, error: string }>
 
 // AWS convenience functions (node-env-resolver-aws)
 resolveSsm(ssmOptions, schema, resolveOptions?): Promise<TypedConfig>
@@ -1169,6 +1169,131 @@ const env = await resolveZod.async(
 
 ---
 
+## Framework Integrations
+
+### Next.js Integration
+
+Zero-config Next.js integration with automatic client/server split:
+
+```ts
+// env.ts
+import { resolve } from 'node-env-resolver-nextjs';
+
+export const env = resolve({
+  server: {
+    DATABASE_URL: postgres(),
+    API_SECRET: string(),
+    PORT: 'port:3000',
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: url(),
+    NEXT_PUBLIC_GA_ID: string({optional:true}),
+  }
+});
+
+// Server component or API route
+import { env } from '../env';
+console.log(env.server.DATABASE_URL);  // ✅ Works
+console.log(env.client.NEXT_PUBLIC_APP_URL);  // ✅ Works
+
+// Client component
+'use client';
+import { env } from '../env';
+console.log(env.server.DATABASE_URL);  // ❌ Throws error
+console.log(env.client.NEXT_PUBLIC_APP_URL);  // ✅ Works
+```
+
+**Features:**
+- Automatic client/server split with `NEXT_PUBLIC_` prefix validation
+- Runtime protection prevents server vars from leaking to client
+- Full TypeScript support
+- Works with Next.js 13+ App Router
+- Safe resolve: `safeResolve()` for error handling
+
+### Vite Integration
+
+Zero-config Vite integration with automatic client/server split:
+
+```ts
+// env.ts
+import { resolve } from 'node-env-resolver-vite';
+
+export const env = resolve({
+  server: {
+    DATABASE_URL: postgres(),
+    API_SECRET: string(),
+    PORT: 'port:5173',
+  },
+  client: {
+    VITE_API_URL: url(),
+    VITE_ENABLE_ANALYTICS: false,
+    VITE_GA_ID: string({optional:true}),
+  }
+});
+
+// Server code (vite.config.ts, SSR, Node.js)
+import { env } from './env';
+console.log(env.server.DATABASE_URL);  // ✅ Works
+console.log(env.client.VITE_API_URL);  // ✅ Works
+
+// Browser code
+import { env } from './env';
+console.log(env.server.DATABASE_URL);  // ❌ Throws error
+console.log(env.client.VITE_API_URL);  // ✅ Works
+```
+
+**Features:**
+- Automatic client/server split with `VITE_` prefix validation
+- Runtime protection prevents server vars from leaking to client
+- Full TypeScript support with IntelliSense for `import.meta.env`
+- **Auto-generate TypeScript definitions** for `import.meta.env`
+- Works with Vite 4.x, 5.x, 6.x, and 7.x
+- Framework agnostic (Vue, React, Svelte, Solid, Astro)
+- Safe resolve: `safeResolve()` for error handling
+- Optional Vite plugin for config-time validation and type generation
+
+**Vite Plugin (optional):**
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { nodeEnvResolverPlugin } from 'node-env-resolver-vite/plugin';
+
+export default defineConfig({
+  plugins: [
+    nodeEnvResolverPlugin({
+      server: {
+        DATABASE_URL: postgres(),
+        API_SECRET: string(),
+      },
+      client: {
+        VITE_API_URL: url(),
+        VITE_ENABLE_ANALYTICS: false,
+      },
+      // Auto-generate TypeScript definitions
+      generateTypes: 'src/vite-env.d.ts'
+    })
+  ]
+});
+```
+
+**TypeScript IntelliSense:**
+```ts
+// vite-env.d.ts
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string
+  readonly VITE_ENABLE_ANALYTICS: boolean
+  readonly VITE_GA_ID?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+```
+
+---
+
 ## Test Hints (for Agents)
 
 * Unit tests: verify types with `// @ts-expect-error` for invalid shapes.
@@ -1195,7 +1320,7 @@ const env = await resolveZod.async(
 * Replace `z.enum([...])` with `['a','b'] as const`.
 * Replace `.default(3000)` with literal `3000`.
 * Replace `runtimeEnv: process.env` with `resolve({...})` (now synchronous).
-* For multi-source needs, move to `resolve.async([provider, schema], …)` (async).
+* For multi-source needs, move to `resolveAsync([provider, schema], …)` (async).
 * If you prefer Zod schemas, use `resolveZod()` from `node-env-resolver/zod` (async).
 * Replace custom merge logic with `priority: 'first' | 'last'` option.
 
@@ -1211,7 +1336,7 @@ const env = await resolveZod.async(
 2. **Call resolve() every time:**
    ```ts
    // ✅ CORRECT
-   const getConfig = async () => resolve.async([cached(...), schema]);
+   const getConfig = async () => resolveAsync([cached(...), schema]);
    app.get('/', async () => { const config = await getConfig(); });
 
    // ❌ WRONG
@@ -1267,7 +1392,7 @@ const config = await resolveSsm({
   path: '/myapp/config',
   recursive: true
 }, {
-  API_ENDPOINT: 'url',
+  API_ENDPOINT: url(),
   TIMEOUT: 30
 });
 ```
@@ -1290,8 +1415,8 @@ awsSecrets({ secretId: 'myapp/secrets', region: 'us-east-1' })
 const secrets = await resolveSecrets({
   secretId: 'myapp/production/secrets'
 }, {
-  DATABASE_URL: 'url',
-  JWT_SECRET: 'string'
+  DATABASE_URL: url(),
+  JWT_SECRET: string()
 });
 ```
 

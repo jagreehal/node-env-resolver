@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, safeResolve } from './index';
+import { boolean, email, number, port, resolve, safeResolve, string, url } from './index';
 // Mock the globalThis.window for browser detection
 const originalGlobalThis = globalThis;
 
@@ -35,13 +35,13 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          DATABASE_URL: 'url',
-          API_KEY: 'string',
+          DATABASE_URL: url(),
+          API_KEY: string(),
           PORT: 3000
         },
         client: {
-          NEXT_PUBLIC_APP_URL: 'url',
-          NEXT_PUBLIC_ANALYTICS_ID: 'string'
+          NEXT_PUBLIC_APP_URL: url(),
+          NEXT_PUBLIC_ANALYTICS_ID: string()
         }
       });
 
@@ -62,7 +62,7 @@ describe('node-env-resolver-nextjs', () => {
       expect(() => resolve({
         server: {},
         client: {
-          INVALID_CLIENT_VAR: 'string' // Missing NEXT_PUBLIC_ prefix
+          INVALID_CLIENT_VAR: string() // Missing NEXT_PUBLIC_ prefix
         }
       })).toThrow(/Client environment variables must be prefixed with 'NEXT_PUBLIC_'/);
     });
@@ -72,7 +72,7 @@ describe('node-env-resolver-nextjs', () => {
 
       expect(() => resolve({
         server: {
-          NEXT_PUBLIC_DATABASE_URL: 'url' // Should not have client prefix
+          NEXT_PUBLIC_DATABASE_URL: url() // Should not have client prefix
         },
         client: {}
       })).toThrow(/Server environment variables should not be prefixed with 'NEXT_PUBLIC_'/);
@@ -84,7 +84,7 @@ describe('node-env-resolver-nextjs', () => {
       const config = resolve({
         server: {},
         client: {
-          CUSTOM_PREFIX_APP_URL: 'url'
+          CUSTOM_PREFIX_APP_URL: url()
         }
       }, {
         clientPrefix: 'CUSTOM_PREFIX_'
@@ -99,10 +99,10 @@ describe('node-env-resolver-nextjs', () => {
       const config = resolve({
         server: {
           PORT: 3000,
-          NODE_ENV: ['development', 'production']
+          NODE_ENV: ['development', 'production'] as const
         },
         client: {
-          NEXT_PUBLIC_DEBUG: 'boolean:false'
+          NEXT_PUBLIC_DEBUG: boolean({default: false})
         }
       });
 
@@ -113,10 +113,10 @@ describe('node-env-resolver-nextjs', () => {
     it('handles missing optional variables', () => {
       const config = resolve({
         server: {
-          OPTIONAL_SERVER: 'string?'
+          OPTIONAL_SERVER: string({optional:true})
         },
         client: {
-          NEXT_PUBLIC_OPTIONAL_CLIENT: 'string?'
+          NEXT_PUBLIC_OPTIONAL_CLIENT: string({optional:true})
         }
       });
 
@@ -128,7 +128,7 @@ describe('node-env-resolver-nextjs', () => {
       // Now properly validates required variables and throws errors
       expect(() => resolve({
         server: {
-          REQUIRED_SERVER: 'string'
+          REQUIRED_SERVER: string()
         },
         client: {}
       })).toThrow(/Missing required environment variable: REQUIRED_SERVER/);
@@ -141,7 +141,7 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          NODE_ENV: ['development', 'production', 'test']
+          NODE_ENV: ['development', 'production', 'test'] as const
         },
         client: {
           NEXT_PUBLIC_ENV: ['dev', 'prod']
@@ -158,7 +158,7 @@ describe('node-env-resolver-nextjs', () => {
       // Now properly validates enums and throws errors
       expect(() => resolve({
         server: {
-          NODE_ENV: ['development', 'production']
+          NODE_ENV: ['development', 'production'] as const
         },
         client: {}
       })).toThrow(/NODE_ENV must be one of: development, production/);
@@ -170,10 +170,10 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          DATABASE_URL: 'url'
+          DATABASE_URL: url()
         },
         client: {
-          NEXT_PUBLIC_APP_URL: 'url'
+          NEXT_PUBLIC_APP_URL: url()
         }
       });
 
@@ -186,7 +186,7 @@ describe('node-env-resolver-nextjs', () => {
 
       expect(() => resolve({
         server: {
-          DATABASE_URL: 'url'
+          DATABASE_URL: url()
         },
         client: {}
       })).toThrow(/Environment validation failed/);
@@ -198,10 +198,10 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          DEBUG: 'boolean'
+          DEBUG: boolean()
         },
         client: {
-          NEXT_PUBLIC_ANALYTICS: 'boolean'
+          NEXT_PUBLIC_ANALYTICS: boolean()
         }
       });
 
@@ -215,10 +215,10 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          PORT: 'number'
+          PORT: number()
         },
         client: {
-          NEXT_PUBLIC_TIMEOUT: 'number'
+          NEXT_PUBLIC_TIMEOUT: number()
         }
       });
 
@@ -226,21 +226,21 @@ describe('node-env-resolver-nextjs', () => {
       expect(config.client.NEXT_PUBLIC_TIMEOUT).toBe(5000);
     });
 
-    it('handles JSON validation', () => {
+    it('handles JSON strings', () => {
       process.env.CONFIG = '{"theme":"dark","features":["analytics"]}';
       process.env.NEXT_PUBLIC_SETTINGS = '{"debug":true}';
 
       const config = resolve({
         server: {
-          CONFIG: 'json'
+          CONFIG: string()
         },
         client: {
-          NEXT_PUBLIC_SETTINGS: 'json'
+          NEXT_PUBLIC_SETTINGS: string()
         }
       });
 
-      expect(config.server.CONFIG).toEqual({ theme: 'dark', features: ['analytics'] });
-      expect(config.client.NEXT_PUBLIC_SETTINGS).toEqual({ debug: true });
+      expect(config.server.CONFIG).toBe('{"theme":"dark","features":["analytics"]}');
+      expect(config.client.NEXT_PUBLIC_SETTINGS).toBe('{"debug":true}');
     });
 
     it('handles email validation', () => {
@@ -249,10 +249,10 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          ADMIN_EMAIL: 'email'
+          ADMIN_EMAIL: email()
         },
         client: {
-          NEXT_PUBLIC_CONTACT_EMAIL: 'email'
+          NEXT_PUBLIC_CONTACT_EMAIL: email()
         }
       });
 
@@ -265,7 +265,7 @@ describe('node-env-resolver-nextjs', () => {
 
       expect(() => resolve({
         server: {
-          ADMIN_EMAIL: 'email'
+          ADMIN_EMAIL: email()
         },
         client: {}
       })).toThrow(/Environment validation failed/);
@@ -276,7 +276,7 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          PORT: 'port'
+          PORT: port()
         },
         client: {}
       });
@@ -289,7 +289,7 @@ describe('node-env-resolver-nextjs', () => {
 
       expect(() => resolve({
         server: {
-          PORT: 'port'
+          PORT: port()
         },
         client: {}
       })).toThrow(/Environment validation failed/);
@@ -300,7 +300,7 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          API_KEY: 'string:/^sk_[a-zA-Z0-9]+$/'
+          API_KEY: string({ pattern: '^sk_[a-zA-Z0-9]+$' })
         },
         client: {}
       });
@@ -314,7 +314,7 @@ describe('node-env-resolver-nextjs', () => {
       // Now properly validates patterns and throws errors
       expect(() => resolve({
         server: {
-          API_KEY: 'string:/^sk_[a-zA-Z0-9]+$/'
+          API_KEY: string({ pattern: '^sk_[a-zA-Z0-9]+$' })
         },
         client: {}
       })).toThrow(/API_KEY does not match required pattern/);
@@ -325,7 +325,7 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          SECRET_KEY: 'string'
+          SECRET_KEY: string()
         },
         client: {}
       });
@@ -340,8 +340,8 @@ describe('node-env-resolver-nextjs', () => {
       // Interpolation now works properly
       const config = resolve({
         server: {
-          BASE_URL: 'url',
-          API_URL: 'url'
+          BASE_URL: url(),
+          API_URL: url()
         },
         client: {}
       }, {
@@ -361,10 +361,10 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          SECRET_VAR: 'string'
+          SECRET_VAR: string()
         },
         client: {
-          NEXT_PUBLIC_PUBLIC_VAR: 'string'
+          NEXT_PUBLIC_PUBLIC_VAR: string()
         }
       }, {
         runtimeProtection: true
@@ -393,7 +393,7 @@ describe('node-env-resolver-nextjs', () => {
       const config = resolve({
         server: {},
         client: {
-          NEXT_PUBLIC_BROWSER_VAR: 'string'
+          NEXT_PUBLIC_BROWSER_VAR: string()
         }
       });
 
@@ -408,7 +408,7 @@ describe('node-env-resolver-nextjs', () => {
 
       const config = resolve({
         server: {
-          SERVER_VAR: 'string'
+          SERVER_VAR: string()
         },
         client: {}
       });
@@ -423,7 +423,7 @@ describe('node-env-resolver-nextjs', () => {
 
       expect(() => resolve({
         server: {
-          INVALID_URL: 'url'
+          INVALID_URL: url()
         },
         client: {}
       })).toThrow(/Environment validation failed/);
@@ -432,7 +432,7 @@ describe('node-env-resolver-nextjs', () => {
     it('handles missing required variables gracefully', () => {
       expect(() => resolve({
         server: {
-          MISSING_REQUIRED: 'string'
+          MISSING_REQUIRED: string()
         },
         client: {}
       })).toThrow(/Missing required environment variable: MISSING_REQUIRED/);
@@ -444,7 +444,7 @@ describe('node-env-resolver-nextjs', () => {
       // Now properly validates enums and throws errors
       expect(() => resolve({
         server: {
-          INVALID_ENUM: ['valid1', 'valid2']
+          INVALID_ENUM: ['valid1', 'valid2'] as const
         },
         client: {}
       })).toThrow(/INVALID_ENUM must be one of: valid1, valid2/);
@@ -458,11 +458,11 @@ describe('node-env-resolver-nextjs', () => {
 
       const result = safeResolve({
         server: {
-          DATABASE_URL: 'url',
+          DATABASE_URL: url(),
           PORT: 3000
         },
         client: {
-          NEXT_PUBLIC_APP_URL: 'url'
+          NEXT_PUBLIC_APP_URL: url()
         }
       });
 
@@ -477,7 +477,7 @@ describe('node-env-resolver-nextjs', () => {
     it('returns error result when validation fails', () => {
       const result = safeResolve({
         server: {
-          REQUIRED_VAR: 'string'
+          REQUIRED_VAR: string()
         },
         client: {}
       });
@@ -494,7 +494,7 @@ describe('node-env-resolver-nextjs', () => {
       const result = safeResolve({
         server: {},
         client: {
-          INVALID_CLIENT_VAR: 'string'
+          INVALID_CLIENT_VAR: string()
         }
       });
 
@@ -509,7 +509,7 @@ describe('node-env-resolver-nextjs', () => {
 
       const result = safeResolve({
         server: {
-          NEXT_PUBLIC_DATABASE_URL: 'url'
+          NEXT_PUBLIC_DATABASE_URL: url()
         },
         client: {}
       });
@@ -525,7 +525,7 @@ describe('node-env-resolver-nextjs', () => {
 
       const result = safeResolve({
         server: {
-          DATABASE_URL: 'url'
+          DATABASE_URL: url()
         },
         client: {}
       });
@@ -545,10 +545,10 @@ describe('node-env-resolver-nextjs', () => {
 
       const result = safeResolve({
         server: {
-          SECRET_VAR: 'string'
+          SECRET_VAR: string()
         },
         client: {
-          NEXT_PUBLIC_PUBLIC_VAR: 'string'
+          NEXT_PUBLIC_PUBLIC_VAR: string()
         }
       }, {
         runtimeProtection: true

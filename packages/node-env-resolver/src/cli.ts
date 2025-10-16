@@ -12,10 +12,10 @@
  * import { resolve } from 'node-env-resolver';
  * import { cliArgs } from 'node-env-resolver/cli';
  * 
- * const config = await resolve.async(
+ * const config = await resolveAsync(
  *   [cliArgs(), {
  *     PORT: 3000,
- *     DATABASE_URL: 'postgres',
+ *     DATABASE_URL: postgres(),
  *     VERBOSE: false
  *   }]
  * );

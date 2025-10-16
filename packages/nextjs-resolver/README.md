@@ -19,13 +19,13 @@ import { resolve } from 'node-env-resolver-nextjs';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'url',
-    RESEND_API_KEY: 'string',
+    DATABASE_URL: url(),
+    RESEND_API_KEY: string(),
     PORT: 'port:3000',
   },
   client: {
-    NEXT_PUBLIC_APP_URL: 'url',
-    NEXT_PUBLIC_GA_ID: 'string?',
+    NEXT_PUBLIC_APP_URL: url(),
+    NEXT_PUBLIC_GA_ID: string({optional:true}),
   }
 });
 ```
@@ -59,22 +59,22 @@ import { resolve, safeResolve } from 'node-env-resolver/nextjs';
 // ❌ Throws on validation failure (like Zod's parse())
 export const env = resolve({
   server: {
-    DATABASE_URL: 'url',
-    API_SECRET: 'string',
+    DATABASE_URL: url(),
+    API_SECRET: string(),
   },
   client: {
-    NEXT_PUBLIC_APP_URL: 'url',
+    NEXT_PUBLIC_APP_URL: url(),
   }
 });
 
 // ✅ Returns result object (like Zod's safeParse())
 const result = safeResolve({
   server: {
-    DATABASE_URL: 'url',
-    API_SECRET: 'string',
+    DATABASE_URL: url(),
+    API_SECRET: string(),
   },
   client: {
-    NEXT_PUBLIC_APP_URL: 'url',
+    NEXT_PUBLIC_APP_URL: url(),
   }
 });
 
@@ -132,15 +132,15 @@ Use the same shorthand syntax as the core package:
 export const env = resolve({
   server: {
     PORT: 'port:3000',
-    DATABASE_URL: 'url',
+    DATABASE_URL: url(),
     NODE_ENV: ['development', 'test', 'production'] as const,
-    API_KEY: 'string',
+    API_KEY: string(),
     MAX_CONNECTIONS: { type: 'number', min: 1, max: 100 },
   },
   client: {
-    NEXT_PUBLIC_API_URL: 'url',
+    NEXT_PUBLIC_API_URL: url(),
     NEXT_PUBLIC_ENABLE_ANALYTICS: false,
-    NEXT_PUBLIC_GA_ID: 'string?',
+    NEXT_PUBLIC_GA_ID: string({optional:true}),
   }
 });
 ```
@@ -197,9 +197,9 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 // This is async and works in API routes
 export async function GET() {
-  const config = await resolve.async(
+  const config = await resolveAsync(
     [awsSecrets({ secretId: 'prod/app/secrets' })],
-    { DATABASE_URL: 'url', API_KEY: 'string' }
+    { DATABASE_URL: url(), API_KEY: string() }
   );
   
   return Response.json({ status: 'ok' });
@@ -213,12 +213,12 @@ In production, `.env` files are automatically ignored. Production platforms (Ver
 ```javascript
 export const env = resolve({
   server: {
-    DATABASE_URL: 'url',
-    API_SECRET: 'string',
+    DATABASE_URL: url(),
+    API_SECRET: string(),
     PORT: 'port:3000',
   },
   client: {
-    NEXT_PUBLIC_APP_URL: 'url',
+    NEXT_PUBLIC_APP_URL: url(),
   }
 });
 ```
@@ -232,18 +232,18 @@ import { resolve } from 'node-env-resolver-nextjs';
 
 export const env = resolve({
   server: {
-    DATABASE_URL: 'url',
-    NEXTAUTH_SECRET: 'string',
-    NEXTAUTH_URL: 'url',
-    STRIPE_SECRET_KEY: 'string',
-    RESEND_API_KEY: 'string',
+    DATABASE_URL: url(),
+    NEXTAUTH_SECRET: string(),
+    NEXTAUTH_URL: url(),
+    STRIPE_SECRET_KEY: string(),
+    RESEND_API_KEY: string(),
     PORT: 'port:3000',
     NODE_ENV: ['development', 'test', 'production'] as const,
   },
   client: {
-    NEXT_PUBLIC_APP_URL: 'url',
-    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'string',
-    NEXT_PUBLIC_POSTHOG_KEY: 'string?',
+    NEXT_PUBLIC_APP_URL: url(),
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: string(),
+    NEXT_PUBLIC_POSTHOG_KEY: string({optional:true}),
     NEXT_PUBLIC_ENABLE_ANALYTICS: false,
   }
 });

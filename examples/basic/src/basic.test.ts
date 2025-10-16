@@ -2,7 +2,8 @@
  * Basic usage example tests
  */
 import { describe, it, expect } from 'vitest';
-import { resolve, processEnv } from 'node-env-resolver';
+import { processEnv, url } from 'node-env-resolver/resolvers';
+import { resolveAsync } from 'node-env-resolver';
 
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
@@ -13,14 +14,14 @@ const mockProvider = (env: Record<string, string>) => ({
 
 describe('Basic Usage Examples', () => {
   it('should resolve basic configuration with defaults', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'https://db.example.com'
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,                              // port with default
-        DATABASE_URL: 'url',                     // required URL
+        DATABASE_URL: url(),                     // required URL
         DEBUG: false,                            // boolean with default
       }]
     );
@@ -35,11 +36,11 @@ describe('Basic Usage Examples', () => {
     // Set NODE_ENV explicitly for this test
     process.env.NODE_ENV = 'development';
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [processEnv(), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,                              // port with default
-        DATABASE_URL: 'url',                     // required URL
+        DATABASE_URL: url(),                     // required URL
         DEBUG: false,                            // boolean with default
       }],
       [mockProvider({
@@ -55,14 +56,14 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should validate enum values', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockProvider({
         NODE_ENV: 'production',
         DATABASE_URL: 'https://db.example.com'
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -71,28 +72,28 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should throw error for invalid enum value', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [mockProvider({
         NODE_ENV: 'invalid',
         DATABASE_URL: 'https://db.example.com'
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     )).rejects.toThrow(/must be one of: development, production, test/);
   });
 
   it('should validate URL format', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'https://api.example.com/v1'
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -101,21 +102,21 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should throw error for invalid URL', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'not-a-url'
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     )).rejects.toThrow(/Invalid URL/);
   });
 
   it('should validate port numbers', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockProvider({
         NODE_ENV: 'development',
         PORT: '8080',
@@ -123,7 +124,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -133,7 +134,7 @@ describe('Basic Usage Examples', () => {
 
   it('should handle invalid port (currently not validated)', async () => {
     // Note: Port validation might not be implemented yet
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockProvider({
         NODE_ENV: 'development',
         PORT: '99999', // Invalid port - currently not validated
@@ -141,7 +142,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -150,7 +151,7 @@ describe('Basic Usage Examples', () => {
   });
 
   it('should validate boolean values', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [mockProvider({
         NODE_ENV: 'development',
         DATABASE_URL: 'https://db.example.com',
@@ -158,7 +159,7 @@ describe('Basic Usage Examples', () => {
       }), {
         NODE_ENV: ['development', 'production', 'test'] as const,
         PORT: 3000,
-        DATABASE_URL: 'url',
+        DATABASE_URL: url(),
         DEBUG: false,
       }]
     );
@@ -179,7 +180,7 @@ describe('Basic Usage Examples', () => {
     ];
 
     for (const testCase of testCases) {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           NODE_ENV: 'development',
           DATABASE_URL: 'https://db.example.com',
@@ -187,7 +188,7 @@ describe('Basic Usage Examples', () => {
         }), {
           NODE_ENV: ['development', 'production', 'test'] as const,
           PORT: 3000,
-          DATABASE_URL: 'url',
+          DATABASE_URL: url(),
           DEBUG: false,
         }]
       );

@@ -4,12 +4,37 @@
  *
  * IMPORTANT: Next.js config files must be synchronous.
  * resolve() is synchronous and works with ALL validator types:
- * - Basic types: string, number, boolean, enums, pattern, custom
+ * - Basic types: string, number, boolean, enums, custom
  * - Advanced types: postgres, url, email, json, port, etc.
  */
 
 import { resolve as nodeEnvResolve } from 'node-env-resolver';
 import type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema } from 'node-env-resolver';
+export {
+  string,
+  url,
+  port,
+  postgres,
+  email,
+  number,
+  boolean,
+  enums,
+  secret,
+  custom,
+  duration,
+  file,
+  json,
+  stringArray,
+  numberArray,
+  urlArray,
+  http,
+  https,
+  mysql,
+  mongodb,
+  redis,
+  date,
+  timestamp,
+} from 'node-env-resolver/resolvers';
 
 // Safe resolve result types (Zod-like)
 export interface SafeResolveResult<T> {
@@ -59,7 +84,7 @@ export interface NextjsOptions extends Omit<ResolveOptions, 'resolvers'> {
  *
  * IMPORTANT: Next.js config files must be synchronous.
  * This function is synchronous and supports ALL validator types:
- * - Basic types: string, number, boolean, enums, pattern, custom
+ * - Basic types: string, number, boolean, enums, custom
  * - Advanced types: postgres, url, email, json, port, date, etc.
  *
  * @example
@@ -69,15 +94,15 @@ export interface NextjsOptions extends Omit<ResolveOptions, 'resolvers'> {
  *
  * export const env = resolve({
  *   server: {
- *     DATABASE_URL: 'url',
- *     API_SECRET: 'string',
- *     RESEND_API_KEY: 'string',
+ *     DATABASE_URL: url(),
+ *     API_SECRET: string(),
+ *     RESEND_API_KEY: string(),
  *     PORT: 'port:3000',
  *     NODE_ENV: ['dev', 'prod'] as const
  *   },
  *   client: {
- *     NEXT_PUBLIC_APP_URL: 'url',
- *     NEXT_PUBLIC_GA_ID: 'string?'
+ *     NEXT_PUBLIC_APP_URL: url(),
+ *     NEXT_PUBLIC_GA_ID: string({optional:true})
  *   }
  * });
  *
@@ -170,13 +195,13 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
  *
  * const result = safeResolve({
  *   server: {
- *     DATABASE_URL: 'url',
- *     API_SECRET: 'string',
+ *     DATABASE_URL: url(),
+ *     API_SECRET: string(),
  *     PORT: 'port:3000'
  *   },
  *   client: {
- *     NEXT_PUBLIC_APP_URL: 'url',
- *     NEXT_PUBLIC_GA_ID: 'string?',
+ *     NEXT_PUBLIC_APP_URL: url(),
+ *     NEXT_PUBLIC_GA_ID: string({optional:true}),
  *   }
  * });
  *
@@ -208,6 +233,10 @@ export function safeResolve<TServer extends SimpleEnvSchema, TClient extends Sim
 
 // Re-export useful types and utilities
 export type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
+
+// Note: Next.js handles .env files automatically via process.env
+// Custom resolvers are rarely needed in Next.js applications
+// If you need custom resolvers, import them directly from 'node-env-resolver/resolvers'
 
 // Utility for runtime environment detection
 export const isServer = typeof (globalThis as GlobalWithWindow).window === 'undefined';

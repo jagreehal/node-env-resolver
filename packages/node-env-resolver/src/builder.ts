@@ -4,11 +4,11 @@
  * @example
  * ```typescript
  * const config = await env({
- *   FOO: 'string',
+ *   FOO: string(),
  *   BAR: 3000,
  * })
  *   .from(customResolver, {
- *     QUZ: 'string',
+ *     QUZ: string(),
  *   })
  *   .resolve();
  * ```
@@ -199,10 +199,10 @@ export class EnvBuilderSync<TAccumulated extends Record<string, unknown>> {
  * @example
  * ```typescript
  * const config = await env({
- *   FOO: 'string',
+ *   FOO: string(),
  *   BAR: 3000,
  * })
- *   .from(customResolver, { QUZ: 'string' })
+ *   .from(customResolver, { QUZ: string() })
  *   .resolve();
  * ```
  */
@@ -219,7 +219,7 @@ export function env<T extends SimpleEnvSchema>(
  * @example
  * ```typescript
  * const config = envSync({
- *   FOO: 'string',
+ *   FOO: string(),
  *   BAR: 3000,
  * }).resolveSync();
  * ```

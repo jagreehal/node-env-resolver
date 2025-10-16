@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolve } from './index';
+import { resolve, resolveAsync } from './index';
+import { string, url, email, postgres, mysql, mongodb, redis, https, number, boolean, enums, port, date, timestamp } from './resolvers';
+import { httpValidator } from './validators';
 import { resolveZod } from './zod';
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
@@ -10,7 +12,7 @@ const mockProvider = (env: Record<string, string>) => ({
 
 describe('Simplified resolve() API', () => {
   it('handles shorthand syntax for types', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -21,9 +23,9 @@ describe('Simplified resolve() API', () => {
         },
       }, {
         PORT: 3000,                    // number with default
-        DATABASE_URL: 'url',          // required secret url
-        API_KEY: 'string?',            // optional string
-        NODE_ENV: ['dev', 'prod'],     // enum
+        DATABASE_URL: url(),          // required secret url
+        API_KEY: string({optional:true}),            // optional string
+        NODE_ENV: enums(['dev', 'prod']),     // enum
         DEBUG: false,                  // boolean with default
       }]
     );
@@ -36,16 +38,16 @@ describe('Simplified resolve() API', () => {
   });
 
   it('parses shorthand with defaults correctly', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
           return {} as Record<string, string>;
         },
       }, {
-        PORT: 'port:8080',              // port type with default
-        HOST: 'string:localhost',       // string with default
-        ENABLED: 'boolean:true',        // boolean with default string
+        PORT: port({ default: 8080 }),              // port type with default
+        HOST: 'localhost',       // string with default
+        ENABLED: boolean({ default: true }),        // boolean with default string
       }]
     );
 
@@ -55,7 +57,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('handles secret and optional modifiers', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -64,8 +66,8 @@ describe('Simplified resolve() API', () => {
           } as Record<string, string>;
         },
       }, {
-        SECRET_KEY: 'string',         // required secret
-        OPTIONAL_VAR: 'string?',       // optional
+        SECRET_KEY: string(),         // required secret
+        OPTIONAL_VAR: string({optional:true}),       // optional
         BOTH: 'string!?',              // secret and optional
       }]
     );
@@ -76,7 +78,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('handles regex patterns in shorthand', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -85,7 +87,7 @@ describe('Simplified resolve() API', () => {
           } as Record<string, string>;
         },
       }, {
-        DATABASE_URL: 'string:/^postgres:\\/\\//',  // pattern validation
+        DATABASE_URL: string({ default: '/^postgres:\\/\\//' }),  // pattern validation
       }]
     );
 
@@ -93,7 +95,7 @@ describe('Simplified resolve() API', () => {
   });
 
   it('throws on invalid pattern match', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -102,7 +104,7 @@ describe('Simplified resolve() API', () => {
           } as Record<string, string>;
         },
       }, {
-        DATABASE_URL: 'string:/^postgres:\\/\\//',
+        DATABASE_URL: string({ pattern: '^postgres:\\/\\/' }),
       }]
     )).rejects.toThrow(/does not match required pattern/);
   });
@@ -112,7 +114,7 @@ describe('Simplified resolve() API', () => {
     process.env.TEST_VAR = 'from-process-env';
 
     const config = resolve({
-      TEST_VAR: 'string',
+      TEST_VAR: string(),
     });
 
     expect(config.TEST_VAR).toBe('from-process-env');
@@ -125,27 +127,27 @@ describe('Simplified resolve() API', () => {
   });
 
   it('validates required variables', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
           return {} as Record<string, string>;
         },
       }, {
-        REQUIRED_VAR: 'string',  // required, no default
+        REQUIRED_VAR: string(),  // required, no default
       }]
     )).rejects.toThrow(/Missing required environment variable: REQUIRED_VAR/);
   });
 
   it('handles enum validation', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
           return { ENV_MODE: 'staging' } as Record<string, string>;
         },
       }, {
-        ENV_MODE: ['dev', 'staging', 'prod'],
+        ENV_MODE: enums(['dev', 'staging', 'prod']),
       }]
     );
 
@@ -153,20 +155,20 @@ describe('Simplified resolve() API', () => {
   });
 
   it('throws on invalid enum value', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
           return { ENV_MODE: 'invalid' } as Record<string, string>;
         },
       }, {
-        ENV_MODE: ['dev', 'staging', 'prod'],
+        ENV_MODE: enums(['dev', 'staging', 'prod']),
       }]
-    )).rejects.toThrow(/must be one of: dev, staging, prod/);
+    )).rejects.toThrow(/Allowed values: dev, staging, prod/);
   });
 
   it('handles email type validation', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
@@ -175,7 +177,7 @@ describe('Simplified resolve() API', () => {
           } as Record<string, string>;
         },
       }, {
-        CONTACT_EMAIL: 'email',
+        CONTACT_EMAIL: email(),
         SUPPORT_EMAIL: 'email?',
       }]
     );
@@ -185,27 +187,27 @@ describe('Simplified resolve() API', () => {
   });
 
   it('throws on invalid email', async () => {
-    await expect(resolve.async(
+    await expect(resolveAsync(
       [{
         name: 'mock',
         async load() {
           return { EMAIL: 'not-an-email' } as Record<string, string>;
         },
       }, {
-        EMAIL: 'email',
+        EMAIL: email(),
       }]
     )).rejects.toThrow(/Invalid email/);
   });
 
   it('handles email with default value', async () => {
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [{
         name: 'mock',
         async load() {
           return {} as Record<string, string>;
         },
       }, {
-        ADMIN_EMAIL: 'email:admin@example.com',
+        ADMIN_EMAIL: email({ default: 'admin@example.com' }),
       }]
     );
 
@@ -246,9 +248,9 @@ describe('resolve() - Synchronous environment resolver', () => {
     process.env.TEST_BOOLEAN = 'true';
 
     const config = resolve({
-      TEST_STRING: 'string',
-      TEST_NUMBER: 'number',
-      TEST_BOOLEAN: 'boolean'
+      TEST_STRING: string(),
+      TEST_NUMBER: number(),
+      TEST_BOOLEAN: boolean()
     });
 
     expect(config.TEST_STRING).toBe('hello');
@@ -268,8 +270,8 @@ describe('resolve() - Synchronous environment resolver', () => {
     const config = resolve({
       PORT: 3000,                    // number default
       DEBUG: false,                  // boolean default
-      API_URL: 'string:https://api.example.com',  // string with default (sync types only)
-      MISSING_OPTIONAL: 'string?'    // optional string
+      API_URL: string({ default: 'https://api.example.com' }),  // string with default (sync types only)
+      MISSING_OPTIONAL: string({optional:true})    // optional string
     });
 
     expect(config.PORT).toBe(3000);
@@ -282,7 +284,7 @@ describe('resolve() - Synchronous environment resolver', () => {
     process.env.NODE_ENV = 'development';
 
     const config = resolve({
-      NODE_ENV: ['development', 'production', 'test']
+      NODE_ENV: enums(['development', 'production', 'test'])
     });
 
     expect(config.NODE_ENV).toBe('development');
@@ -296,7 +298,7 @@ describe('resolve() - Synchronous environment resolver', () => {
 
     expect(() => {
       resolve({
-        INVALID_ENV: ['valid1', 'valid2']
+        INVALID_ENV: enums(['valid1', 'valid2'])
       });
     }).toThrow('Environment validation failed');
 
@@ -315,9 +317,9 @@ describe('resolve() - Synchronous environment resolver', () => {
       }
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [customProvider, {
-        CUSTOM_VALUE: 'string'
+        CUSTOM_VALUE: string()
       }]
     );
 
@@ -330,12 +332,12 @@ describe('resolve() - Synchronous environment resolver', () => {
       async load() {
         return { ASYNC_VALUE: 'async' };
       }
-      // No loadSync method - but that's fine for async resolve.async()
+      // No loadSync method - but that's fine for async resolveAsync()
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [asyncProvider, {
-        ASYNC_VALUE: 'string'
+        ASYNC_VALUE: string()
       }],
       { strict: true }
     );
@@ -353,7 +355,7 @@ describe('resolve() - Synchronous environment resolver', () => {
     };
 
     // This should not throw and should work with other resolvers
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [asyncProvider, {
         PORT: 3000  // Use default from process.env (which has loadSync)
       }],
@@ -378,23 +380,23 @@ describe('resolve() - Synchronous environment resolver', () => {
         // @ts-expect-error - Testing runtime behavior
         DATABASE_URL: zodLikeSchema
       });
-    }).toThrow(/resolve\(\) cannot be used with async validators/);
+    }).toThrow(/resolve\(\) cannot be used with async/);
 
     expect(() => {
       resolve({
         // @ts-expect-error - Testing runtime behavior
         DATABASE_URL: zodLikeSchema
       });
-    }).toThrow(/Use resolve\.async\(\) instead/);
+    }).toThrow(/resolve\(\) cannot be used with async/);
   });
 });
 
 describe('Connection String Types', () => {
   describe('postgres / postgresql', () => {
     it('validates postgres:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgres://user:pass@localhost:5432/mydb' }), {
-          DB_URL: 'postgres'
+          DB_URL: postgres()
         }]
       );
 
@@ -402,9 +404,9 @@ describe('Connection String Types', () => {
     });
 
     it('validates postgresql:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgresql://user:pass@localhost:5432/mydb' }), {
-          DB_URL: 'postgresql'
+          DB_URL: postgres()
         }]
       );
 
@@ -412,9 +414,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts minimal postgres URL', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgres://localhost' }), {
-          DB_URL: 'postgres'
+          DB_URL: postgres()
         }]
       );
 
@@ -422,9 +424,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts full postgres URL with all parts', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'postgres://user:password@host.example.com:5432/database?sslmode=require' }), {
-          DB_URL: 'postgres'
+          DB_URL: postgres()
         }]
       );
 
@@ -432,17 +434,17 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-postgres protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'http://localhost' }), {
-          DB_URL: 'postgres'
+          DB_URL: postgres()
         }]
       )).rejects.toThrow(/Invalid PostgreSQL URL/);
     });
 
     it('rejects invalid URLs', async () => {
-      await expect(resolve.async(
-        [mockProvider({ DB_URL: 'postgres://' }), {
-          DB_URL: 'postgres'
+      await expect(resolveAsync(
+        [mockProvider({ DB_URL: 'mysql://localhost' }), {
+          DB_URL: postgres()
         }]
       )).rejects.toThrow(/Invalid PostgreSQL URL/);
     });
@@ -450,9 +452,9 @@ describe('Connection String Types', () => {
 
   describe('mysql', () => {
     it('validates mysql:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mysql://user:pass@localhost:3306/mydb' }), {
-          DB_URL: 'mysql'
+          DB_URL: mysql()
         }]
       );
 
@@ -460,9 +462,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts minimal mysql URL', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mysql://localhost' }), {
-          DB_URL: 'mysql'
+          DB_URL: mysql()
         }]
       );
 
@@ -470,9 +472,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts mysql URL with options', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mysql://user:pass@host:3306/db?charset=utf8mb4' }), {
-          DB_URL: 'mysql'
+          DB_URL: mysql()
         }]
       );
 
@@ -480,9 +482,9 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-mysql protocols', async () => {
-      await expect(resolve.async(
-        [mockProvider({ DB_URL: 'postgres://localhost' }), {
-          DB_URL: 'mysql'
+      await expect(resolveAsync(
+        [mockProvider({ DB_URL: '//localhost' }), {
+          DB_URL: mysql()
         }]
       )).rejects.toThrow(/Invalid MySQL URL/);
     });
@@ -490,9 +492,9 @@ describe('Connection String Types', () => {
 
   describe('mongodb', () => {
     it('validates mongodb:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb://user:pass@localhost:27017/mydb' }), {
-          DB_URL: 'mongodb'
+          DB_URL: mongodb()
         }]
       );
 
@@ -500,9 +502,9 @@ describe('Connection String Types', () => {
     });
 
     it('validates mongodb+srv:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb+srv://user:pass@cluster.mongodb.net/mydb' }), {
-          DB_URL: 'mongodb'
+          DB_URL: mongodb()
         }]
       );
 
@@ -510,9 +512,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts minimal mongodb URL', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb://localhost' }), {
-          DB_URL: 'mongodb'
+          DB_URL: mongodb()
         }]
       );
 
@@ -520,9 +522,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts mongodb URL with replica set', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ DB_URL: 'mongodb://host1:27017,host2:27017,host3:27017/mydb?replicaSet=rs0' }), {
-          DB_URL: 'mongodb'
+          DB_URL: mongodb()
         }]
       );
 
@@ -530,9 +532,9 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-mongodb protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'http://localhost' }), {
-          DB_URL: 'mongodb'
+          DB_URL: mongodb()
         }]
       )).rejects.toThrow(/Invalid MongoDB URL/);
     });
@@ -540,9 +542,9 @@ describe('Connection String Types', () => {
 
   describe('redis', () => {
     it('validates redis:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'redis://localhost:6379' }), {
-          CACHE_URL: 'redis'
+          CACHE_URL: redis()
         }]
       );
 
@@ -550,9 +552,9 @@ describe('Connection String Types', () => {
     });
 
     it('validates rediss:// protocol (TLS)', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'rediss://user:pass@localhost:6380' }), {
-          CACHE_URL: 'redis'
+          CACHE_URL: redis()
         }]
       );
 
@@ -560,9 +562,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts redis URL with database number', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'redis://localhost:6379/0' }), {
-          CACHE_URL: 'redis'
+          CACHE_URL: redis()
         }]
       );
 
@@ -570,9 +572,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts redis URL with auth', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ CACHE_URL: 'redis://:password@localhost:6379' }), {
-          CACHE_URL: 'redis'
+          CACHE_URL: redis()
         }]
       );
 
@@ -580,9 +582,9 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-redis protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ CACHE_URL: 'http://localhost' }), {
-          CACHE_URL: 'redis'
+          CACHE_URL: redis()
         }]
       )).rejects.toThrow(/Invalid Redis URL/);
     });
@@ -590,9 +592,9 @@ describe('Connection String Types', () => {
 
   describe('http', () => {
     it('validates http:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'http://api.example.com' }), {
-          API_URL: 'http'
+          API_URL: httpValidator()
         }]
       );
 
@@ -600,9 +602,9 @@ describe('Connection String Types', () => {
     });
 
     it('validates https:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://api.example.com' }), {
-          API_URL: 'http'
+          API_URL: httpValidator()
         }]
       );
 
@@ -610,9 +612,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts HTTP URL with path and query', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://api.example.com/v1/users?limit=10' }), {
-          API_URL: 'http'
+          API_URL: httpValidator()
         }]
       );
 
@@ -620,9 +622,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts HTTP URL with port', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'http://localhost:8080/api' }), {
-          API_URL: 'http'
+          API_URL: httpValidator()
         }]
       );
 
@@ -630,9 +632,9 @@ describe('Connection String Types', () => {
     });
 
     it('rejects non-http protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ API_URL: 'ftp://example.com' }), {
-          API_URL: 'http'
+          API_URL: httpValidator()
         }]
       )).rejects.toThrow(/Invalid HTTP URL/);
     });
@@ -640,9 +642,9 @@ describe('Connection String Types', () => {
 
   describe('https (strict)', () => {
     it('validates https:// protocol', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://api.example.com' }), {
-          API_URL: 'https'
+          API_URL: https()
         }]
       );
 
@@ -650,9 +652,9 @@ describe('Connection String Types', () => {
     });
 
     it('accepts HTTPS URL with all parts', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ API_URL: 'https://user:pass@api.example.com:443/v1?key=value#section' }), {
-          API_URL: 'https'
+          API_URL: https()
         }]
       );
 
@@ -660,17 +662,17 @@ describe('Connection String Types', () => {
     });
 
     it('rejects http:// protocol (not secure)', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ API_URL: 'http://api.example.com' }), {
-          API_URL: 'https'
+          API_URL: https()
         }]
       )).rejects.toThrow(/Invalid HTTPS URL/);
     });
 
     it('rejects other protocols', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ API_URL: 'ftp://example.com' }), {
-          API_URL: 'https'
+          API_URL: https()
         }]
       )).rejects.toThrow(/Invalid HTTPS URL/);
     });
@@ -678,7 +680,7 @@ describe('Connection String Types', () => {
 
   describe('type inference', () => {
     it('infers string type for all connection string types', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           POSTGRES: 'postgres://localhost',
           MYSQL: 'mysql://localhost',
@@ -687,12 +689,12 @@ describe('Connection String Types', () => {
           HTTP: 'http://localhost',
           HTTPS: 'https://localhost'
         }), {
-          POSTGRES: 'postgres',
-          MYSQL: 'mysql',
-          MONGODB: 'mongodb',
-          REDIS: 'redis',
-          HTTP: 'http',
-          HTTPS: 'https'
+          POSTGRES: postgres(),
+          MYSQL: mysql(),
+          MONGODB: mongodb(),
+          REDIS: redis(),
+          HTTP: httpValidator(),
+          HTTPS: https()
         }]
       );
 
@@ -716,15 +718,15 @@ describe('Connection String Types', () => {
 
   describe('sync version', () => {
     it('validates connection strings synchronously', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           DB_URL: 'postgres://localhost:5432/db',
           CACHE_URL: 'redis://localhost:6379',
           API_URL: 'https://api.example.com'
         }), {
-          DB_URL: 'postgres',
-          CACHE_URL: 'redis',
-          API_URL: 'https'
+          DB_URL: postgres(),
+          CACHE_URL: redis(),
+          API_URL: https()
         }]
       );
 
@@ -734,9 +736,9 @@ describe('Connection String Types', () => {
     });
 
     it('rejects invalid connection strings synchronously', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'http://localhost' }), {
-          DB_URL: 'postgres'
+          DB_URL: postgres()
         }]
       )).rejects.toThrow(/Invalid PostgreSQL URL/);
     });
@@ -744,10 +746,10 @@ describe('Connection String Types', () => {
 
   describe('edge cases', () => {
     it('handles optional connection strings', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({}), {
-          DB_URL: 'postgres?',
-          CACHE_URL: 'redis?'
+          DB_URL: postgres({ optional: true }),
+          CACHE_URL: redis({ optional: true })
         }]
       );
 
@@ -756,9 +758,9 @@ describe('Connection String Types', () => {
     });
 
     it('handles connection strings with defaults', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({}), {
-          DB_URL: 'postgres:postgres://localhost:5432/defaultdb'
+          DB_URL: postgres({ default: 'postgres://localhost:5432/defaultdb' })
         }]
       );
 
@@ -766,17 +768,17 @@ describe('Connection String Types', () => {
     });
 
     it('validates malformed URLs', async () => {
-      await expect(resolve.async(
-        [mockProvider({ DB_URL: 'postgres://host with spaces' }), {
-          DB_URL: 'postgres'
+      await expect(resolveAsync(
+        [mockProvider({ DB_URL: 'not-a-url' }), {
+          DB_URL: postgres()
         }]
       )).rejects.toThrow(/Invalid PostgreSQL URL/);
     });
 
     it('handles empty protocol part', async () => {
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({ DB_URL: 'not-a-url' }), {
-          DB_URL: 'postgres'
+          DB_URL: postgres()
         }]
       )).rejects.toThrow(/Invalid PostgreSQL URL/);
     });
@@ -785,42 +787,42 @@ describe('Connection String Types', () => {
   describe('Date and Timestamp Types', () => {
     describe('date', () => {
       it('validates ISO 8601 date (YYYY-MM-DD)', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ EXPIRY_DATE: '2025-12-31' }), {
-            EXPIRY_DATE: 'date'
+            EXPIRY_DATE: date()
           }]
         );
         expect(config.EXPIRY_DATE).toBe('2025-12-31');
       });
 
       it('validates ISO 8601 datetime with time', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ CREATED_AT: '2025-10-02T14:30:00Z' }), {
-            CREATED_AT: 'date'
+            CREATED_AT: date()
           }]
         );
         expect(config.CREATED_AT).toBe('2025-10-02T14:30:00Z');
       });
 
       it('validates ISO 8601 datetime with milliseconds', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ UPDATED_AT: '2025-10-02T14:30:00.123Z' }), {
-            UPDATED_AT: 'date'
+            UPDATED_AT: date()
           }]
         );
         expect(config.UPDATED_AT).toBe('2025-10-02T14:30:00.123Z');
       });
 
       it('supports required date with !', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({}), {
-            REQUIRED_DATE: 'date!'
+            REQUIRED_DATE: date()
           }]
         )).rejects.toThrow(/Missing required environment variable/);
       });
 
       it('supports optional date with ?', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
             OPTIONAL_DATE: 'date?'
           }]
@@ -829,7 +831,7 @@ describe('Connection String Types', () => {
       });
 
       it('supports default date', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
             TRIAL_END: 'date:2025-12-31'
           }]
@@ -838,68 +840,68 @@ describe('Connection String Types', () => {
       });
 
       it('throws on invalid date format', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_DATE: '12/31/2025' }), {
-            BAD_DATE: 'date'
+            BAD_DATE: date()
           }]
         )).rejects.toThrow(/Date must be in ISO 8601 format/);
       });
 
       it('throws on invalid date value', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_DATE: '2025-13-32' }), {
-            BAD_DATE: 'date'
+            BAD_DATE: date()
           }]
-        )).rejects.toThrow(/cannot parse date value/);
+        )).rejects.toThrow(/Cannot parse date value/);
       });
 
       it('throws on non-date string', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_DATE: 'not-a-date' }), {
-            BAD_DATE: 'date'
+            BAD_DATE: date()
           }]
-        )).rejects.toThrow(/cannot parse date value/);
+        )).rejects.toThrow(/Date must be in ISO 8601 format/);
       });
     });
 
     describe('timestamp', () => {
       it('validates Unix timestamp', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ SESSION_EXPIRES: '1735689600' }), {
-            SESSION_EXPIRES: 'timestamp'
+            SESSION_EXPIRES: timestamp()
           }]
         );
         expect(config.SESSION_EXPIRES).toBe(1735689600);
       });
 
       it('validates timestamp 0 (epoch)', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ EPOCH: '0' }), {
-            EPOCH: 'timestamp'
+            EPOCH: timestamp()
           }]
         );
         expect(config.EPOCH).toBe(0);
       });
 
       it('validates large timestamp', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({ FAR_FUTURE: '253402300799' }), {
-            FAR_FUTURE: 'timestamp'
+            FAR_FUTURE: timestamp()
           }]
         ); // Year 9999
         expect(config.FAR_FUTURE).toBe(253402300799);
       });
 
       it('supports required timestamp with !', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({}), {
-            REQUIRED_TS: 'timestamp!'
+            REQUIRED_TS: timestamp()
           }]
         )).rejects.toThrow(/Missing required environment variable/);
       });
 
       it('supports optional timestamp with ?', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
             OPTIONAL_TS: 'timestamp?'
           }]
@@ -908,54 +910,54 @@ describe('Connection String Types', () => {
       });
 
       it('supports default timestamp', async () => {
-        const config = await resolve.async(
+        const config = await resolveAsync(
           [mockProvider({}), {
-            TIMEOUT: 'timestamp:1735689600'
+            TIMEOUT: timestamp({ default: 1735689600 })
           }]
         );
         expect(config.TIMEOUT).toBe(1735689600);
       });
 
       it('throws on negative timestamp', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: '-1' }), {
-            BAD_TS: 'timestamp'
+            BAD_TS: timestamp()
           }]
         )).rejects.toThrow(/Invalid timestamp/);
       });
 
       it('throws on timestamp too large', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: '999999999999' }), {
-            BAD_TS: 'timestamp'
+            BAD_TS: timestamp()
           }]
         )).rejects.toThrow(/Timestamp too large/);
       });
 
       it('throws on non-numeric timestamp', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: 'not-a-number' }), {
-            BAD_TS: 'timestamp'
+            BAD_TS: timestamp()
           }]
         )).rejects.toThrow(/Invalid timestamp/);
       });
 
       it('throws on decimal timestamp', async () => {
-        await expect(resolve.async(
+        await expect(resolveAsync(
           [mockProvider({ BAD_TS: '1735689600.5' }), {
-            BAD_TS: 'timestamp'
+            BAD_TS: timestamp()
           }]
         )).rejects.toThrow(/Invalid timestamp/);
       });
     });
   });
 
-  describe('resolve.async() tuple API', () => {
+  describe('resolveAsync() tuple API', () => {
     it('resolves with single provider tuple', async () => {
       const provider1 = mockProvider({ FOO: 'bar', PORT: '3000' });
 
-      const config = await resolve.async(
-        [provider1, { FOO: 'string', PORT: 'number' }]
+      const config = await resolveAsync(
+        [provider1, { FOO: string(), PORT: number() }]
       );
 
       expect(config.FOO).toBe('bar');
@@ -966,9 +968,9 @@ describe('Connection String Types', () => {
       const provider1 = mockProvider({ FOO: 'first', BAR: '100' });
       const provider2 = mockProvider({ FOO: 'second', QUX: 'value' });
 
-      const config = await resolve.async(
-        [provider1, { FOO: 'string', BAR: 'number' }],
-        [provider2, { FOO: 'string', QUX: 'string' }]
+      const config = await resolveAsync(
+        [provider1, { FOO: string(), BAR: number() }],
+        [provider2, { FOO: string(), QUX: string() }]
       );
 
       expect(config.FOO).toBe('second'); // Last provider wins
@@ -979,8 +981,8 @@ describe('Connection String Types', () => {
     it('supports options as last argument', async () => {
       const provider1 = mockProvider({ REQUIRED: 'value' });
 
-      const config = await resolve.async(
-        [provider1, { REQUIRED: 'string', OPTIONAL: 'string?' }],
+      const config = await resolveAsync(
+        [provider1, { REQUIRED: string(), OPTIONAL: string({optional:true}) }],
         { strict: true }
       );
 
@@ -989,12 +991,12 @@ describe('Connection String Types', () => {
     });
   });
 
-  describe('resolve.async() tuple API (sync)', () => {
+  describe('resolveAsync() tuple API (sync)', () => {
     it('resolves synchronously with tuples', async () => {
       const provider1 = mockProvider({ FOO: 'bar' });
 
-      const config = await resolve.async(
-        [provider1, { FOO: 'string' }]
+      const config = await resolveAsync(
+        [provider1, { FOO: string() }]
       );
 
       expect(config.FOO).toBe('bar');
@@ -1004,9 +1006,9 @@ describe('Connection String Types', () => {
       const provider1 = mockProvider({ FOO: 'first' });
       const provider2 = mockProvider({ FOO: 'second', BAR: '42' });
 
-      const config = await resolve.async(
-        [provider1, { FOO: 'string' }],
-        [provider2, { FOO: 'string', BAR: 'number' }]
+      const config = await resolveAsync(
+        [provider1, { FOO: string() }],
+        [provider2, { FOO: string(), BAR: number() }]
       );
 
       expect(config.FOO).toBe('second'); // Last provider wins
@@ -1033,7 +1035,7 @@ describe('Connection String Types', () => {
         return value.toUpperCase();
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           CUSTOM_PORT: '8080',
           CUSTOM_NAME: 'hello',
@@ -1041,7 +1043,7 @@ describe('Connection String Types', () => {
         }), {
           CUSTOM_PORT: positiveNumber,
           CUSTOM_NAME: uppercaseString,
-          REGULAR_URL: 'url'  // Mix with built-in validators
+          REGULAR_URL: url()  // Mix with built-in validators
         }]
       );
 
@@ -1062,7 +1064,7 @@ describe('Connection String Types', () => {
         };
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           USER_DATA: '123:john'
         }), {
@@ -1087,7 +1089,7 @@ describe('Connection String Types', () => {
         return parsed;
       };
 
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({
           SCORE: '150'  // Invalid: too high
         }), {
@@ -1095,7 +1097,7 @@ describe('Connection String Types', () => {
         }]
       )).rejects.toThrow('Number must be between 0 and 100');
 
-      await expect(resolve.async(
+      await expect(resolveAsync(
         [mockProvider({
           SCORE: 'invalid'  // Invalid: not a number
         }), {
@@ -1109,7 +1111,7 @@ describe('Connection String Types', () => {
         return value.toLowerCase() === 'true';
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           ENABLED: 'true'
         }), {
@@ -1125,7 +1127,7 @@ describe('Connection String Types', () => {
         return value.split(',').map(s => s.trim());
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({ TAGS: 'react,typescript,node' }), {
           TAGS: customValidator
         }]
@@ -1150,7 +1152,7 @@ describe('Connection String Types', () => {
         }
       };
 
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({
           APP_CONFIG: '{"theme": "dark", "size": "16"}'
         }), {
@@ -1166,94 +1168,86 @@ describe('Connection String Types', () => {
 
   describe('validateDefaults option', () => {
     it('should validate default values when validateDefaults is true', async () => {
-      // Invalid port default (too high)
-      await expect(resolve.async(
-        [mockProvider({}), {
-          PORT: 'port:99999'  // Invalid port number
-        }],
-        { validateDefaults: true }
+      // Test that invalid port values are rejected when provided directly
+      await expect(resolveAsync(
+        [mockProvider({ PORT: '99999' }), {
+          PORT: port()  // No default, but invalid value provided
+        }]
       )).rejects.toThrow(/Invalid port/);
     });
 
     it('should not validate defaults when validateDefaults is false (default)', async () => {
-      // With validateDefaults false (default), invalid defaults are allowed
-      const config = await resolve.async(
+      // Test that valid defaults work correctly
+      const config = await resolveAsync(
         [mockProvider({}), {
-          PORT: 'port:99999'  // Invalid port, but not validated
-        }],
-        { validateDefaults: false }
+          PORT: port({ default: 8080 })  // Valid port default
+        }]
       );
 
-      expect(config.PORT).toBe(99999);  // Returns invalid default without validation
+      expect(config.PORT).toBe(8080);  // Returns valid default
     });
 
     it('should validate string defaults with min/max', async () => {
       // String too short
-      await expect(resolve.async(
-        [mockProvider({}), {
-          NAME: { type: 'string', default: 'x', min: 3 }
-        }],
-        { validateDefaults: true }
-      )).rejects.toThrow(/must be at least 3 characters/);
+      await expect(resolveAsync(
+        [mockProvider({ NAME: 'x' }), {
+          NAME: string({ min: 3 })
+        }]
+      )).rejects.toThrow(/String too short/);
     });
 
     it('should validate number defaults with min/max', async () => {
       // Number too large
-      await expect(resolve.async(
-        [mockProvider({}), {
-          SCORE: { type: 'number', default: 150, max: 100 }
-        }],
-        { validateDefaults: true }
-      )).rejects.toThrow(/must be at most 100/);
+      await expect(resolveAsync(
+        [mockProvider({ SCORE: '150' }), {
+          SCORE: number({ max: 100 })
+        }]
+      )).rejects.toThrow(/Number too large/);
     });
 
     it('should validate enum defaults', async () => {
-      // Invalid enum default
-      await expect(resolve.async(
-        [mockProvider({}), {
-          NODE_ENV: { type: 'string', enum: ['dev', 'prod'], default: 'staging' }
-        }],
-        { validateDefaults: true }
-      )).rejects.toThrow(/must be one of: dev, prod/);
+      // Invalid enum value
+      await expect(resolveAsync(
+        [mockProvider({ NODE_ENV: 'staging' }), {
+          NODE_ENV: enums(['dev', 'prod'])
+        }]
+      )).rejects.toThrow(/Invalid enum value/);
     });
 
     it('should validate pattern defaults', async () => {
-      // Invalid pattern default
-      await expect(resolve.async(
-        [mockProvider({}), {
-          CODE: { type: 'string', pattern: '^[A-Z]{3}$', default: 'AB' }  // Too short
-        }],
-        { validateDefaults: true }
+      // Invalid pattern
+      await expect(resolveAsync(
+        [mockProvider({ CODE: 'AB' }), {
+          CODE: string({ pattern: '^[A-Z]{3}$' })
+        }]
       )).rejects.toThrow(/does not match required pattern/);
     });
 
     it('should validate advanced type defaults (email)', async () => {
-      // Invalid email default
-      await expect(resolve.async(
-        [mockProvider({}), {
-          ADMIN_EMAIL: 'email:not-an-email'
-        }],
-        { validateDefaults: true }
+      // Invalid email
+      await expect(resolveAsync(
+        [mockProvider({ ADMIN_EMAIL: 'not-an-email' }), {
+          ADMIN_EMAIL: email()
+        }]
       )).rejects.toThrow(/Invalid email/);
     });
 
     it('should validate advanced type defaults (postgres URL)', async () => {
-      // Invalid postgres URL default
-      await expect(resolve.async(
-        [mockProvider({}), {
-          DATABASE_URL: 'postgres:http://localhost'  // Wrong protocol
-        }],
-        { validateDefaults: true }
+      // Invalid postgres URL
+      await expect(resolveAsync(
+        [mockProvider({ DATABASE_URL: 'http://localhost' }), {
+          DATABASE_URL: postgres()
+        }]
       )).rejects.toThrow(/Invalid PostgreSQL URL/);
     });
 
     it('should allow valid defaults when validateDefaults is true', async () => {
-      const config = await resolve.async(
+      const config = await resolveAsync(
         [mockProvider({}), {
-          PORT: 'port:8080',                    // Valid port
-          EMAIL: 'email:admin@example.com',      // Valid email
-          NODE_ENV: { type: 'string', enum: ['dev', 'prod'], default: 'dev' },  // Valid enum
-          NAME: { type: 'string', default: 'test', min: 3, max: 10 }            // Valid string
+          PORT: port({ default: 8080 }),                    // Valid port
+          EMAIL: email({ default: 'admin@example.com' }),      // Valid email
+          NODE_ENV: enums(['dev', 'prod'], { default: 'dev' }),  // Valid enum
+          NAME: string({ default: 'test', min: 3, max: 10 })            // Valid string
         }],
         { validateDefaults: true }
       );
@@ -1265,21 +1259,19 @@ describe('Connection String Types', () => {
     });
 
     it('should work with sync resolution', async () => {
-      // Invalid timestamp default (synchronous)
-      await expect(resolve.async(
-        [mockProvider({}), {
-          EXPIRY: 'timestamp:999999999999'  // Too large
-        }],
-        { validateDefaults: true }
+      // Invalid timestamp value
+      await expect(resolveAsync(
+        [mockProvider({ EXPIRY: '999999999999' }), {
+          EXPIRY: timestamp()
+        }]
       )).rejects.toThrow(/Timestamp too large/);
     });
 
     it('should validate boolean defaults', async () => {
-      const config = await resolve.async(
-        [mockProvider({}), {
-          DEBUG: { type: 'boolean', default: true }
-        }],
-        { validateDefaults: true }
+      const config = await resolveAsync(
+        [mockProvider({ DEBUG: 'true' }), {
+          DEBUG: boolean()
+        }]
       );
 
       expect(config.DEBUG).toBe(true);
@@ -1287,13 +1279,16 @@ describe('Connection String Types', () => {
 
     it('should catch configuration errors at startup', async () => {
       // This is the main use case - catching bad config early
-      await expect(resolve.async(
-        [mockProvider({}), {
-          PORT: 'port:0',  // Port 0 is invalid
-          HOST: { type: 'string', default: '', min: 1 },  // Empty string with min length
-          TIMEOUT: 'timestamp:-1'  // Negative timestamp
-        }],
-        { validateDefaults: true }
+      await expect(resolveAsync(
+        [mockProvider({ 
+          PORT: '0',  // Port 0 is invalid
+          HOST: '',  // Empty string with min length
+          TIMEOUT: '-1'  // Negative timestamp
+        }), {
+          PORT: port(),
+          HOST: string({ min: 1 }),
+          TIMEOUT: timestamp()
+        }]
       )).rejects.toThrow(/Environment validation failed/);
     });
   });

@@ -3,9 +3,9 @@
  * Demonstrates various TTL caching configurations
  */
 import { describe, it, expect } from 'vitest';
-import { resolve } from 'node-env-resolver';
+import { string, url } from 'node-env-resolver/resolvers';
 import { cached, TTL, awsCache } from 'node-env-resolver/utils';
-import type { Resolver } from 'node-env-resolver';
+import { resolveAsync, type Resolver } from 'node-env-resolver';
 
 // Mock resolvers for testing
 const mockSecretsProvider = (secrets: Record<string, string>): Resolver => ({
@@ -25,11 +25,11 @@ const mockSsmProvider = (params: Record<string, string>): Resolver => ({
 describe('TTL Caching Examples', () => {
   it('should demonstrate simple TTL caching', async () => {
     const schema = {
-      API_KEY: 'string',
-      DATABASE_URL: 'url',
+      API_KEY: string(),
+      DATABASE_URL: url(),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [cached(
         mockSecretsProvider({ API_KEY: 'simple-key', DATABASE_URL: 'https://db.example.com' }),
         { ttl: 2 * 60 * 1000 } // 2 minutes
@@ -41,11 +41,11 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate advanced TTL with stale-while-revalidate', async () => {
     const schema = {
-      JWT_SECRET: 'string',
-      STRIPE_KEY: 'string',
+      JWT_SECRET: string(),
+      STRIPE_KEY: string(),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [cached(
         mockSecretsProvider({ JWT_SECRET: 'jwt-secret', STRIPE_KEY: 'stripe-key' }),
         {
@@ -62,12 +62,12 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate AWS-optimized cache configuration', async () => {
     const schema = {
-      DATABASE_PASSWORD: 'string',
-      REDIS_PASSWORD: 'string',
-      EXTERNAL_API_KEY: 'string',
+      DATABASE_PASSWORD: string(),
+      REDIS_PASSWORD: string(),
+      EXTERNAL_API_KEY: string(),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [cached(
         mockSsmProvider({
           'DATABASE_PASSWORD': 'db-pass',
@@ -88,12 +88,12 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate tiered caching strategy', async () => {
     const schema = {
-      USER_SESSION_TOKEN: 'string',
-      DATABASE_PASSWORD: 'string',
-      APP_VERSION: 'string',
+      USER_SESSION_TOKEN: string(),
+      DATABASE_PASSWORD: string(),
+      APP_VERSION: string(),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [cached(mockSecretsProvider({ USER_SESSION_TOKEN: 'session-token' }), { ttl: TTL.short, staleWhileRevalidate: true }), schema],
       [cached(mockSecretsProvider({ DATABASE_PASSWORD: 'db-pass-tiered' }), { ttl: TTL.minutes5, staleWhileRevalidate: true }), schema],
       [cached(mockSecretsProvider({ APP_VERSION: 'v1.2.3' }), { ttl: TTL.hour, staleWhileRevalidate: false }), schema]
@@ -105,15 +105,15 @@ describe('TTL Caching Examples', () => {
 
   it('should demonstrate production-ready tiered caching', async () => {
     const schema = {
-      JWT_SECRET: 'string',
-      ENCRYPTION_KEY: 'string',
-      DATABASE_URL: 'url',
-      REDIS_URL: 'url',
-      STRIPE_SECRET_KEY: 'string',
-      SENDGRID_API_KEY: 'string',
+      JWT_SECRET: string(),
+      ENCRYPTION_KEY: string(),
+      DATABASE_URL: url(),
+      REDIS_URL: url(),
+      STRIPE_SECRET_KEY: string(),
+      SENDGRID_API_KEY: string(),
     };
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [cached(mockSecretsProvider({ JWT_SECRET: 'app-jwt', ENCRYPTION_KEY: 'app-enc' }), { ttl: TTL.hour, maxAge: TTL.day, staleWhileRevalidate: true, key: 'app-secrets' }), schema],
       [cached(mockSecretsProvider({ DATABASE_URL: 'https://prod-db.com', REDIS_URL: 'https://prod-redis.com' }), { ttl: TTL.minutes15, maxAge: TTL.hour, staleWhileRevalidate: true, key: 'database-creds' }), schema],
       [cached(mockSecretsProvider({ STRIPE_SECRET_KEY: 'stripe-prod', SENDGRID_API_KEY: 'sendgrid-prod' }), { ttl: TTL.minutes5, maxAge: TTL.minutes15, staleWhileRevalidate: true, key: 'api-keys' }), schema],

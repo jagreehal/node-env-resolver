@@ -1,8 +1,10 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { resolve, resolveAsync, safeResolve } from './index';
+import { string, port, url, boolean } from './resolvers';
+
 /**
  * Tests for nested delimiter functionality
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, safeResolve } from './index';
 
 describe('Nested Delimiter', () => {
   const originalEnv = { ...process.env };
@@ -25,9 +27,9 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE__NAME = 'mydb';
 
     const config = resolve({
-      DATABASE__HOST: 'string',
-      DATABASE__PORT: 'port',
-      DATABASE__NAME: 'string'
+      DATABASE__HOST: string(),
+      DATABASE__PORT: port(),
+      DATABASE__NAME: string()
     }, { nestedDelimiter: '__' });
 
     expect(config).toHaveProperty('database');
@@ -44,9 +46,9 @@ describe('Nested Delimiter', () => {
     process.env.APP__API__ENDPOINT__URL = 'https://api.example.com';
 
     const config = resolve({
-      APP__DATABASE__CONFIG__HOST: 'string',
-      APP__DATABASE__CONFIG__PORT: 'port',
-      APP__API__ENDPOINT__URL: 'url'
+      APP__DATABASE__CONFIG__HOST: string(),
+      APP__DATABASE__CONFIG__PORT: port(),
+      APP__API__ENDPOINT__URL: url()
     }, { nestedDelimiter: '__' });
 
     const appConfig = (config as Record<string, unknown>).app as Record<string, unknown>;
@@ -66,9 +68,9 @@ describe('Nested Delimiter', () => {
     process.env.DEBUG = 'true';
 
     const config = resolve({
-      PORT: 'port',
-      DATABASE__HOST: 'string',
-      DEBUG: 'boolean'
+      PORT: port(),
+      DATABASE__HOST: string(),
+      DEBUG: boolean()
     }, { nestedDelimiter: '__' });
 
     expect(config.PORT).toBe(3000);
@@ -83,8 +85,8 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE_PORT = '5432';
 
     const config = resolve({
-      DATABASE_HOST: 'string',
-      DATABASE_PORT: 'port'
+      DATABASE_HOST: string(),
+      DATABASE_PORT: port()
     }, { nestedDelimiter: '_' });
 
     expect((config as Record<string, unknown>).database).toEqual({
@@ -98,13 +100,15 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE_DOT_PORT = '5432';
 
     const config = resolve({
-      DATABASE_DOT_HOST: 'string',
-      DATABASE_DOT_PORT: 'port'
+      DATABASE_DOT_HOST: string(),
+      DATABASE_DOT_PORT: port()
     }, { nestedDelimiter: '_DOT_' });
 
-    expect((config as Record<string, unknown>).database).toEqual({
-      host: 'localhost',
-      port: 5432
+    expect(config).toEqual({
+      database: {
+        host: 'localhost',
+        port: 5432
+      }
     });
   });
 
@@ -113,8 +117,8 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE__PORT = '5432';
 
     const config = resolve({
-      DATABASE__HOST: 'string',
-      DATABASE__PORT: 'port'
+      DATABASE__HOST: string(),
+      DATABASE__PORT: port()
     }, { nestedDelimiter: '__' });
 
     const database = (config as Record<string, unknown>).database as Record<string, unknown>;
@@ -124,11 +128,11 @@ describe('Nested Delimiter', () => {
     expect(database).not.toHaveProperty('PORT');
   });
 
-  it('should work with async resolve.async()', async () => {
+  it('should work with async resolveAsync()', async () => {
     process.env.APP__NAME = 'MyApp';
     process.env.APP__VERSION = '1.0.0';
 
-    const config = await resolve.async(
+    const config = await resolveAsync(
       [
         {
           name: 'test-resolver',
@@ -140,8 +144,8 @@ describe('Nested Delimiter', () => {
           }
         },
         {
-          APP__NAME: 'string',
-          APP__VERSION: 'string'
+          APP__NAME: string(),
+          APP__VERSION: string()
         }
       ],
       { nestedDelimiter: '__' }
@@ -158,15 +162,17 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE__PORT = '5432';
 
     const result = safeResolve({
-      DATABASE__HOST: 'string',
-      DATABASE__PORT: 'port'
+      DATABASE__HOST: string(),
+      DATABASE__PORT: port()
     }, { nestedDelimiter: '__' });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect((result.data as Record<string, unknown>).database).toEqual({
-        host: 'localhost',
-        port: 5432
+      expect(result.data).toEqual({
+        database: {
+          host: 'localhost',
+          port: 5432
+        }
       });
     }
   });
@@ -176,7 +182,7 @@ describe('Nested Delimiter', () => {
 
     expect(() => {
       resolve({
-        DATABASE__PORT: 'port'
+        DATABASE__PORT: port()
       }, { nestedDelimiter: '__' });
     }).toThrow('Invalid port');
   });
@@ -185,13 +191,13 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE__HOST = 'localhost';
 
     const config = resolve({
-      DATABASE__HOST: 'string',
-      DATABASE__PORT: 'port?'
+      DATABASE__HOST: string(),
+      DATABASE__PORT: port({ optional: true, default: 5432 })
     }, { nestedDelimiter: '__' });
 
     expect((config as Record<string, unknown>).database).toEqual({
       host: 'localhost',
-      port: undefined
+      port: 5432
     });
   });
 
@@ -199,7 +205,7 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE__HOST = 'localhost';
 
     const config = resolve({
-      DATABASE__HOST: 'string',
+      DATABASE__HOST: string(),
       DATABASE__PORT: 5432
     }, { nestedDelimiter: '__' });
 
@@ -214,8 +220,8 @@ describe('Nested Delimiter', () => {
     process.env.DATABASE__PORT = '5432';
 
     const config = resolve({
-      DATABASE__HOST: 'string',
-      DATABASE__PORT: 'port'
+      DATABASE__HOST: string(),
+      DATABASE__PORT: port()
     });
 
     expect(config.DATABASE__HOST).toBe('localhost');

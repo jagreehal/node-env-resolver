@@ -1,0 +1,80 @@
+{
+  "name": "node-env-resolver-vite",
+  "version": "1.0.0",
+  "description": "Zero-config Vite integration for node-env-resolver with client/server split",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./plugin": {
+      "import": "./dist/plugin.js",
+      "types": "./dist/plugin.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "NODE_ENV=production tsup",
+    "build:dev": "tsup",
+    "build:dts": "tsc --emitDeclarationOnly",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "dev": "tsup --watch",
+    "prepublishOnly": "pnpm build && pnpm type-check"
+  },
+  "keywords": [
+    "vite",
+    "environment",
+    "env",
+    "config",
+    "typescript",
+    "type-safe",
+    "zero-config",
+    "vue",
+    "react",
+    "svelte",
+    "solid",
+    "astro"
+  ],
+  "author": {
+    "name": "Jagvinder Singh Reehal",
+    "email": "jag@jagreehal.com",
+    "url": "https://jagreehal.com"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "vite": "^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "node-env-resolver": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "eslint": "^9.37.0",
+    "prettier": "^3.6.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.10",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

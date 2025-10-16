@@ -1,10 +1,12 @@
 /**
  * Shared validation functions for advanced environment variable types
  * Import these when you need advanced validation beyond basic string/number/boolean
- * 
+ *
  * These validators are tree-shakeable - only included if you use advanced types like:
  * 'postgres', 'mysql', 'mongodb', 'redis', 'http', 'https', 'url', 'email', 'port', 'json', 'date', 'timestamp'
  */
+
+import { Validator } from './types';
 
 export interface ValidationResult {
   valid: boolean;
@@ -111,9 +113,26 @@ export function validateHttps(value: string): ValidationResult {
 export function validateUrl(value: string): ValidationResult {
   try {
     const url = new URL(value);
-    const allowedProtocols = ['http:', 'https:', 'ws:', 'wss:', 'ftp:', 'ftps:', 'file:', 'postgres:', 'postgresql:', 'mysql:', 'mongodb:', 'redis:', 'rediss:'];
+    const allowedProtocols = [
+      'http:',
+      'https:',
+      'ws:',
+      'wss:',
+      'ftp:',
+      'ftps:',
+      'file:',
+      'postgres:',
+      'postgresql:',
+      'mysql:',
+      'mongodb:',
+      'redis:',
+      'rediss:',
+    ];
     if (!allowedProtocols.includes(url.protocol)) {
-      return { valid: false, error: `URL protocol '${url.protocol}' is not allowed` };
+      return {
+        valid: false,
+        error: `URL protocol '${url.protocol}' is not allowed`,
+      };
     }
     return { valid: true };
   } catch {
@@ -125,7 +144,8 @@ export function validateUrl(value: string): ValidationResult {
  * Validate email address
  */
 export function validateEmail(value: string): ValidationResult {
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  const emailRegex =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
   if (!emailRegex.test(value)) {
     return { valid: false, error: 'Invalid email' };
   }
@@ -162,7 +182,9 @@ export function validateNumber(value: string): ValidationResult {
  */
 export function validateBoolean(value: string): ValidationResult {
   const lower = value.toLowerCase();
-  if (['true', '1', 'yes', 'on', 'false', '0', 'no', 'off', ''].includes(lower)) {
+  if (
+    ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off', ''].includes(lower)
+  ) {
     return { valid: true };
   }
   return { valid: false, error: 'Invalid boolean' };
@@ -192,7 +214,8 @@ export function validateDate(value: string): ValidationResult {
   }
 
   // Check for common ISO 8601 formats (already valid)
-  const isoPattern = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})?)?$/;
+  const isoPattern =
+    /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})?)?$/;
   if (isoPattern.test(value)) {
     // For YYYY-MM-DD format, ensure the parsed date matches what was provided
     // This catches things like 2025-02-30 which would parse but are invalid
@@ -211,7 +234,11 @@ export function validateDate(value: string): ValidationResult {
 
   // If not ISO format, it's parseable but not in the right format
   // We could coerce it, but for env vars we want explicit ISO 8601
-  return { valid: false, error: 'Date must be in ISO 8601 format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)' };
+  return {
+    valid: false,
+    error:
+      'Date must be in ISO 8601 format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)',
+  };
 }
 
 /**
@@ -238,43 +265,50 @@ export function validateTimestamp(value: string): ValidationResult {
  * Validate and parse time duration (Go-style: 5s, 2h, 30m, etc.)
  * Returns milliseconds
  */
-export function validateDuration(value: string): ValidationResult & { value?: number } {
+export function validateDuration(
+  value: string,
+): ValidationResult & { value?: number } {
   // Match patterns like: 5s, 2h, 30m, 1.5h, 2h30m, etc.
   const durationRegex = /^(\d+(?:\.\d+)?)(ms|s|m|h|d)$/;
-  const combinedRegex = /^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?(?:(\d+(?:\.\d+)?)ms)?$/;
-  
+  const combinedRegex =
+    /^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?(?:(\d+(?:\.\d+)?)ms)?$/;
+
   // Try simple format first (e.g., "5s", "2h")
   const simpleMatch = value.match(durationRegex);
   if (simpleMatch) {
     const amount = parseFloat(simpleMatch[1]);
     const unit = simpleMatch[2];
-    
+
     const multipliers: Record<string, number> = {
       ms: 1,
       s: 1000,
       m: 60 * 1000,
       h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000
+      d: 24 * 60 * 60 * 1000,
     };
-    
+
     return { valid: true, value: Math.floor(amount * multipliers[unit]) };
   }
-  
+
   // Try combined format (e.g., "2h30m", "1h30m15s")
   const combinedMatch = value.match(combinedRegex);
   if (combinedMatch && combinedMatch[0]) {
     let totalMs = 0;
-    if (combinedMatch[1]) totalMs += parseFloat(combinedMatch[1]) * 60 * 60 * 1000; // hours
+    if (combinedMatch[1])
+      totalMs += parseFloat(combinedMatch[1]) * 60 * 60 * 1000; // hours
     if (combinedMatch[2]) totalMs += parseFloat(combinedMatch[2]) * 60 * 1000; // minutes
     if (combinedMatch[3]) totalMs += parseFloat(combinedMatch[3]) * 1000; // seconds
     if (combinedMatch[4]) totalMs += parseFloat(combinedMatch[4]); // milliseconds
-    
+
     if (totalMs > 0) {
       return { valid: true, value: Math.floor(totalMs) };
     }
   }
-  
-  return { valid: false, error: 'Duration must be in format: 5s, 2h, 30m, 1h30m, etc.' };
+
+  return {
+    valid: false,
+    error: 'Duration must be in format: 5s, 2h, 30m, 1h30m, etc.',
+  };
 }
 
 /**
@@ -289,13 +323,75 @@ export function validateFile(value: string, key?: string): ValidationResult {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');
-    const content = fs.readFileSync(value, 'utf8').trim();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { resolve } = require('path');
+    // Resolve file path relative to current working directory
+    const resolvedPath = resolve(process.cwd(), value);
+    const content = fs.readFileSync(resolvedPath, 'utf8').trim();
     return { valid: true, value: content };
   } catch (error) {
     const keyInfo = key ? ` for ${key}` : '';
     return {
       valid: false,
-      error: `Failed to read file${keyInfo}: ${error instanceof Error ? error.message : String(error)}`
+      error: `Failed to read file${keyInfo}: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
+}
+
+export function httpValidator<
+  Opts extends { default?: string; optional?: boolean } = Record<string, never>,
+>(
+  opts?: Opts,
+): Opts extends { optional: true }
+  ? Validator<string> & { optional: true; default?: Opts['default'] }
+  : Validator<string> & {
+      optional?: Opts['optional'];
+      default?: Opts['default'];
+    } {
+  const validator = ((value: string) => {
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      throw new Error(`Invalid HTTP URL: "${value}"`);
+    }
+    return value;
+  }) as unknown;
+
+  // Attach options to the validator function for runtime
+  if (opts) {
+    (validator as Record<string, unknown>).default = opts.default;
+    (validator as Record<string, unknown>).optional = opts.optional;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return validator as any;
+}
+
+export function jsonValidator<
+  Opts extends { default?: unknown; optional?: boolean } = Record<
+    string,
+    never
+  >,
+>(
+  opts?: Opts,
+): Opts extends { optional: true }
+  ? Validator<unknown> & { optional: true; default?: Opts['default'] }
+  : Validator<unknown> & {
+      optional?: Opts['optional'];
+      default?: Opts['default'];
+    } {
+  const validator = ((value: string) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      throw new Error(`Invalid JSON: "${value}"`);
+    }
+  }) as unknown;
+
+  // Attach options to the validator function for runtime
+  if (opts) {
+    (validator as Record<string, unknown>).default = opts.default;
+    (validator as Record<string, unknown>).optional = opts.optional;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return validator as any;
 }

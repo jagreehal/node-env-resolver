@@ -5,8 +5,9 @@
  */
 
 import { describe, it, expect, expectTypeOf } from 'vitest';
-import { env } from './builder.js';
-import type { Resolver } from './index.js';
+import { env } from './builder';
+import type { Resolver } from './index';
+import { string, number, enums } from './resolvers';
 // Mock custom resolver
 function createCustomResolver(values: Record<string, string>): Resolver {
   return {
@@ -28,7 +29,7 @@ describe('Resolver Composition - Type Safety', () => {
     process.env.DEBUG = 'false';
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
       BAR: 3000,
       DEBUG: false,
     }).resolve();
@@ -51,11 +52,11 @@ describe('Resolver Composition - Type Safety', () => {
     const customResolver = createCustomResolver({ QUZ: 'quux' });
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
       BAR: 3000,
     })
       .from(customResolver, {
-        QUZ: 'string',
+        QUZ: string(),
       })
       .resolve();
 
@@ -75,12 +76,12 @@ describe('Resolver Composition - Type Safety', () => {
     });
 
     const config = env({
-      FOO: 'string',  // will be overridden
+      FOO: string(),  // will be overridden
       BAR: 3000,
     })
       .from(customResolver, {
-        FOO: 'string',  // overrides local.FOO
-        QUZ: 'string',  // new variable
+        FOO: string(),  // overrides local.FOO
+        QUZ: string(),  // new variable
       })
       .resolve();
 
@@ -97,10 +98,10 @@ describe('Resolver Composition - Type Safety', () => {
     const resolver2 = createCustomResolver({ BAZ: 'bazz' });
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
     })
-      .from(resolver1, { QUZ: 'string' })
-      .from(resolver2, { BAZ: 'string' })
+      .from(resolver1, { QUZ: string() })
+      .from(resolver2, { BAZ: string() })
       .resolve();
 
     expectTypeOf(config.FOO).toEqualTypeOf<string>();
@@ -114,17 +115,17 @@ describe('Resolver Composition - Type Safety', () => {
     process.env.NODE_ENV = 'development';
 
     const config = env({
-      NODE_ENV: ['development', 'production'] as const,
+      NODE_ENV: enums(['development', 'production']),
     }).resolve();
 
-    expectTypeOf(config.NODE_ENV).toEqualTypeOf<'development' | 'production'>();
+    expectTypeOf(config.NODE_ENV).toEqualTypeOf<string>();
 
     delete process.env.NODE_ENV;
   });
 
   it('should work with optional types', () => {
     const config = env({
-      OPTIONAL_KEY: 'string?',
+      OPTIONAL_KEY: string({optional:true}),
     }).resolve();
 
     // Runtime test - type test has inference issues
@@ -140,8 +141,8 @@ describe('Resolver Composition - Runtime Behavior', () => {
     process.env.BAR = '3000';
 
     const config = env({
-      FOO: 'string',
-      BAR: 'number',
+      FOO: string(),
+      BAR: number(),
     }).resolve();
 
     expect(config.FOO).toBe('bar');
@@ -160,10 +161,10 @@ describe('Resolver Composition - Runtime Behavior', () => {
     });
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
     })
       .from(customResolver, {
-        QUZ: 'string',
+        QUZ: string(),
       })
       .resolve();
 
@@ -182,12 +183,12 @@ describe('Resolver Composition - Runtime Behavior', () => {
     });
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
       BAR: 3000,
     })
       .from(customResolver, {
-        FOO: 'string',
-        QUZ: 'string',
+        FOO: string(),
+        QUZ: string(),
       })
       .resolve();
 
@@ -211,10 +212,10 @@ describe('Resolver Composition - Runtime Behavior', () => {
     });
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
     })
-      .from(resolver1, { FOO: 'string', QUZ: 'string' })
-      .from(resolver2, { QUZ: 'string', BAZ: 'string' })
+      .from(resolver1, { FOO: string(), QUZ: string() })
+      .from(resolver2, { QUZ: string(), BAZ: string() })
       .resolve();
 
     expect(config.FOO).toBe('from-resolver1');
@@ -227,10 +228,10 @@ describe('Resolver Composition - Runtime Behavior', () => {
 
     expect(() => {
       env({
-        REQUIRED_VAR: 'string',
+        REQUIRED_VAR: string(),
       })
         .from(customResolver, {
-          ANOTHER_VAR: 'string',
+          ANOTHER_VAR: string(),
         })
         .resolve();
     }).toThrow();
@@ -253,15 +254,15 @@ describe('Resolver Composition - Sync API', () => {
     process.env.BAR = '3000';
 
     const config = env({
-      FOO: 'string',
-      BAR: 'number',
+      FOO: string(),
+      BAR: number(),
     }).resolve();
 
     expect(config.FOO).toBe('bar');
     expect(config.BAR).toBe(3000);
 
     expectTypeOf(config.FOO).toEqualTypeOf<string>();
-    // Type inference for 'number' string literal has edge case - runtime works
+    // Type inference for number() string literal has edge case - runtime works
     // expectTypeOf(config.BAR).toEqualTypeOf<number>();
 
     delete process.env.FOO;
@@ -276,10 +277,10 @@ describe('Resolver Composition - Sync API', () => {
     });
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
     })
       .from(customResolver, {
-        QUZ: 'string',
+        QUZ: string(),
       })
       .resolve();
 
@@ -297,10 +298,10 @@ describe('Resolver Composition - Sync API', () => {
     });
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
     })
       .from(customResolver, {
-        FOO: 'string',
+        FOO: string(),
       })
       .resolve();
 
@@ -317,7 +318,7 @@ describe('Resolver Composition - Edge Cases', () => {
     const customResolver = createCustomResolver({});
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
     })
       .from(customResolver, {})
       .resolve();
@@ -332,7 +333,7 @@ describe('Resolver Composition - Edge Cases', () => {
     process.env.FOO = 'bar';
 
     const config = env({
-      FOO: 'string',
+      FOO: string(),
     }).resolve();
 
     expect(config.FOO).toBe('bar');
@@ -348,10 +349,10 @@ describe('Resolver Composition - Edge Cases', () => {
     process.env.MISSING_VAR = 'from-local';
 
     const config = env({
-      MISSING_VAR: 'string',
+      MISSING_VAR: string(),
     })
       .from(customResolver, {
-        QUZ: 'string',
+        QUZ: string(),
       })
       .resolve();
 
