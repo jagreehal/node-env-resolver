@@ -35,17 +35,21 @@ describe('Builder Functions', () => {
       }
     };
 
-    const config = await resolveAsync([mockProvider, {
-      // These use builder functions for type validation
-      LOG_LEVEL: string({ default: 'info' }),
-      FORMAT: postgres(),
-      DB_TYPE: string(),
-      PROTOCOL: httpValidator(),
-      JSON_TYPE: jsonValidator(),
-      NAME: string(),
-      USERNAME: string({ min: 3, max: 20 }),
-      DATABASE_URL: postgres(),
-    }]);
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          // These use builder functions for type validation
+          LOG_LEVEL: string({ default: 'info' }),
+          FORMAT: postgres(),
+          DB_TYPE: string(),
+          PROTOCOL: httpValidator(),
+          JSON_TYPE: jsonValidator(),
+          NAME: string(),
+          USERNAME: string({ min: 3, max: 20 }),
+          DATABASE_URL: postgres(),
+        }]
+      ]
+    });
 
     // Literal values work as defaults
     expect(config.LOG_LEVEL).toBe('info');
@@ -68,9 +72,13 @@ describe('Builder Functions', () => {
       },
     };
 
-    await expect(resolveAsync([mockProvider, {
-      USERNAME: string({ min: 3, max: 20 }),
-    }])).rejects.toThrow(/String too short/);
+    await expect(resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          USERNAME: string({ min: 3, max: 20 }),
+        }]
+      ]
+    })).rejects.toThrow(/String too short/);
   });
 
   it('should validate number types with constraints', async () => {
@@ -83,9 +91,13 @@ describe('Builder Functions', () => {
       },
     };
 
-    await expect(resolveAsync([mockProvider, {
-      PORT: port(),
-    }])).rejects.toThrow(/Invalid port/);
+    await expect(resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          PORT: port(),
+        }]
+      ]
+    })).rejects.toThrow(/Invalid port/);
   });
 
   it('should handle optional fields', async () => {
@@ -99,11 +111,15 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolveAsync([mockProvider, {
-      API_KEY: string({ optional: true }),
-      DEBUG: boolean({ default: false }),
-      PORT: number({ default: 3000 }),
-    }]);
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          API_KEY: string({ optional: true }),
+          DEBUG: boolean({ default: false }),
+          PORT: number({ default: 3000 }),
+        }]
+      ]
+    });
 
     expect(config.API_KEY).toBeUndefined();
     expect(config.DEBUG).toBe(false);
@@ -138,10 +154,14 @@ describe('Builder Functions', () => {
     });
 
 
-    const config = await resolveAsync([mockProvider, {
-      CUSTOM_PORT: portValidator,
-      CUSTOM_EMAIL: emailValidator,
-    }]);
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          CUSTOM_PORT: portValidator,
+          CUSTOM_EMAIL: emailValidator,
+        }]
+      ]
+    });
 
     expect(config.CUSTOM_PORT).toBe(8080);
     expect(config.CUSTOM_EMAIL).toBe('admin@example.com');
@@ -157,9 +177,13 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolveAsync([mockProvider, {
-      NODE_ENV: enums(['development', 'production', 'test'] as const),
-    }]);
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          NODE_ENV: enums(['development', 'production', 'test'] as const),
+        }]
+      ]
+    });
 
     expect(config.NODE_ENV).toBe('production');
   });
@@ -174,10 +198,14 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolveAsync([mockProvider, {
-      // Arrays still work for enums (backward compatible)
-      NODE_ENV: enums(['development', 'production', 'test']),
-    }]);
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          // Arrays still work for enums (backward compatible)
+          NODE_ENV: enums(['development', 'production', 'test']),
+        }]
+      ]
+    });
 
     expect(config.NODE_ENV).toBe('production');
   });
@@ -193,10 +221,14 @@ describe('Builder Functions', () => {
       },
     };
 
-    const config = await resolveAsync([mockProvider, {
-      TAGS: stringArray(),
-      PORTS: numberArray(),
-    }]);
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          TAGS: stringArray(),
+          PORTS: numberArray(),
+        }]
+      ]
+    });
 
     expect(config.TAGS).toEqual(['frontend', 'backend', 'mobile']);
     expect(config.PORTS).toEqual([3000, 8080, 9000]);

@@ -62,10 +62,11 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const config = resolve([
-        customResolver,
-        { CUSTOM_VAR: string() }
-      ]);
+      const config = resolve({
+        resolvers: [
+          [customResolver, { CUSTOM_VAR: string() }]
+        ]
+      });
 
       expect(config.CUSTOM_VAR).toBe('from-resolver');
     });
@@ -80,11 +81,12 @@ describe('Sync Resolvers', () => {
       };
 
       expect(() => {
-        resolve([
-          // @ts-expect-error - Testing runtime validation
-          asyncOnlyResolver,
-          { ASYNC_VAR: string() },
-        ]);
+        resolve({
+          resolvers: [
+            // @ts-expect-error - Testing runtime validation
+            [asyncOnlyResolver, { ASYNC_VAR: string() }]
+          ]
+        });
       }).toThrow(
         'Resolver \'async-only\' does not support synchronous loading',
       );
@@ -111,10 +113,12 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const config = resolve(
-        [resolver1, { SHARED: string(), ONLY_IN_1: string() }],
-        [resolver2, { SHARED: string(), ONLY_IN_2: string() }]
-      );
+      const config = resolve({
+        resolvers: [
+          [resolver1, { SHARED: string(), ONLY_IN_1: string() }],
+          [resolver2, { SHARED: string(), ONLY_IN_2: string() }]
+        ]
+      });
 
       // With priority: 'last' (default), resolver2 wins for SHARED
       expect(config.SHARED).toBe('from-resolver2');
@@ -143,11 +147,13 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const config = resolve(
-        [resolver1, { SHARED: string(), ONLY_IN_1: string() }],
-        [resolver2, { SHARED: string(), ONLY_IN_2: string() }],
-        { priority: 'first' }
-      );
+      const config = resolve({
+        resolvers: [
+          [resolver1, { SHARED: string(), ONLY_IN_1: string() }],
+          [resolver2, { SHARED: string(), ONLY_IN_2: string() }]
+        ],
+        options: { priority: 'first' }
+      });
 
       // With priority: 'first', resolver1 wins for SHARED
       expect(config.SHARED).toBe('from-resolver1');
@@ -176,10 +182,12 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const config = resolve(
-        [resolver1, { PORT: number() }],
-        [resolver2, { DATABASE_URL: string() }]
-      );
+      const config = resolve({
+        resolvers: [
+          [resolver1, { PORT: number() }],
+          [resolver2, { DATABASE_URL: string() }]
+        ]
+      });
 
       expect(config.PORT).toBe(3000);
       expect(config.DATABASE_URL).toBe('//localhost');
@@ -196,10 +204,11 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const config = await resolveAsync([
-        asyncResolver,
-        { ASYNC_VAR: string() }
-      ]);
+      const config = await resolveAsync({
+        resolvers: [
+          [asyncResolver, { ASYNC_VAR: string() }]
+        ]
+      });
 
       expect(config.ASYNC_VAR).toBe('async-value');
     });
@@ -211,10 +220,11 @@ describe('Sync Resolvers', () => {
         loadSync() { return { SYNC_VAR: 'sync-value' }; }
       };
 
-      const config = await resolveAsync([
-        syncResolver,
-        { SYNC_VAR: string() }
-      ]);
+      const config = await resolveAsync({
+        resolvers: [
+          [syncResolver, { SYNC_VAR: string() }]
+        ]
+      });
 
       expect(config.SYNC_VAR).toBe('sync-value');
     });
@@ -223,10 +233,11 @@ describe('Sync Resolvers', () => {
       process.env.TEST_ASYNC_VAR = 'test-value';
 
       // processEnv() is a sync resolver but should work with resolveAsync()
-      const config = await resolveAsync([
-        processEnv(),
-        { TEST_ASYNC_VAR: string() }
-      ]);
+      const config = await resolveAsync({
+        resolvers: [
+          [processEnv(), { TEST_ASYNC_VAR: string() }]
+        ]
+      });
 
       expect(config.TEST_ASYNC_VAR).toBe('test-value');
       delete process.env.TEST_ASYNC_VAR;
@@ -264,11 +275,12 @@ describe('Sync Resolvers', () => {
         async load() { return {}; }
       };
 
-      const result = safeResolve([
-        // @ts-expect-error - Testing runtime validation
-        asyncResolver,
-        { VAR: string() }
-      ]);
+      const result = safeResolve({
+        resolvers: [
+          // @ts-expect-error - Testing runtime validation
+          [asyncResolver, { VAR: string() }]
+        ]
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -288,10 +300,11 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const result = await safeResolveAsync([
-        asyncResolver,
-        { ASYNC_VAR: string() }
-      ]);
+      const result = await safeResolveAsync({
+        resolvers: [
+          [asyncResolver, { ASYNC_VAR: string() }]
+        ]
+      });
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -307,10 +320,11 @@ describe('Sync Resolvers', () => {
         }
       };
 
-      const result = await safeResolveAsync([
-        failingResolver,
-        { VAR: string() }
-      ], { strict: true });
+        const result = await safeResolveAsync({
+        resolvers: [
+          [failingResolver, { VAR: string() }]
+        ]
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -374,14 +388,15 @@ describe('Sync Resolvers', () => {
       // Set up test env var
       process.env.STRING_VAR = 'test-string';
 
-      const config = await resolveAsync([
-        processEnv(),
-        {
-          STRING_VAR: string(),
-          NUMBER_VAR: 3000,  // Has default, won't fail
-          BOOL_VAR: false,   // Has default, won't fail
-        }
-      ]);
+      const config = await resolveAsync({
+        resolvers: [
+          [processEnv(), {
+            STRING_VAR: string(),
+            NUMBER_VAR: 3000,  // Has default, won't fail
+            BOOL_VAR: false,   // Has default, won't fail
+          }]
+        ]
+      });
 
       // TypeScript should infer these types correctly
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

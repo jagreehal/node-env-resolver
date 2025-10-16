@@ -20,6 +20,10 @@ import type {
   Resolver,
   SyncResolver,
   ResolveOptions,
+  ResolveConfig,
+  ResolveAsyncConfig,
+  ResolveConfigWithSchema,
+  ResolveAsyncConfigWithSchema,
   SimpleEnvSchema,
   InferSimpleValue,
 } from './types';
@@ -31,6 +35,8 @@ export type {
   Resolver,
   SyncResolver,
   ResolveOptions,
+  ResolveConfig,
+  ResolveAsyncConfig,
   Provenance,
   PolicyOptions,
   SimpleEnvValue,
@@ -54,34 +60,9 @@ export { getAuditLog, clearAuditLog, type AuditEvent, type AuditEventType } from
 
 // Import resolver functions
 import { normalizeSchema, resolveEnvInternal, resolveEnvInternalSync } from './resolver';
+import { processEnv } from './process-env';
 
-/**
- * Resolver that reads from process.env
- * This is the default resolver used when no custom resolvers are provided
- */
-export function processEnv(): SyncResolver {
-  return {
-    name: 'process.env',
-    async load() {
-      const env: Record<string, string> = {};
-      for (const [key, value] of Object.entries(process.env)) {
-        if (value !== undefined) {
-          env[key] = value;
-        }
-      }
-      return env;
-    },
-    loadSync() {
-      const env: Record<string, string> = {};
-      for (const [key, value] of Object.entries(process.env)) {
-        if (value !== undefined) {
-          env[key] = value;
-        }
-      }
-      return env;
-    }
-  };
-}
+
 
 // Helper to build default resolvers (just processEnv)
 function buildDefaultResolvers(): SyncResolver[] {
@@ -104,120 +85,73 @@ export interface SafeResolveError {
 
 export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
 
-// Type definitions for tuple handling
-type ResolverTuple = readonly [Resolver, SimpleEnvSchema];
-type SyncResolverTuple = readonly [SyncResolver, SimpleEnvSchema];
-
-// Helper functions
-function isResolverTuple(arg: unknown): arg is ResolverTuple {
-  return Array.isArray(arg) &&
-    arg.length === 2 &&
-    typeof arg[0] === 'object' &&
-    arg[0] != null &&
-    'load' in arg[0];
+// Helper functions for new object-based API
+function isConfigObject(arg: unknown): arg is ResolveConfig | ResolveAsyncConfig {
+  return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && 
+    ('resolvers' in arg || 'schema' in arg || 'options' in arg);
 }
 
-function isSyncResolverTuple(arg: unknown): arg is SyncResolverTuple {
-  return isResolverTuple(arg) && 'loadSync' in arg[0];
-}
-
-function splitArgs<A extends readonly unknown[]>(
-  args: A
-): { tuples: ResolverTuple[]; options?: Partial<ResolveOptions> } {
-  const maybeOptions = args[args.length - 1];
-  const options = !Array.isArray(maybeOptions) && typeof maybeOptions === 'object'
-    ? (maybeOptions as Partial<ResolveOptions>)
-    : undefined;
-  const end = options ? args.length - 1 : args.length;
-  const tuples = Array.from(args).slice(0, end).filter(isResolverTuple) as ResolverTuple[];
-  return { tuples, options };
-}
-
-function splitSyncArgs<A extends readonly unknown[]>(
-  args: A
-): { tuples: SyncResolverTuple[]; options?: Partial<ResolveOptions> } {
-  const maybeOptions = args[args.length - 1];
-  const options = !Array.isArray(maybeOptions) && typeof maybeOptions === 'object'
-    ? (maybeOptions as Partial<ResolveOptions>)
-    : undefined;
-  const end = options ? args.length - 1 : args.length;
-
-  const tuples: SyncResolverTuple[] = [];
-  const argsSlice = Array.from(args).slice(0, end);
-
-  for (const arg of argsSlice) {
-    if (isSyncResolverTuple(arg)) {
-      tuples.push(arg);
-    } else if (isResolverTuple(arg)) {
-      // It's a resolver tuple but doesn't have loadSync
-      const resolver = arg[0] as Resolver;
-      throw new Error(
-        `❌ Resolver '${resolver.name}' does not support synchronous loading.\n` +
-          `   All resolvers passed to resolve() must have a loadSync() method.\n` +
-          `   💡 Use resolveAsync() for async resolvers, or use a sync-compatible resolver.`,
-      );
-    }
-  }
-
-  return { tuples, options };
+function isSimpleSchema(arg: unknown): arg is SimpleEnvSchema {
+  return typeof arg === 'object' && arg !== null && !Array.isArray(arg) &&
+    !('resolvers' in arg) && !('schema' in arg) && !('options' in arg);
 }
 
 // Function overloads for resolve
 /* eslint-disable no-redeclare */
-// Schema-only overload
+// Simple schema-only overload (backward compatible)
 function resolve<T extends SimpleEnvSchema>(
   schema: T,
   options?: Partial<ResolveOptions>
 ): { [K in keyof T]: InferSimpleValue<T[K]> };
-// Single tuple overload
+// Object-based config with schema
 function resolve<T extends SimpleEnvSchema>(
-  tuple: readonly [SyncResolver, T] | [SyncResolver, T],
-  options?: Partial<ResolveOptions>
+  config: ResolveConfigWithSchema<T>
 ): { [K in keyof T]: InferSimpleValue<T[K]> };
-// Two tuples overload
-function resolve<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema>(
-  tuple1: readonly [SyncResolver, T1] | [SyncResolver, T1],
-  tuple2: readonly [SyncResolver, T2] | [SyncResolver, T2],
-  options?: Partial<ResolveOptions>
-): { [K in keyof (T1 & T2)]: InferSimpleValue<(T1 & T2)[K]> };
-// Three tuples overload
-function resolve<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema>(
-  tuple1: readonly [SyncResolver, T1] | [SyncResolver, T1],
-  tuple2: readonly [SyncResolver, T2] | [SyncResolver, T2],
-  tuple3: readonly [SyncResolver, T3] | [SyncResolver, T3],
-  options?: Partial<ResolveOptions>
-): { [K in keyof (T1 & T2 & T3)]: InferSimpleValue<(T1 & T2 & T3)[K]> };
+// Object-based config with single resolver
+function resolve<T extends SimpleEnvSchema>(
+  config: { resolvers: readonly [[SyncResolver, T]]; options?: Partial<ResolveOptions> }
+): { [K in keyof T]: InferSimpleValue<T[K]> };
+// Object-based config with multiple resolvers - use explicit typing
+function resolve<T extends SimpleEnvSchema>(
+  config: { resolvers: readonly [SyncResolver, SimpleEnvSchema][]; options?: Partial<ResolveOptions> }
+): { [K in keyof T]: InferSimpleValue<T[K]> };
 // Implementation
-function resolve(arg1: unknown, ...rest: unknown[]): unknown {
-  const args = [arg1, ...rest];
+function resolve(arg1: unknown, arg2?: unknown): unknown {
   let schema: SimpleEnvSchema;
   let resolvers: SyncResolver[];
   let options: Partial<ResolveOptions> | undefined;
 
-  // Check if first arg is a plain schema object (no resolver)
-  if (!Array.isArray(arg1)) {
-    // Simple syntax: resolve(schema, options?)
-    schema = arg1 as SimpleEnvSchema;
-    resolvers = buildDefaultResolvers();
-    options = rest[0] as Partial<ResolveOptions> | undefined;
-  } else {
-    // Array syntax: resolve([resolver, schema], ..., options?)
-    const { tuples, options: parsedOptions } = splitSyncArgs(args);
-    options = parsedOptions;
-
-    if (tuples.length === 0) {
+  // Check if first arg is a config object
+  if (isConfigObject(arg1)) {
+    const config = arg1 as ResolveConfig;
+    
+    if (config.schema) {
+      schema = config.schema;
+    } else if (config.resolvers && config.resolvers.length > 0) {
+      // Merge schemas from resolvers - last one wins for conflicts
+      schema = {} as SimpleEnvSchema;
+      for (const [, tupleSchema] of config.resolvers) {
+        Object.assign(schema, tupleSchema);
+      }
+    } else {
       throw new Error(
-        'resolve() requires at least one [resolver, schema] tuple when using array syntax',
+        'resolve() config object must have either a "schema" property or "resolvers" array'
       );
     }
-
-    // Merge schemas - last one wins for conflicts
-    schema = {} as SimpleEnvSchema;
-    for (const [, tupleSchema] of tuples) {
-      Object.assign(schema, tupleSchema);
-    }
-    resolvers = tuples.map(([resolver]) => resolver);
+    
+    resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
+    options = config.options;
+  } else if (isSimpleSchema(arg1)) {
+    // Simple syntax: resolve(schema, options?)
+    schema = arg1;
+    resolvers = buildDefaultResolvers();
+    options = arg2 as Partial<ResolveOptions> | undefined;
+  } else {
+    throw new Error(
+      'resolve() expects either a schema object or a config object with "schema" or "resolvers" property'
+    );
   }
+
   // Validate that schema doesn't contain async validators (Zod/Valibot/etc)
   for (const [key, value] of Object.entries(schema)) {
     // Check if value is a Standard Schema (has ~standard property)
@@ -276,92 +210,77 @@ function resolve(arg1: unknown, ...rest: unknown[]): unknown {
  * import { awsSecrets, dotenv } from 'node-env-resolver/resolvers';
  *
  * // Works with async-only resolvers
- * const config = await resolveAsync([
- *   awsSecrets(),
- *   { PORT: 3000, DATABASE_URL: postgres(), API_KEY: string() }
- * ]);
+ * const config = await resolveAsync({
+ *   resolvers: [
+ *     [awsSecrets(), { PORT: 3000, DATABASE_URL: postgres(), API_KEY: string() }]
+ *   ]
+ * });
  *
  * // Also works with sync resolvers (automatically wrapped in Promise)
- * const config = await resolveAsync([
- *   processEnv(),  // Sync resolver works in async context
- *   { DATABASE_URL: postgres() }
- * ], { strict: true });
+ * const config = await resolveAsync({
+ *   resolvers: [
+ *     [processEnv(), { DATABASE_URL: postgres() }]
+ *   ],
+ *   options: { strict: true }
+ * });
  *
  * // Multiple resolvers - supports unlimited tuples!
- * const config = await resolveAsync(
- *   [dotenv(), { PORT: 3000 }],
- *   [awsSecrets(), { DATABASE_URL: postgres() }],
- *   { strict: true }
- * );
+ * const config = await resolveAsync({
+ *   resolvers: [
+ *     [dotenv(), { PORT: 3000 }],
+ *     [awsSecrets(), { DATABASE_URL: postgres() }]
+ *   ],
+ *   options: { strict: true }
+ * });
  * ```
  */
 /* eslint-disable no-redeclare */
-// Single tuple overload
+// Object-based config with schema
 async function resolveAsync<T extends SimpleEnvSchema>(
-  tuple: readonly [Resolver, T] | [Resolver, T],
-  options?: Partial<ResolveOptions>
+  config: ResolveAsyncConfigWithSchema<T>
 ): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
-// Two tuples overload
-async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  options?: Partial<ResolveOptions>
-): Promise<{ [K in keyof (T1 & T2)]: InferSimpleValue<(T1 & T2)[K]> }>;
-// Three tuples overload
-async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  tuple3: readonly [Resolver, T3] | [Resolver, T3],
-  options?: Partial<ResolveOptions>
-): Promise<{ [K in keyof (T1 & T2 & T3)]: InferSimpleValue<(T1 & T2 & T3)[K]> }>;
-// Four tuples overload
-async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  tuple3: readonly [Resolver, T3] | [Resolver, T3],
-  tuple4: readonly [Resolver, T4] | [Resolver, T4],
-  options?: Partial<ResolveOptions>
-): Promise<{ [K in keyof (T1 & T2 & T3 & T4)]: InferSimpleValue<(T1 & T2 & T3 & T4)[K]> }>;
-// Five tuples overload
-async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema, T5 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  tuple3: readonly [Resolver, T3] | [Resolver, T3],
-  tuple4: readonly [Resolver, T4] | [Resolver, T4],
-  tuple5: readonly [Resolver, T5] | [Resolver, T5],
-  options?: Partial<ResolveOptions>
-): Promise<{ [K in keyof (T1 & T2 & T3 & T4 & T5)]: InferSimpleValue<(T1 & T2 & T3 & T4 & T5)[K]> }>;
+// Object-based config with single resolver
+async function resolveAsync<T extends SimpleEnvSchema>(
+  config: { resolvers: readonly [[Resolver, T]]; options?: Partial<ResolveOptions> }
+): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
+// Object-based config with multiple resolvers - use explicit typing
+async function resolveAsync<T extends SimpleEnvSchema>(
+  config: { resolvers: readonly [Resolver, SimpleEnvSchema][]; options?: Partial<ResolveOptions> }
+): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
 // Implementation
 async function resolveAsync(
-  arg1: unknown,
-  ...rest: unknown[]
+  config: ResolveAsyncConfig
 ): Promise<unknown> {
 /* eslint-enable no-redeclare */
-  const args = [arg1, ...rest];
-  const { tuples, options } = splitArgs(args);
+  let schema: SimpleEnvSchema;
 
-  if (tuples.length === 0) {
-    throw new Error('resolveAsync() requires at least one [resolver, schema] tuple');
+  if (config.schema) {
+    schema = config.schema;
+  } else if (config.resolvers && config.resolvers.length > 0) {
+    // Merge schemas from resolvers - last one wins for conflicts
+    schema = {} as SimpleEnvSchema;
+    for (const [, tupleSchema] of config.resolvers) {
+      Object.assign(schema, tupleSchema);
+    }
+  } else {
+    throw new Error(
+      'resolveAsync() config object must have either a "schema" property or "resolvers" array'
+    );
   }
 
-  // Merge schemas - last one wins for conflicts
-  const schema: SimpleEnvSchema = {};
-  for (const [, tupleSchema] of tuples) {
-    Object.assign(schema, tupleSchema);
-  }
-  const resolvers = tuples.map(([resolver]) => resolver);
+  const resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
 
   const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
   // Default policies: secure by default (block dotenv in production unless explicitly allowed)
-  const defaultPolicies = options?.policies ?? {};
+  const defaultPolicies = config.options?.policies ?? {};
 
   const resolveOptions: ResolveOptions = {
     interpolate: true,
     strict: true,
     enableAudit: isProduction,
     policies: defaultPolicies,
-    ...options,
+    ...config.options,
   };
 
   const normalizedSchema = normalizeSchema(schema);
@@ -373,91 +292,90 @@ async function resolveAsync(
 
 // Safe resolve implementation (doesn't throw, returns result object)
 function safeResolve<T extends SimpleEnvSchema>(
-  arg1: T | [SyncResolver, T],
-  ...rest: ([SyncResolver, T] | Partial<ResolveOptions>)[]
+  arg1: T | ResolveConfig<T>,
+  arg2?: Partial<ResolveOptions>
 ): SafeResolveResultType<{ [K in keyof T]: InferSimpleValue<T[K]> }> {
-  const args = [arg1, ...rest];
-  let schema: T;
+  let schema: SimpleEnvSchema;
   let resolvers: SyncResolver[];
   let options: Partial<ResolveOptions> | undefined;
 
-  // Check if first arg is a plain schema object (no resolver)
-  if (!Array.isArray(arg1)) {
-    // Simple syntax: safeResolve(schema, options?)
-    schema = arg1;
-    resolvers = buildDefaultResolvers();
-    options = rest[0] as Partial<ResolveOptions> | undefined;
-  } else {
-    // Array syntax: safeResolve([resolver, schema], ..., options?)
-    try {
-      const { tuples, options: parsedOptions } = splitSyncArgs(args);
-      options = parsedOptions;
+  try {
+    // Check if first arg is a config object
+    if (isConfigObject(arg1)) {
+      const config = arg1 as ResolveConfig;
+      
+      if (config.schema) {
+        schema = config.schema;
+      } else if (config.resolvers && config.resolvers.length > 0) {
+        // Merge schemas from resolvers - last one wins for conflicts
+        schema = {} as SimpleEnvSchema;
+        for (const [, tupleSchema] of config.resolvers) {
+          Object.assign(schema, tupleSchema);
+        }
+      } else {
+        return {
+          success: false,
+          error: 'safeResolve() config object must have either a "schema" property or "resolvers" array'
+        };
+      }
+      
+      resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
+      options = config.options;
+    } else if (isSimpleSchema(arg1)) {
+      // Simple syntax: safeResolve(schema, options?)
+      schema = arg1;
+      resolvers = buildDefaultResolvers();
+      options = arg2;
+    } else {
+      return {
+        success: false,
+        error: 'safeResolve() expects either a schema object or a config object with "schema" or "resolvers" property'
+      };
+    }
 
-      if (tuples.length === 0) {
+    // Validate that schema doesn't contain async validators (Zod/Valibot/etc)
+    for (const [key, value] of Object.entries(schema)) {
+      // Check if value is a Standard Schema (has ~standard property)
+      if (value && typeof value === 'object' && '~standard' in value) {
         return {
           success: false,
           error:
-            'safeResolve() requires at least one [resolver, schema] tuple when using array syntax',
+            `❌ safeResolve() cannot be used with async validators.\n` +
+            `   Variable '${key}' uses a Standard Schema validator (Zod, Valibot, etc.)\n` +
+            `   💡 Use safeResolveAsync() instead, or use shorthand syntax for sync validation.`,
         };
       }
+    }
 
-      // Merge schemas - last one wins for conflicts
-      schema = {} as T;
-      for (const [, tupleSchema] of tuples) {
-        Object.assign(schema, tupleSchema);
+    // Validate that all provided resolvers support sync
+    for (const resolver of resolvers) {
+      if (!resolver.loadSync) {
+        return {
+          success: false,
+          error:
+            `❌ Resolver '${resolver.name}' does not support synchronous loading.\n` +
+            `   All resolvers passed to safeResolve() must have a loadSync() method.\n` +
+            `   💡 Use safeResolveAsync() for async resolvers.`,
+        };
       }
-      resolvers = tuples.map(([resolver]) => resolver);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
     }
-  }
-  // Validate that schema doesn't contain async validators (Zod/Valibot/etc)
-  for (const [key, value] of Object.entries(schema)) {
-    // Check if value is a Standard Schema (has ~standard property)
-    if (value && typeof value === 'object' && '~standard' in value) {
-      return {
-        success: false,
-        error:
-          `❌ safeResolve() cannot be used with async validators.\n` +
-          `   Variable '${key}' uses a Standard Schema validator (Zod, Valibot, etc.)\n` +
-          `   💡 Use safeResolveAsync() instead, or use shorthand syntax for sync validation.`,
-      };
-    }
-  }
 
-  // Validate that all provided resolvers support sync
-  for (const resolver of resolvers) {
-    if (!resolver.loadSync) {
-      return {
-        success: false,
-        error:
-          `❌ Resolver '${resolver.name}' does not support synchronous loading.\n` +
-          `   All resolvers passed to safeResolve() must have a loadSync() method.\n` +
-          `   💡 Use safeResolveAsync() for async resolvers.`,
-      };
-    }
-  }
+    const isProduction =
+      (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
-  const isProduction =
-    (process.env.NODE_ENV || '').toLowerCase() === 'production';
+    // Default policies: secure by default (block dotenv in production unless explicitly allowed)
+    const defaultPolicies = options?.policies ?? {};
 
-  // Default policies: secure by default (block dotenv in production unless explicitly allowed)
-  const defaultPolicies = options?.policies ?? {};
+    const resolveOptions: ResolveOptions = {
+      interpolate: true,
+      strict: true,
+      enableAudit: isProduction,
+      policies: defaultPolicies,
+      ...options,
+    };
 
-  const resolveOptions: ResolveOptions = {
-    interpolate: true,
-    strict: true,
-    enableAudit: isProduction,
-    policies: defaultPolicies,
-    ...options,
-  };
+    const normalizedSchema = normalizeSchema(schema);
 
-  const normalizedSchema = normalizeSchema(schema);
-
-  try {
     const result = resolveEnvInternalSync(
       normalizedSchema,
       resolvers,
@@ -486,23 +404,27 @@ function safeResolve<T extends SimpleEnvSchema>(
  * import { awsSecrets, dotenv } from 'node-env-resolver/resolvers';
  *
  * // Works with async resolvers
- * const result = await safeResolveAsync([
- *   awsSecrets({ region: 'us-east-1' }),
- *   { PORT: 3000, DATABASE_URL: postgres() }
- * ]);
+ * const result = await safeResolveAsync({
+ *   resolvers: [
+ *     [awsSecrets({ region: 'us-east-1' }), { PORT: 3000, DATABASE_URL: postgres() }]
+ *   ]
+ * });
  *
  * // Also works with sync resolvers
- * const result = await safeResolveAsync([
- *   processEnv(),  // Sync resolver works fine
- *   { PORT: 3000 }
- * ]);
+ * const result = await safeResolveAsync({
+ *   resolvers: [
+ *     [processEnv(), { PORT: 3000 }]
+ *   ]
+ * });
  *
  * // Multiple resolvers - supports unlimited tuples!
- * const result = await safeResolveAsync(
- *   [dotenv(), { PORT: 3000 }],
- *   [awsSecrets(), { DATABASE_URL: postgres() }],
- *   { strict: true }
- * );
+ * const result = await safeResolveAsync({
+ *   resolvers: [
+ *     [dotenv(), { PORT: 3000 }],
+ *     [awsSecrets(), { DATABASE_URL: postgres() }]
+ *   ],
+ *   options: { strict: true }
+ * });
  *
  * if (result.success) {
  *   console.log(result.data.PORT); // Type-safe access
@@ -512,75 +434,45 @@ function safeResolve<T extends SimpleEnvSchema>(
  * ```
  */
 /* eslint-disable no-redeclare */
-// Single tuple overload
+// Object-based config overload
 async function safeResolveAsync<T extends SimpleEnvSchema>(
-  tuple: readonly [Resolver, T] | [Resolver, T],
-  options?: Partial<ResolveOptions>
+  config: ResolveAsyncConfig<T>
 ): Promise<SafeResolveResultType<{ [K in keyof T]: InferSimpleValue<T[K]> }>>;
-// Two tuples overload
-async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  options?: Partial<ResolveOptions>
-): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2)]: InferSimpleValue<(T1 & T2)[K]> }>>;
-// Three tuples overload
-async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  tuple3: readonly [Resolver, T3] | [Resolver, T3],
-  options?: Partial<ResolveOptions>
-): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2 & T3)]: InferSimpleValue<(T1 & T2 & T3)[K]> }>>;
-// Four tuples overload
-async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  tuple3: readonly [Resolver, T3] | [Resolver, T3],
-  tuple4: readonly [Resolver, T4] | [Resolver, T4],
-  options?: Partial<ResolveOptions>
-): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2 & T3 & T4)]: InferSimpleValue<(T1 & T2 & T3 & T4)[K]> }>>;
-// Five tuples overload
-async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema, T5 extends SimpleEnvSchema>(
-  tuple1: readonly [Resolver, T1] | [Resolver, T1],
-  tuple2: readonly [Resolver, T2] | [Resolver, T2],
-  tuple3: readonly [Resolver, T3] | [Resolver, T3],
-  tuple4: readonly [Resolver, T4] | [Resolver, T4],
-  tuple5: readonly [Resolver, T5] | [Resolver, T5],
-  options?: Partial<ResolveOptions>
-): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2 & T3 & T4 & T5)]: InferSimpleValue<(T1 & T2 & T3 & T4 & T5)[K]> }>>;
 // Implementation
 async function safeResolveAsync(
-  arg1: unknown,
-  ...rest: unknown[]
+  config: ResolveAsyncConfig
 ): Promise<unknown> {
 /* eslint-enable no-redeclare */
-  const args = [arg1, ...rest];
-  const { tuples, options } = splitArgs(args);
+  let schema: SimpleEnvSchema;
 
-  if (tuples.length === 0) {
+  if (config.schema) {
+    schema = config.schema;
+  } else if (config.resolvers && config.resolvers.length > 0) {
+    // Merge schemas from resolvers - last one wins for conflicts
+    schema = {} as SimpleEnvSchema;
+    for (const [, tupleSchema] of config.resolvers) {
+      Object.assign(schema, tupleSchema);
+    }
+  } else {
     return {
       success: false,
-      error: 'safeResolveAsync() requires at least one [resolver, schema] tuple'
+      error: 'safeResolveAsync() config object must have either a "schema" property or "resolvers" array'
     };
   }
 
-  // Merge schemas - last one wins for conflicts
-  const schema: SimpleEnvSchema = {};
-  for (const [, tupleSchema] of tuples) {
-    Object.assign(schema, tupleSchema);
-  }
-  const resolvers = tuples.map(([resolver]) => resolver);
+  const resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
 
   const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
   // Default policies: secure by default (block dotenv in production unless explicitly allowed)
-  const defaultPolicies = options?.policies ?? {};
+  const defaultPolicies = config.options?.policies ?? {};
 
   const resolveOptions: ResolveOptions = {
     interpolate: true,
     strict: true,
     enableAudit: isProduction,
     policies: defaultPolicies,
-    ...options,
+    ...config.options,
   };
 
   try {

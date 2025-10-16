@@ -43,10 +43,11 @@ describe('Type Inference for New Features', () => {
   it('should infer duration as number', async () => {
     process.env.TIMEOUT = '5s';
     
-    const config = await resolveAsync([
-      processEnv(),
-      { TIMEOUT: duration() }
-    ]);
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), { TIMEOUT: duration() }]
+      ]
+    });
     
     // Type check: should be number
     // Note: Type inference is limited with variadic args, so we use assertion
@@ -89,16 +90,17 @@ describe('Type Inference for New Features', () => {
     process.env.TIMEOUT = '30s';
     process.env.DEBUG = 'true';
     
-    const config = await resolveAsync([
-      processEnv(),
-      {
-        TAGS: stringArray(),
-        PORTS: numberArray(),
-        TIMEOUT: duration(),
-        DEBUG: boolean(),
-        OPTIONAL_FIELD: string({optional:true})
-      }
-    ]);
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          TAGS: stringArray(),
+          PORTS: numberArray(),
+          TIMEOUT: duration(),
+          DEBUG: boolean(),
+          OPTIONAL_FIELD: string({optional:true})
+        }]
+      ]
+    });
     
     // All type checks should pass - let TypeScript infer the types
     const tags = config.TAGS;

@@ -56,19 +56,21 @@ describe('AWS Secrets - Mixed Syntax', () => {
       SESSION_TIMEOUT: number({ default: 3600, min: 60, max: 86400 }),
     };
 
-    const config = await resolveAsync(
-      [mockDotenvProvider(mockDotenv), schema],
-      [cached(
-        mockAwsSecretsProvider(mockSecrets),
-        awsCache({
-          ttl: 5 * 60 * 1000,
-          staleWhileRevalidate: true
-        })
-      ), schema],
-      {
+    const config = await resolveAsync({
+      resolvers: [
+        [mockDotenvProvider(mockDotenv), schema],
+        [cached(
+          mockAwsSecretsProvider(mockSecrets),
+          awsCache({
+            ttl: 5 * 60 * 1000,
+            staleWhileRevalidate: true
+          })
+        ), schema]
+      ],
+      options: {
         interpolate: true,
       }
-    );
+    });
 
     expect(config.NODE_ENV).toBe('production');
     expect(config.PORT).toBe(8080);
@@ -98,10 +100,12 @@ describe('AWS Secrets - Mixed Syntax', () => {
       API_KEY: string({optional:true}),
     };
 
-    const devConfig = await resolveAsync(
-      [processEnv(), devSchema],
-      [mockAwsSecretsProvider(mockSecrets), devSchema]
-    );
+    const devConfig = await resolveAsync({
+      resolvers: [
+        [processEnv(), devSchema],
+        [mockAwsSecretsProvider(mockSecrets), devSchema]
+      ]
+    });
 
     expect(devConfig.NODE_ENV).toBe('development');
     expect(devConfig.PORT).toBe(3000);
@@ -117,13 +121,15 @@ describe('AWS Secrets - Mixed Syntax', () => {
       API_KEY: string({ secret: true, pattern: '^sk-[a-zA-Z0-9]{20,}$' }),
     };
 
-    const prodConfig = await resolveAsync(
-      [processEnv(), prodSchema],
-      [mockAwsSecretsProvider(mockSecrets), prodSchema],
-      {
+    const prodConfig = await resolveAsync({
+      resolvers: [
+        [processEnv(), prodSchema],
+        [mockAwsSecretsProvider(mockSecrets), prodSchema]
+      ],
+      options: {
         strict: true,
       }
-    );
+    });
 
     expect(prodConfig.NODE_ENV).toBe('production');
     expect(prodConfig.PORT).toBe(8080);
@@ -156,9 +162,11 @@ describe('AWS Secrets - Mixed Syntax', () => {
       }),
     };
 
-    const config = await resolveAsync(
-      [mockAwsSecretsProvider(mockSecrets), schema]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [mockAwsSecretsProvider(mockSecrets), schema]
+      ]
+    });
 
     expect(config.SIMPLE_STRING).toBe('simple-value');
     expect(config.COMPLEX_STRING).toBe('complex-value-with-validation');

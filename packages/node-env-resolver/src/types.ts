@@ -83,6 +83,57 @@ export type SafeResolveResultType<T> =
   | { success: true; data: T }
   | { success: false; error: string; details?: unknown };
 
+// Simplified approach: for multiple resolvers, we'll use a more explicit type
+// This ensures type safety while being practical
+type InferMergedSchema<T extends readonly [unknown, SimpleEnvSchema][]> = T extends readonly [
+  unknown,
+  infer S1,
+  ...infer Rest
+]
+  ? Rest extends readonly [unknown, SimpleEnvSchema][]
+    ? S1 & InferMergedSchema<Rest>
+    : S1
+  : T extends readonly [unknown, infer S]
+  ? S
+  : Record<string, never>;
+
+// Export the merge type for use in function overloads
+export type { InferMergedSchema };
+
+// New object-based API configuration types
+export interface ResolveConfig<T extends SimpleEnvSchema = SimpleEnvSchema> {
+  schema?: T;
+  resolvers?: readonly [SyncResolver, SimpleEnvSchema][];
+  options?: Partial<ResolveOptions>;
+}
+
+export interface ResolveAsyncConfig<T extends SimpleEnvSchema = SimpleEnvSchema> {
+  schema?: T;
+  resolvers?: readonly [Resolver, SimpleEnvSchema][];
+  options?: Partial<ResolveOptions>;
+}
+
+// Specific config types for better type inference
+export interface ResolveConfigWithSchema<T extends SimpleEnvSchema> {
+  schema: T;
+  options?: Partial<ResolveOptions>;
+}
+
+export interface ResolveConfigWithResolvers<T extends readonly [SyncResolver, SimpleEnvSchema][]> {
+  resolvers: T;
+  options?: Partial<ResolveOptions>;
+}
+
+export interface ResolveAsyncConfigWithSchema<T extends SimpleEnvSchema> {
+  schema: T;
+  options?: Partial<ResolveOptions>;
+}
+
+export interface ResolveAsyncConfigWithResolvers<T extends readonly [Resolver, SimpleEnvSchema][]> {
+  resolvers: T;
+  options?: Partial<ResolveOptions>;
+}
+
 // Additional types needed by existing code
 export type Provenance = {
   source: string;

@@ -19,10 +19,12 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolveAsync(
-      [resolver1, { PORT: string() }],  // First schema: string
-      [resolver2, { PORT: 3000 }]        // Last schema: number (wins)
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { PORT: string() }],  // First schema: string
+        [resolver2, { PORT: 3000 }]        // Last schema: number (wins)
+      ]
+    });
 
     // Last resolver's value AND last schema's type both win
     expect(config.PORT).toBe(3000);
@@ -44,10 +46,12 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolveAsync(
-      [resolver1, { API_KEY: string() }],   // Required
-      [resolver2, { API_KEY: string({optional:true}) }]   // Optional (last schema wins)
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { API_KEY: string() }],   // Required
+        [resolver2, { API_KEY: string({optional:true}) }]   // Optional (last schema wins)
+      ]
+    });
 
     // Last schema makes it optional
     // Resolver1 provides value, resolver2 doesn't override
@@ -70,10 +74,12 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolveAsync(
-      [resolver1, { ENDPOINT: string() }],
-      [resolver2, { ENDPOINT: url() }]  // Last schema validates as URL
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { ENDPOINT: string() }],
+        [resolver2, { ENDPOINT: url() }]  // Last schema validates as URL
+      ]
+    });
 
     // Last schema validates as URL (returns validated string)
     // Last resolver provides the value
@@ -96,10 +102,12 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolveAsync(
-      [resolver1, { ENV: enums(['development', 'staging']) }],
-      [resolver2, { ENV: enums(['production', 'test']) }]  // Last schema
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { ENV: enums(['development', 'staging']) }],
+        [resolver2, { ENV: enums(['production', 'test']) }]  // Last schema
+      ]
+    });
 
     // Last schema's enum validation wins
     // Last resolver provides 'production'
@@ -123,10 +131,12 @@ describe('Type override behavior with multiple resolvers', () => {
 
     // Last schema expects number, but value is string - should fail
     await expect(
-      resolveAsync(
-        [resolver1, { VALUE: string() }],
-        [resolver2, { VALUE: number() }]  // Stricter
-      )
+        resolveAsync({
+        resolvers: [
+          [resolver1, { VALUE: string() }],
+          [resolver2, { VALUE: number() }]  // Stricter
+        ]
+      })  
     ).rejects.toThrow();
   });
 
@@ -145,10 +155,12 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolveAsync(
-      [resolver1, { PORT: 8080 }],    // Default 8080
-      [resolver2, { PORT: 3000 }]     // Default 3000 (last schema wins)
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [resolver1, { PORT: 8080 }],    // Default 8080
+        [resolver2, { PORT: 3000 }]     // Default 3000 (last schema wins)
+      ]
+    });
 
     // Last schema's default wins
     expect(config.PORT).toBe(3000);
@@ -175,16 +187,18 @@ describe('Type override behavior with multiple resolvers', () => {
       }
     };
 
-    const config = await resolveAsync(
-      [local, {
-        PORT: string({optional:true}),          // Schema type: string | undefined (optional)
-        API_KEY: string()
-      }],
-      [aws, {
-        PORT: 3000,              // Schema type: number (WINS for type)
-        DATABASE_URL: postgres()  // New variable
-      }]
-    );
+    const config = await resolveAsync({
+      resolvers: [
+        [local, {
+          PORT: string({optional:true}),          // Schema type: string | undefined (optional)
+          API_KEY: string()
+        }],
+        [aws, {
+          PORT: 3000,              // Schema type: number (WINS for type)
+          DATABASE_URL: postgres()  // New variable
+        }]
+      ]
+    }); 
 
     // TypeScript type checking with satisfies
     // Note: With multiple schemas, TypeScript can't infer the exact merged type

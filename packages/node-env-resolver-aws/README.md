@@ -37,18 +37,20 @@ const secrets = await resolveSecrets({
 ### Using with resolveAsync() (for combining multiple sources)
 
 ```ts
-import { resolve } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
 import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolveAsync(
-  [awsSecrets({ secretId: 'myapp/production/secrets' }), {
-    DATABASE_URL: postgres(),
-    API_KEY: string(),
-  }],
-  [awsSsm({ path: '/myapp/config' }), {
-    TIMEOUT: 30,
-  }]
-);
+const config = await resolveAsync({
+  resolvers: [
+    [awsSecrets({ secretId: 'myapp/production/secrets' }), {
+      DATABASE_URL: postgres(),
+      API_KEY: string(),
+    }],
+    [awsSsm({ path: '/myapp/config' }), {
+      TIMEOUT: 30,
+    }]
+  ]
+});
 ```
 
 ## Features
@@ -83,24 +85,26 @@ export const handler = async (event) => {
 ### With caching (recommended)
 
 ```typescript
-import { resolve, cached, TTL } from 'node-env-resolver';
+import { resolveAsync, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 // Cache AWS calls - call resolveAsync() every time, let cached() make it fast
 export const getConfig = async () => {
-  return await resolveAsync(
-    [cached(
-      awsSecrets({ secretId: 'myapp/secrets' }),
-      {
-        ttl: TTL.minutes5,
-        maxAge: TTL.hour,
-        staleWhileRevalidate: true
-      }
-    ), {
-      DATABASE_URL: postgres(),
-      API_KEY: string(),
-    }]
-  );
+  return await resolveAsync({
+    resolvers: [
+      [cached(
+        awsSecrets({ secretId: 'myapp/secrets' }),
+        {
+          ttl: TTL.minutes5,
+          maxAge: TTL.hour,
+          staleWhileRevalidate: true
+        }
+      ), {
+        DATABASE_URL: postgres(),
+        API_KEY: string(),
+      }]
+    ]
+  });
 };
 
 // Call in your handler
@@ -113,18 +117,20 @@ export const handler = async (event) => {
 **AWS Lambda:**
 
 ```typescript
-import { resolve, cached, TTL } from 'node-env-resolver';
+import { resolveAsync, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
-  return await resolveAsync(
-    [cached(
-      awsSecrets({ secretId: 'myapp/lambda' }),
-      { ttl: TTL.minutes5, staleWhileRevalidate: true }
-    ), {
-      DATABASE_URL: postgres(),
-    }]
-  );
+  return await resolveAsync({
+    resolvers: [
+      [cached(
+        awsSecrets({ secretId: 'myapp/lambda' }),
+        { ttl: TTL.minutes5, staleWhileRevalidate: true }
+      ), {
+        DATABASE_URL: postgres(),
+      }]
+    ]
+  });
 };
 
 export const handler = async (event) => {
@@ -258,15 +264,17 @@ These return resolver objects for use with `resolveAsync()` when you need to com
 Load JSON secrets from Secrets Manager:
 
 ```ts
-import { resolve } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolveAsync(
-  [awsSecrets({ secretId: 'myapp/secrets' }), {
-    DATABASE_URL: postgres(),
-    API_KEY: string()
-  }]
-);
+const config = await resolveAsync({
+  resolvers: [
+    [awsSecrets({ secretId: 'myapp/secrets' }), {
+      DATABASE_URL: postgres(),
+      API_KEY: string()
+    }]
+  ]
+});
 ```
 
 With options:
@@ -284,15 +292,17 @@ awsSecrets({
 Load parameters from Parameter Store:
 
 ```ts
-import { resolve } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
 import { awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolveAsync(
-  [awsSsm({ path: '/myapp/config' }), {
-    API_ENDPOINT: string(),
-    TIMEOUT: 30
-  }]
-);
+const config = await resolveAsync({
+  resolvers: [
+    [awsSsm({ path: '/myapp/config' }), {
+      API_ENDPOINT: string(),
+      TIMEOUT: 30
+    }]
+  ]
+});
 ```
 
 Get all parameters under a path:
@@ -310,21 +320,23 @@ awsSsm({
 Add TTL caching to reduce AWS API calls:
 
 ```ts
-import { resolve, cached, TTL } from 'node-env-resolver';
+import { resolveAsync, cached, TTL } from 'node-env-resolver';
 import { awsSecrets } from 'node-env-resolver-aws';
 
-const config = await resolveAsync(
-  [cached(
-    awsSecrets({ secretId: 'myapp/secrets' }),
-    {
-      ttl: TTL.minutes5,
-      maxAge: TTL.hour,
-      staleWhileRevalidate: true
-    }
-  ), {
-    DATABASE_URL: postgres()
-  }]
-);
+const config = await resolveAsync({
+  resolvers: [
+    [cached(
+      awsSecrets({ secretId: 'myapp/secrets' }),
+      {
+        ttl: TTL.minutes5,
+        maxAge: TTL.hour,
+        staleWhileRevalidate: true
+      }
+    ), {
+      DATABASE_URL: postgres()
+    }]
+  ]
+});
 ```
 
 ## AWS Permissions
@@ -417,22 +429,24 @@ const config = await resolveSsm({
 ### Production app with resolveAsync() (combining sources)
 
 ```ts
-import { resolve, processEnv } from 'node-env-resolver';
+import { resolveAsync, processEnv } from 'node-env-resolver';
 import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
-const config = await resolveAsync(
-  [processEnv(), {
-    NODE_ENV: ['development', 'production'] as const,
-    PORT: 3000,
-  }],
-  [awsSecrets({ secretId: 'myapp/production/secrets' }), {
-    DATABASE_URL: postgres(),
-    JWT_SECRET: string(),
-  }],
-  [awsSsm({ path: '/myapp/production/config' }), {
-    TIMEOUT: 30,
-  }]
-);
+const config = await resolveAsync({
+  resolvers: [
+    [processEnv(), {
+      NODE_ENV: ['development', 'production'] as const,
+      PORT: 3000,
+    }],
+    [awsSecrets({ secretId: 'myapp/production/secrets' }), {
+      DATABASE_URL: postgres(),
+      JWT_SECRET: string(),
+    }],
+    [awsSsm({ path: '/myapp/production/config' }), {
+      TIMEOUT: 30,
+    }]
+  ]
+});
 ```
 
 ### Lambda function

@@ -132,24 +132,26 @@ describe('Nested Delimiter', () => {
     process.env.APP__NAME = 'MyApp';
     process.env.APP__VERSION = '1.0.0';
 
-    const config = await resolveAsync(
-      [
-        {
-          name: 'test-resolver',
-          async load() {
-            return {
-              APP__NAME: 'MyApp',
-              APP__VERSION: '1.0.0'
-            };
+    const config = await resolveAsync({
+      resolvers: [
+        [
+          {
+            name: 'test-resolver',
+            async load() {
+              return {
+                APP__NAME: 'MyApp',
+                APP__VERSION: '1.0.0'
+              };
+            }
+          },
+          {
+            APP__NAME: string(),
+            APP__VERSION: string()
           }
-        },
-        {
-          APP__NAME: string(),
-          APP__VERSION: string()
-        }
+        ]
       ],
-      { nestedDelimiter: '__' }
-    );
+      options: { nestedDelimiter: '__' }
+    });
 
     expect((config as Record<string, unknown>).app).toEqual({
       name: 'MyApp',

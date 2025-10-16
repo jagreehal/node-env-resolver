@@ -5,55 +5,11 @@
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParametersByPathCommand, GetParameterCommand } from '@aws-sdk/client-ssm';
-import type { Resolver, SimpleEnvSchema, InferSimpleSchema, ResolveOptions } from 'node-env-resolver';
+import type { Resolver, SimpleEnvSchema, InferSimpleSchema, ResolveOptions, SafeResolveResultType } from 'node-env-resolver';
 
 // Re-export main functions for convenience (same as nextjs package pattern)
-export { resolveAsync, safeResolveAsync, processEnv } from 'node-env-resolver';
-
-// Re-export commonly used validators for convenience
-export {
-  string,
-  number,
-  boolean,
-  url,
-  email,
-  port,
-  json,
-  postgres,
-  mysql,
-  mongodb,
-  redis,
-  http,
-  https,
-  enums,
-  secret,
-  custom,
-  duration,
-  file,
-  date,
-  timestamp,
-  stringArray,
-  numberArray,
-  urlArray,
-} from 'node-env-resolver/resolvers';
-
-// Re-export useful types
-export type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema, EnvDefinition, Resolver } from 'node-env-resolver';
-
-// Re-export safe resolve types from node-env-resolver
-export interface SafeResolveResult<T> {
-  success: true;
-  data: T;
-}
-
-export interface SafeResolveError {
-  success: false;
-  error: string;
-  errors?: string[];
-}
-
-export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
-
+export { resolveAsync, safeResolveAsync } from 'node-env-resolver';
+export { processEnv } from 'node-env-resolver/resolvers';
 // AWS Secrets Manager
 export interface AwsSecretsOptions {
   secretId: string;
@@ -212,10 +168,12 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
   const { resolveAsync } = await import('node-env-resolver');
   
   // TypeScript knows resolveAsync exists from type imports
-  return await resolveAsync(
-    [awsSsm(ssmOptions), schema],
-    ...(resolveOptions ? [resolveOptions] : [])
-  ) as InferSimpleSchema<T>;
+  return await resolveAsync({
+    resolvers: [
+      [awsSsm(ssmOptions), schema]
+    ],
+    ...(resolveOptions ? { options: resolveOptions } : {})
+  }) as InferSimpleSchema<T>;
 }
 
 /**
@@ -246,10 +204,12 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
     const { safeResolveAsync } = await import('node-env-resolver');
     
      
-    const result = await safeResolveAsync(
-      [awsSsm(ssmOptions), schema],
-      ...(resolveOptions ? [resolveOptions] : [])
-    );
+    const result = await safeResolveAsync({
+      resolvers: [
+        [awsSsm(ssmOptions), schema]
+      ],
+      ...(resolveOptions ? { options: resolveOptions } : {})
+    });
     
     if (result.success) {
       return { success: true, data: result.data as InferSimpleSchema<T> };
@@ -285,10 +245,12 @@ export async function resolveSecrets<T extends SimpleEnvSchema>(
   const { resolveAsync } = await import('node-env-resolver');
   
    
-  return await resolveAsync(
-    [awsSecrets(secretsOptions), schema],
-    ...(resolveOptions ? [resolveOptions] : [])
-  ) as InferSimpleSchema<T>;
+  return await resolveAsync({
+    resolvers: [
+      [awsSecrets(secretsOptions), schema]
+    ],
+    ...(resolveOptions ? { options: resolveOptions } : {})
+  }) as InferSimpleSchema<T>;
 }
 
 /**
@@ -318,10 +280,12 @@ export async function safeResolveSecrets<T extends SimpleEnvSchema>(
     // Import safeResolve dynamically to avoid circular dependencies with mocks
     const { safeResolveAsync } = await import('node-env-resolver');
     
-    const result = await safeResolveAsync(
-      [awsSecrets(secretsOptions), schema],
-      ...(resolveOptions ? [resolveOptions] : [])
-    );
+    const result = await safeResolveAsync({
+      resolvers: [
+        [awsSecrets(secretsOptions), schema]
+      ],
+      ...(resolveOptions ? { options: resolveOptions } : {})
+    });
     
     if (result.success) {
       return { success: true, data: result.data as InferSimpleSchema<T> };

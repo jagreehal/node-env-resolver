@@ -4,7 +4,10 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve as resolvePath } from 'path';
-import type { Resolver, SyncResolver, Validator } from './types';
+import type { Resolver, Validator } from './types';
+
+export { processEnv } from './process-env';
+
 export interface DotenvOptions {
   path?: string;
   expand?: boolean;
@@ -134,18 +137,6 @@ export function dotenv(options?: string | DotenvOptions): Resolver {
       }
 
       return merged;
-    },
-  };
-}
-
-export function processEnv(): SyncResolver {
-  return {
-    name: 'process.env',
-    async load() {
-      return { ...process.env } as Record<string, string>;
-    },
-    loadSync() {
-      return { ...process.env } as Record<string, string>;
     },
   };
 }

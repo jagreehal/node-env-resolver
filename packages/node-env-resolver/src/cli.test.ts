@@ -157,16 +157,18 @@ describe('cliArgs resolver', () => {
 
   describe('integration with resolve', () => {
     it('should work with resolveAsync() for CLI-based config', async () => {
-      const config = await resolveAsync(
-        [cliArgs({
-          argv: ['--port', '8080', '--database-url', 'postgres://localhost:5432/mydb', '--verbose']
-        }), {
-          PORT: 3000,
-          DATABASE_URL: postgres(),
-          VERBOSE: false
-        }]
-      );
-      
+      const config = await resolveAsync({
+        resolvers: [
+          [cliArgs({
+            argv: ['--port', '8080', '--database-url', 'postgres://localhost:5432/mydb', '--verbose']
+          }), {
+            PORT: 3000,
+            DATABASE_URL: postgres(),
+            VERBOSE: false
+          }]
+        ]
+      });
+
       expect(config.PORT).toBe(8080);
       expect(config.DATABASE_URL).toBe('postgres://localhost:5432/mydb');
       expect(config.VERBOSE).toBe(true);
@@ -174,65 +176,71 @@ describe('cliArgs resolver', () => {
 
     it('should handle optional CLI args', async () => {
       process.env.DATABASE_URL = 'postgres://localhost:5432/mydb';
-      
-      const config = await resolveAsync(
-        [processEnv(), {
-          PORT: 3000,
-          DATABASE_URL: postgres(),
-          LOG_LEVEL: string({optional:true})
-        }],
-        [cliArgs({
-          argv: ['--port', '8080']
-        }), {
-          PORT: 3000,
-          DATABASE_URL: postgres(),
-          LOG_LEVEL: string({optional:true})
-        }]
-      );
-      
+
+      const config = await resolveAsync({
+        resolvers: [
+          [processEnv(), {
+            PORT: 3000,
+            DATABASE_URL: postgres(),
+            LOG_LEVEL: string({optional:true})
+          }],
+          [cliArgs({
+            argv: ['--port', '8080']
+          }), {
+            PORT: 3000,
+            DATABASE_URL: postgres(),
+            LOG_LEVEL: string({optional:true})
+          }]
+        ]
+      });
+
       expect(config.PORT).toBe(8080);
       expect(config.DATABASE_URL).toBe('postgres://localhost:5432/mydb');
       expect(config.LOG_LEVEL).toBeUndefined();
-      
+
       delete process.env.DATABASE_URL;
     });
 
     it('should override process.env with CLI args when using priority: last', async () => {
       process.env.PORT = '3000';
-      
-      const config = await resolveAsync(
-        [cliArgs({
-          argv: ['--port', '8080']
-        }), {
-          PORT: 3000
-        }],
-        { priority: 'last' }
-      );
-      
+
+      const config = await resolveAsync({
+        resolvers: [
+          [cliArgs({
+            argv: ['--port', '8080']
+          }), {
+            PORT: 3000
+          }]
+        ],
+        options: { priority: 'last' }
+      });
+
       expect(config.PORT).toBe(8080);
-      
+
       delete process.env.PORT;
     });
   });
 
   describe('real-world CLI patterns', () => {
     it('should handle typical CLI app config', async () => {
-      const config = await resolveAsync(
-        [cliArgs({
-          argv: [
-            '--config', './config.json',
-            '--output', './dist',
-            '--verbose',
-            '--max-workers', '4'
-          ]
-        }), {
-          CONFIG: string({optional:true}),
-          OUTPUT: string({optional:true}),
-          VERBOSE: false,
-          MAX_WORKERS: number({ optional: true })
-        }]
-      );
-      
+      const config = await resolveAsync({
+        resolvers: [
+          [cliArgs({
+            argv: [
+              '--config', './config.json',
+              '--output', './dist',
+              '--verbose',
+              '--max-workers', '4'
+            ]
+          }), {
+            CONFIG: string({optional:true}),
+            OUTPUT: string({optional:true}),
+            VERBOSE: false,
+            MAX_WORKERS: number({ optional: true })
+          }]
+        ]
+      });
+
       expect(config.CONFIG).toBe('./config.json');
       expect(config.OUTPUT).toBe('./dist');
       expect(config.VERBOSE).toBe(true);
@@ -240,18 +248,20 @@ describe('cliArgs resolver', () => {
     });
 
     it('should handle database connection from CLI', async () => {
-      const config = await resolveAsync(
-        [cliArgs({
-          argv: [
-            '--database-url', 'postgres://user:pass@localhost:5432/mydb',
-            '--redis-url', 'redis://localhost:6379'
-          ]
-        }), {
-          DATABASE_URL: postgres(),
-          REDIS_URL: string({ optional: true, default: 'redis' })
-        }]
-      );
-      
+      const config = await resolveAsync({
+        resolvers: [
+          [cliArgs({
+            argv: [
+              '--database-url', 'postgres://user:pass@localhost:5432/mydb',
+              '--redis-url', 'redis://localhost:6379'
+            ]
+          }), {
+            DATABASE_URL: postgres(),
+            REDIS_URL: string({ optional: true, default: 'redis' })
+          }]
+        ]
+      });
+
       expect(config.DATABASE_URL).toBe('postgres://user:pass@localhost:5432/mydb');
       expect(config.REDIS_URL).toBe('redis://localhost:6379');
     });

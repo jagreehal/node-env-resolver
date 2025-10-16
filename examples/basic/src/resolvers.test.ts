@@ -27,27 +27,29 @@ describe('Advanced Resolvers Example', () => {
       API_KEY: 'mock-api-key-123',
     };
 
-    const config = await resolveAsync(
-      [processEnv(), {
-        NODE_ENV: ['development', 'production', 'test'] as const,
-        PORT: 3000,
-      }],
-      [
-        cached(
-          mockAwsSecretsProvider(mockSecrets),
+    const config = await resolveAsync({
+      resolvers: [
+        [processEnv(), {
+          NODE_ENV: ['development', 'production', 'test'] as const,
+          PORT: 3000,
+        }],
+        [
+          cached(
+            mockAwsSecretsProvider(mockSecrets),
+            {
+              ttl: 60000,
+              maxAge: 300000,
+              staleWhileRevalidate: true,
+              key: 'production-secrets'
+            }
+          ),
           {
-            ttl: 60000,
-            maxAge: 300000,
-            staleWhileRevalidate: true,
-            key: 'production-secrets'
+            DATABASE_PASSWORD: string(),
+            API_KEY: string(),
           }
-        ),
-        {
-          DATABASE_PASSWORD: string(),
-          API_KEY: string(),
-        }
+        ]
       ]
-    );
+    });
 
     console.log(config)
     console.log(getAuditLog()) 
@@ -70,10 +72,12 @@ describe('Advanced Resolvers Example', () => {
       },
     };
 
-    await expect(resolveAsync(
-      [processEnv(), { TEST_VAR: string() }],
-      [failingProvider, { TEST_VAR: string() }]
-    )).rejects.toThrow('Resolver failed to load');
+    await expect(resolveAsync({
+      resolvers: [
+        [processEnv(), { TEST_VAR: string() }],
+        [failingProvider, { TEST_VAR: string() }]
+      ]
+    })).rejects.toThrow('Resolver failed to load');
   });
 
   it('should demonstrate caching with different TTL values', async () => {
@@ -84,24 +88,28 @@ describe('Advanced Resolvers Example', () => {
 
     // Short TTL cache
     process.env.NODE_ENV = 'development';
-    const shortConfig = await resolveAsync(
-      [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
-      [
-        cached(mockAwsSecretsProvider(mockSecrets), { ttl: 1000 }), // 1 second
-        { SHORT_TTL_VAR: string() }
+    const shortConfig = await resolveAsync({
+      resolvers: [
+        [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
+        [
+          cached(mockAwsSecretsProvider(mockSecrets), { ttl: 1000 }), // 1 second
+          { SHORT_TTL_VAR: string() }
+        ]
       ]
-    );
+    });
 
     expect(shortConfig.SHORT_TTL_VAR).toBe('short-ttl-value');
 
     // Long TTL cache
-    const longConfig = await resolveAsync(
-      [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
-      [
-        cached(mockAwsSecretsProvider(mockSecrets), { ttl: 300000 }), // 5 minutes
-        { LONG_TTL_VAR: string() }
+    const longConfig = await resolveAsync({
+      resolvers: [
+        [processEnv(), { NODE_ENV: ['development', 'production', 'test'] as const }],
+        [
+          cached(mockAwsSecretsProvider(mockSecrets), { ttl: 300000 }), // 5 minutes
+          { LONG_TTL_VAR: string() }
+        ]
       ]
-    );
+    });
 
     expect(longConfig.LONG_TTL_VAR).toBe('long-ttl-value');
   });
@@ -124,9 +132,11 @@ describe('Advanced Resolvers Example', () => {
     const cachedResolver = cached(mockSecretsWithCounter, { ttl: 60000, key: 'test-cache' });
 
     // First call - should be a cache miss (cached: false)
-    const config1 = await resolveAsync(
-      [cachedResolver, { SECRET_VALUE: string() }]
-    );
+    const config1 = await resolveAsync({
+      resolvers: [
+        [cachedResolver, { SECRET_VALUE: string() }]
+      ]
+    });
 
     const auditAfterFirst = getAuditLog();
     const firstLoad = auditAfterFirst.find(e => e.key === 'SECRET_VALUE' && e.type === 'env_loaded');
@@ -136,9 +146,11 @@ describe('Advanced Resolvers Example', () => {
     expect(firstLoad?.metadata?.cached).toBe(false);
 
     // Second call - should be a cache hit (cached: true)
-    const config2 = await resolveAsync(
-      [cachedResolver, { SECRET_VALUE: string() }]
-    );
+    const config2 = await resolveAsync({
+      resolvers: [
+        [cachedResolver, { SECRET_VALUE: string() }]
+      ]
+    });
 
     const auditAfterSecond = getAuditLog();
     const secondLoad = auditAfterSecond.filter(e => e.key === 'SECRET_VALUE' && e.type === 'env_loaded')[1];
@@ -217,27 +229,29 @@ describe('Advanced Resolvers Example', () => {
         API_KEY: 'mock-api-key-123',
       };
 
-      const result = await safeResolveAsync(
-        [processEnv(), {
-          NODE_ENV: ['development', 'production', 'test'] as const,
-          PORT: 3000,
-        }],
-        [
-          cached(
-            mockAwsSecretsProvider(mockSecrets),
+      const result = await safeResolveAsync({
+        resolvers: [
+          [processEnv(), {
+            NODE_ENV: ['development', 'production', 'test'] as const,
+            PORT: 3000,
+          }],
+          [
+            cached(
+              mockAwsSecretsProvider(mockSecrets),
+              {
+                ttl: 60000,
+                maxAge: 300000,
+                staleWhileRevalidate: true,
+                key: 'production-secrets'
+              }
+            ),
             {
-              ttl: 60000,
-              maxAge: 300000,
-              staleWhileRevalidate: true,
-              key: 'production-secrets'
+              DATABASE_PASSWORD: string(),
+              API_KEY: string(),
             }
-          ),
-          {
-            DATABASE_PASSWORD: string(),
-            API_KEY: string(),
-          }
+          ]
         ]
-      );
+      });
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -260,10 +274,12 @@ describe('Advanced Resolvers Example', () => {
         },
       };
 
-      const result = await safeResolveAsync(
-        [processEnv(), { TEST_VAR: string() }],
-        [failingProvider, { TEST_VAR: string() }]
-      );
+      const result = await safeResolveAsync({
+        resolvers: [
+          [processEnv(), { TEST_VAR: string() }],
+          [failingProvider, { TEST_VAR: string() }]
+        ]
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {

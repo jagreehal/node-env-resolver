@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resolve, resolveAsync, getAuditLog, clearAuditLog } from './index';
+import { resolve, resolveAsync, getAuditLog, clearAuditLog, SyncResolver, AsyncResolver } from './index';
 import { string, url, port } from './resolvers';
 
 describe('Audit Logging', () => {
@@ -11,18 +11,24 @@ describe('Audit Logging', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
+    const customResolver: AsyncResolver = {
+      name: 'test',
+      async load() {
+        return { SECRET_KEY: 'test-secret' };
+      },
+    };
+
     try {
-      await resolveAsync(
-        [{
-          name: 'test',
-          async load() {
-            return { SECRET_KEY: 'test-secret' };
-          },
-        }, {
-          SECRET_KEY: string(),
-        }],
-        { enableAudit: true }
-      );
+      await resolveAsync({
+        resolvers: [
+          [customResolver, {
+            SECRET_KEY: string(),
+          }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      });
 
       const logs = getAuditLog();
       const envLogs = logs.filter(l => l.type === 'env_loaded');
@@ -41,21 +47,27 @@ describe('Audit Logging', () => {
 
     try {
       clearAuditLog();
-      
-      resolve(
-        [{
-          name: 'test-sync',
-          async load() {
-            return { SECRET_KEY: 'test-secret' };
-          },
-          loadSync() {
-            return { SECRET_KEY: 'test-secret' };
-          },
-        }, {
-          SECRET_KEY: string(),
-        }],
-        { enableAudit: true }
-      );
+
+
+      const customResolver: SyncResolver = {
+        name: 'test-sync',
+        async load() {
+          return { SECRET_KEY: 'test-secret' };
+        },
+        loadSync() {
+          return { SECRET_KEY: 'test-secret' };
+        },
+      };
+      resolve({
+        resolvers: [
+          [customResolver, {
+            SECRET_KEY: string(),
+          }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      });        
 
       const logs = getAuditLog();
       const envLogs = logs.filter(l => l.type === 'env_loaded');
@@ -72,20 +84,27 @@ describe('Audit Logging', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
+    const customResolver: AsyncResolver = {
+      name: 'dotenv(.env)',
+      async load() {
+        return { DATABASE_URL: 'http://localhost' };
+      },
+    };
     try {
-      await resolveAsync(
-        [{
-          name: 'dotenv(.env)',
-          async load() {
-            return { DATABASE_URL: 'http://localhost' };
-          },
-        }, {
-          DATABASE_URL: url(),
-        }],
-        { enableAudit: true }
-      ).catch(() => {
-        // Expected to fail
-      });
+      try {
+        await resolveAsync({
+          resolvers: [
+            [customResolver, {
+              DATABASE_URL: url(),
+            }],
+          ],
+          options: {
+            enableAudit: true,
+          }
+        });
+      } catch {
+        // Expected to throw due to policy violation
+      }
 
       const logs = getAuditLog();
       const policyViolations = logs.filter(l => l.type === 'policy_violation');
@@ -98,18 +117,25 @@ describe('Audit Logging', () => {
   });
 
   it('logs validation failures', async () => {
+
+    const customResolver: AsyncResolver = {
+      name: 'test',
+      async load() {
+        return { PORT: 'invalid' };
+      },
+    };
     try {
       await resolveAsync(
-        [{
-          name: 'test',
-          async load() {
-            return { PORT: 'not-a-number' };
-          },
-        }, {
-          PORT: port(),
-        }],
-        { enableAudit: true }
-      );
+        {
+        resolvers: [
+          [customResolver, {
+            PORT: port(),
+          }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      });
     } catch {
       // Expected to fail
     }
@@ -122,19 +148,25 @@ describe('Audit Logging', () => {
 
   it('limits audit log size to prevent memory leaks', async () => {
     // Generate > 1000 events
+
+    const customResolver: AsyncResolver = {
+      name: 'test',
+      async load() {
+        return { PORT: 'invalid' };
+      },
+    };
     for (let i = 0; i < 1100; i++) {
       try {
-        await resolveAsync(
-          [{
-            name: 'test',
-            async load() {
-              return { PORT: 'invalid' };
-            },
-          }, {
-            PORT: port(),
-          }],
-          { enableAudit: true }
-        );
+        await resolveAsync({
+          resolvers: [
+            [customResolver, {
+              PORT: port(),
+            }],
+          ],
+          options: {
+            enableAudit: true,
+          }
+        });
       } catch {
         // Expected to fail
       }
@@ -151,21 +183,25 @@ describe('Audit Logging', () => {
     try {
       clearAuditLog();
 
-      await resolveAsync(
-        [{
-          name: 'test',
-          async load() {
-            return { PORT: '3000' };
-          },
-        }, {
-          PORT: 3000,
-        }]
-      );
+      const customResolver: AsyncResolver = {
+        name: 'test',
+        async load() {
+          return { PORT: '3000' };
+        },
+      };
+      await resolveAsync({
+        resolvers: [
+          [customResolver, {
+            PORT: 3000,
+          }],
+        ],
+        // Don't explicitly set enableAudit - test default behavior
+      });
 
       const logs = getAuditLog();
-      const validationLogs = logs.filter(l => l.type === 'validation_success');
+      const allLogs = logs.length;
 
-      expect(validationLogs.length).toBe(0);
+      expect(allLogs).toBe(0);
     } finally {
       process.env.NODE_ENV = originalEnv;
     }
@@ -181,21 +217,22 @@ describe('Security Policies', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
+    const customResolver: AsyncResolver = {
+      name: 'process.env',
+      async load() {
+        return { DATABASE_URL: 'http://localhost', API_KEY: 'key123' };
+      },
+    };
     try {
       await expect(
-        resolveAsync(
-          [
-            {
-              name: 'process.env',
-              async load() {
-                return { DATABASE_URL: 'http://localhost', API_KEY: 'key123' };
-              },
-            }, {
+        resolveAsync({
+          resolvers: [
+            [customResolver, {
               DATABASE_URL: url(),
               API_KEY: string(),
-            }
+            }],
           ],
-          {
+          options: {
             policies: {
               enforceAllowedSources: {
                 DATABASE_URL: ['aws-secrets'],
@@ -204,8 +241,7 @@ describe('Security Policies', () => {
             },
             enableAudit: true,
           }
-        )
-      ).rejects.toThrow();
+        })).rejects.toThrow();
 
       const logs = getAuditLog();
       const policyViolations = logs.filter(l => l.type === 'policy_violation');
@@ -217,27 +253,31 @@ describe('Security Policies', () => {
   });
 
   it('enforceAllowedSources - allows variables from correct resolvers', async () => {
+    const customResolver: AsyncResolver = {
+      name: 'aws-secrets',
+      async load() {
+        return { DATABASE_URL: 'http://localhost', API_KEY: 'key123' };
+      },
+    };
     const config = await resolveAsync(
-      [
-        {
-          name: 'aws-secrets',
-          async load() {
-            return { DATABASE_URL: 'http://localhost', API_KEY: 'key123' };
-          },
-        }, {
-          DATABASE_URL: url(),
-          API_KEY: string(),
-        }
-      ],
       {
-        policies: {
-          enforceAllowedSources: {
-            DATABASE_URL: ['aws-secrets'],
-            API_KEY: ['aws-secrets']
+          resolvers: [
+            [customResolver, {
+              DATABASE_URL: url(),
+              API_KEY: string(),
+            }],
+          ],
+          options: {
+            policies: {
+              enforceAllowedSources: {
+                DATABASE_URL: ['aws-secrets'],
+                API_KEY: ['aws-secrets']
+              }
+            },
+            enableAudit: true,
           }
-        },
-      }
-    );
+        }
+      ); 
 
     expect(config.DATABASE_URL).toBe('http://localhost');
     expect(config.API_KEY).toBe('key123');
@@ -247,20 +287,24 @@ describe('Security Policies', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
+    const customResolver: AsyncResolver = {
+      name: 'dotenv(.env)',
+      async load() {
+        return { SECRET: 'secret123' };
+      },
+    };
     try {
       await expect(
-        resolveAsync(
-          [
-            {
-              name: 'dotenv(.env)',
-              async load() {
-                return { SECRET: 'secret123' };
-              },
-            }, {
+        resolveAsync({
+          resolvers: [
+            [customResolver, {
               SECRET: string(),
-            }
-          ]
-        )
+            }],
+          ],
+          options: {
+            enableAudit: true,
+          }
+        })
       ).rejects.toThrow(/cannot be sourced from \.env files in production/);
     } finally {
       process.env.NODE_ENV = originalEnv;
@@ -271,24 +315,27 @@ describe('Security Policies', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
-    try {
+    const customResolver: AsyncResolver = {
+      name: 'dotenv(.env)',
+      async load() {
+        return { SECRET: 'secret123' };
+      },
+    };
+    try {      
       const config = await resolveAsync(
-        [
           {
-            name: 'dotenv(.env)',
-            async load() {
-              return { SECRET: 'secret123' };
+          resolvers: [
+            [customResolver, {
+              SECRET: string(),
+            }],
+          ],
+          options: {
+            policies: {
+              allowDotenvInProduction: true
             },
-          }, {
-            SECRET: string(),
+            enableAudit: true,
           }
-        ],
-        {
-          policies: {
-            allowDotenvInProduction: true
-          },
-        }
-      );
+        });
 
       expect(config.SECRET).toBe('secret123');
     } finally {
@@ -300,25 +347,28 @@ describe('Security Policies', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
+    const customResolver: AsyncResolver = {
+      name: 'dotenv(.env)',
+      async load() {
+        return { ALLOWED_VAR: 'allowed', BLOCKED_VAR: 'blocked' };
+      },
+    };
     try {
       const config = await resolveAsync(
-        [
-          {
-            name: 'dotenv(.env)',
-            async load() {
-              return { ALLOWED_VAR: 'allowed', BLOCKED_VAR: 'blocked' };
-            },
-          }, {
-            ALLOWED_VAR: string(),
-            BLOCKED_VAR: string(),
-          }
-        ],
         {
-          policies: {
-            allowDotenvInProduction: ['ALLOWED_VAR']
-          },
-        }
-      );
+          resolvers: [
+            [customResolver, {
+              ALLOWED_VAR: string(),
+              BLOCKED_VAR: string(),
+            }],
+          ],
+          options: {
+            policies: {
+              allowDotenvInProduction: ['ALLOWED_VAR']
+            },
+            enableAudit: true,
+          }
+        });
 
       expect(config.ALLOWED_VAR).toBe('allowed');
       // BLOCKED_VAR should fail validation
@@ -338,14 +388,14 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('tracks audit events per config object (async)', async () => {
-    const resolver1 = {
+    const resolver1: AsyncResolver = {
       name: 'resolver1',
       async load() {
         return { VAR1: 'value1' };
       },
     };
 
-    const resolver2 = {
+    const resolver2: AsyncResolver = {
       name: 'resolver2',
       async load() {
         return { VAR2: 'value2' };
@@ -353,13 +403,25 @@ describe('Per-Config Audit Tracking', () => {
     };
 
     const config1 = await resolveAsync(
-      [resolver1, { VAR1: string() }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [resolver1, { VAR1: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     const config2 = await resolveAsync(
-      [resolver2, { VAR2: string() }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [resolver2, { VAR2: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     // Get audit logs for each config
@@ -381,7 +443,7 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('tracks audit events per config object (sync)', () => {
-    const resolver1 = {
+    const resolver1: SyncResolver = {
       name: 'resolver1',
       async load() {
         return { VAR1: 'value1' };
@@ -391,7 +453,7 @@ describe('Per-Config Audit Tracking', () => {
       },
     };
 
-    const resolver2 = {
+    const resolver2: SyncResolver = {
       name: 'resolver2',
       async load() {
         return { VAR2: 'value2' };
@@ -402,13 +464,25 @@ describe('Per-Config Audit Tracking', () => {
     };
 
     const config1 = resolve(
-      [resolver1, { VAR1: string() }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [resolver1, { VAR1: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     const config2 = resolve(
-      [resolver2, { VAR2: string() }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [resolver2, { VAR2: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     // Get audit logs for each config
@@ -430,16 +504,22 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('returns empty array for config without audit session', async () => {
+
+    const customResolver: AsyncResolver = {
+      name: 'test',
+      async load() {
+        return { VAR: 'value' };
+      },
+    };
     const config = await resolveAsync(
-      [{
-        name: 'test',
-        async load() {
-          return { VAR: 'value' };
-        },
-      }, {
-        VAR: string(),
-      }],
-      { enableAudit: false } // Audit disabled
+      {
+        resolvers: [
+          [customResolver, { VAR: string() }],
+        ],
+        options: {
+          enableAudit: false,
+        }
+      }
     );
 
     const audit = getAuditLog(config);
@@ -447,28 +527,39 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('handles multiple configs with same variables', async () => {
+
+    const customResolver1: AsyncResolver = {
+      name: 'source1',
+      async load() {
+        return { SHARED: 'from-source1' };
+      },
+    };
+    const customResolver2: AsyncResolver = {
+      name: 'source2',
+      async load() {
+        return { SHARED: 'from-source2' };
+      },
+    };
     const config1 = await resolveAsync(
-      [{
-        name: 'source1',
-        async load() {
-          return { SHARED: 'from-source1' };
-        },
-      }, {
-        SHARED: string(),
-      }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [customResolver1, { SHARED: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     const config2 = await resolveAsync(
-      [{
-        name: 'source2',
-        async load() {
-          return { SHARED: 'from-source2' };
-        },
-      }, {
-        SHARED: string(),
-      }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [customResolver2, { SHARED: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     const audit1 = getAuditLog(config1);
@@ -483,28 +574,39 @@ describe('Per-Config Audit Tracking', () => {
   });
 
   it('maintains backward compatibility with getAuditLog()', async () => {
+
+    const customResolver1: AsyncResolver = {
+      name: 'test1',
+      async load() {
+        return { VAR1: 'value1' };
+      },
+    };
+    const customResolver2: AsyncResolver = {
+      name: 'test2',
+      async load() {
+        return { VAR2: 'value2' };
+      },
+    };
     await resolveAsync(
-      [{
-        name: 'test1',
-        async load() {
-          return { VAR1: 'value1' };
-        },
-      }, {
-        VAR1: string(),
-      }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [customResolver1, { VAR1: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     await resolveAsync(
-      [{
-        name: 'test2',
-        async load() {
-          return { VAR2: 'value2' };
-        },
-      }, {
-        VAR2: string(),
-      }],
-      { enableAudit: true }
+      {
+        resolvers: [
+          [customResolver2, { VAR2: string() }],
+        ],
+        options: {
+          enableAudit: true,
+        }
+      }
     );
 
     // Calling getAuditLog() without config returns all events
