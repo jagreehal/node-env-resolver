@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolve, safeResolve, getAuditLog,  safeResolveAsync, resolveAsync } from 'node-env-resolver';
-import { processEnv, string } from 'node-env-resolver/resolvers';
+import { processEnv, string, number } from 'node-env-resolver/resolvers';
 import { cached } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -157,7 +157,7 @@ describe('Advanced Resolvers Example', () => {
       process.env.NODE_ENV = 'production';
 
       const result = await safeResolve({
-        PORT: 'number',
+        PORT: number(),
         NODE_ENV: ['development', 'production', 'test'] as const,
       });
 
@@ -275,7 +275,7 @@ describe('Advanced Resolvers Example', () => {
       process.env.PORT = '3000';
 
       const result = safeResolve({
-        PORT: 'number',
+        PORT: number(),
         DEBUG: false, // boolean with default
       });
 

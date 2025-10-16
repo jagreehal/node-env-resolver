@@ -205,18 +205,19 @@ describe('Client/Server Split Example', () => {
       clientPrefix: 'PUBLIC_'
     });
 
-    // Server variables should not be accessible from client
+    // Server variables should be in server object
     expect(server.DATABASE_URL).toBeDefined();
     expect(server.JWT_SECRET).toBeDefined();
-    expect(client.PUBLIC_API_URL).toBeUndefined();
-    expect(client.PUBLIC_APP_NAME).toBeUndefined();
+    expect(server.ADMIN_EMAIL).toBeDefined();
 
-    // Client variables should be accessible from client
+    // Client variables should be in client object
     expect(client.PUBLIC_API_URL).toBeDefined();
     expect(client.PUBLIC_APP_NAME).toBeDefined();
-
-    // Server can access client variables (this is safe)
+    expect(client.PUBLIC_API_URL).toBe('https://api.example.com');
     expect(client.PUBLIC_APP_NAME).toBe('My Awesome App');
+
+    // Optional client variable should be undefined when not set
+    expect(client.PUBLIC_ANALYTICS_ID).toBeUndefined();
   });
 
   it('should handle client prefix configuration', async () => {

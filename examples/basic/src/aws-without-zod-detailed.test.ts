@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolveAsync } from 'node-env-resolver';
-import { string, url } from 'node-env-resolver/resolvers';
+import { boolean, number, port, string, url, processEnv } from 'node-env-resolver/resolvers';
 import { cached, TTL } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
 
@@ -45,14 +45,14 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      NODE_ENV: { type: string(), enum: ['development', 'production', 'test'] as const, default: 'development' },
-      PORT: { type: 'port', default: 3000 },
+      NODE_ENV: ['development', 'production', 'test'] as const,
+      PORT: port({ default: 3000 }),
       DATABASE_PASSWORD: string({ secret: true }),
       API_KEY: string({ secret: true, optional: true }),
       DATABASE_URL: url({ secret: true }),
       REDIS_URL: url({ optional: true }),
-      DEBUG: { type: 'boolean', default: false },
-      MAX_CONNECTIONS: { type: 'number', default: 100, min: 1, max: 1000 },
+      DEBUG: boolean({ default: false }),
+      MAX_CONNECTIONS: number({ default: 100, min: 1, max: 1000 }),
       JWT_SECRET: string({ secret: true }),
     } as const;
 
@@ -100,6 +100,9 @@ describe('AWS Secrets - Full Object Syntax', () => {
   });
 
   it('should demonstrate production-ready configuration', async () => {
+    // Set NODE_ENV for the test
+    process.env.NODE_ENV = 'production';
+
     const mockSecrets = {
       DATABASE_PASSWORD: 'production-db-password-123',
       JWT_SECRET: 'jwt-secret-for-production-app-very-long-key',
@@ -108,8 +111,8 @@ describe('AWS Secrets - Full Object Syntax', () => {
     };
 
     const schema = {
-      NODE_ENV: string({ enum: ['development', 'production', 'test'] as const, default: 'development' }),
-      PORT: { type: 'port', default: 3000 },
+      NODE_ENV: ['development', 'production', 'test'] as const,
+      PORT: port({ default: 3000 }),
       DATABASE_PASSWORD: string({ secret: true, min: 10 }),
       JWT_SECRET: string({ secret: true, min: 32 }),
       ENCRYPTION_KEY: string({ secret: true, min: 16 }),
@@ -117,6 +120,7 @@ describe('AWS Secrets - Full Object Syntax', () => {
     } as const;
 
     const config = await resolveAsync(
+      [processEnv(), schema],
       [cached(mockAwsSecretsProvider(mockSecrets), {
         ttl: TTL.minutes5,
         maxAge: TTL.hour,
@@ -135,5 +139,8 @@ describe('AWS Secrets - Full Object Syntax', () => {
     expect(config.JWT_SECRET).toBe('jwt-secret-for-production-app-very-long-key');
     expect(config.ENCRYPTION_KEY).toBe('encryption-key-for-sensitive-data');
     expect(config.STRIPE_SECRET_KEY).toBe('sk_test_1234567890abcdef1234567890abcdef');
+
+    // Clean up
+    delete process.env.NODE_ENV;
   });
 });

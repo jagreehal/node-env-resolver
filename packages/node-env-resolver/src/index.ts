@@ -108,14 +108,6 @@ export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
 type ResolverTuple = readonly [Resolver, SimpleEnvSchema];
 type SyncResolverTuple = readonly [SyncResolver, SimpleEnvSchema];
 
-// Merge the schemas in the tuple list into an intersection
-type TuplesToSchema<T extends readonly ResolverTuple[]> =
-  T[number] extends never ? Record<string, never> :
-  UnionToIntersection<T[number][1]>;
-
-type UnionToIntersection<U> =
-  (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
-
 // Helper functions
 function isResolverTuple(arg: unknown): arg is ResolverTuple {
   return Array.isArray(arg) &&
@@ -149,22 +141,53 @@ function splitSyncArgs<A extends readonly unknown[]>(
     ? (maybeOptions as Partial<ResolveOptions>)
     : undefined;
   const end = options ? args.length - 1 : args.length;
-  const tuples = Array.from(args).slice(0, end).filter(isSyncResolverTuple) as SyncResolverTuple[];
+
+  const tuples: SyncResolverTuple[] = [];
+  const argsSlice = Array.from(args).slice(0, end);
+
+  for (const arg of argsSlice) {
+    if (isSyncResolverTuple(arg)) {
+      tuples.push(arg);
+    } else if (isResolverTuple(arg)) {
+      // It's a resolver tuple but doesn't have loadSync
+      const resolver = arg[0] as Resolver;
+      throw new Error(
+        `❌ Resolver '${resolver.name}' does not support synchronous loading.\n` +
+          `   All resolvers passed to resolve() must have a loadSync() method.\n` +
+          `   💡 Use resolveAsync() for async resolvers, or use a sync-compatible resolver.`,
+      );
+    }
+  }
+
   return { tuples, options };
 }
 
 // Function overloads for resolve
 /* eslint-disable no-redeclare */
+// Schema-only overload
 function resolve<T extends SimpleEnvSchema>(
   schema: T,
   options?: Partial<ResolveOptions>
 ): { [K in keyof T]: InferSimpleValue<T[K]> };
-function resolve<
-  TTuples extends readonly SyncResolverTuple[],
-  MergedSchema extends TuplesToSchema<TTuples>
->(...args: [...TTuples, Partial<ResolveOptions>?]): {
-  [K in keyof MergedSchema]: InferSimpleValue<MergedSchema[K]>;
-};
+// Single tuple overload
+function resolve<T extends SimpleEnvSchema>(
+  tuple: readonly [SyncResolver, T] | [SyncResolver, T],
+  options?: Partial<ResolveOptions>
+): { [K in keyof T]: InferSimpleValue<T[K]> };
+// Two tuples overload
+function resolve<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema>(
+  tuple1: readonly [SyncResolver, T1] | [SyncResolver, T1],
+  tuple2: readonly [SyncResolver, T2] | [SyncResolver, T2],
+  options?: Partial<ResolveOptions>
+): { [K in keyof (T1 & T2)]: InferSimpleValue<(T1 & T2)[K]> };
+// Three tuples overload
+function resolve<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema>(
+  tuple1: readonly [SyncResolver, T1] | [SyncResolver, T1],
+  tuple2: readonly [SyncResolver, T2] | [SyncResolver, T2],
+  tuple3: readonly [SyncResolver, T3] | [SyncResolver, T3],
+  options?: Partial<ResolveOptions>
+): { [K in keyof (T1 & T2 & T3)]: InferSimpleValue<(T1 & T2 & T3)[K]> };
+// Implementation
 function resolve(arg1: unknown, ...rest: unknown[]): unknown {
   const args = [arg1, ...rest];
   let schema: SimpleEnvSchema;
@@ -273,12 +296,42 @@ function resolve(arg1: unknown, ...rest: unknown[]): unknown {
  * ```
  */
 /* eslint-disable no-redeclare */
-async function resolveAsync<
-  TTuples extends readonly ResolverTuple[],
-  MergedSchema extends TuplesToSchema<TTuples>
->(...args: [...TTuples, Partial<ResolveOptions>?]): Promise<{
-  [K in keyof MergedSchema]: InferSimpleValue<MergedSchema[K]>;
-}>;
+// Single tuple overload
+async function resolveAsync<T extends SimpleEnvSchema>(
+  tuple: readonly [Resolver, T] | [Resolver, T],
+  options?: Partial<ResolveOptions>
+): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
+// Two tuples overload
+async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  options?: Partial<ResolveOptions>
+): Promise<{ [K in keyof (T1 & T2)]: InferSimpleValue<(T1 & T2)[K]> }>;
+// Three tuples overload
+async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  tuple3: readonly [Resolver, T3] | [Resolver, T3],
+  options?: Partial<ResolveOptions>
+): Promise<{ [K in keyof (T1 & T2 & T3)]: InferSimpleValue<(T1 & T2 & T3)[K]> }>;
+// Four tuples overload
+async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  tuple3: readonly [Resolver, T3] | [Resolver, T3],
+  tuple4: readonly [Resolver, T4] | [Resolver, T4],
+  options?: Partial<ResolveOptions>
+): Promise<{ [K in keyof (T1 & T2 & T3 & T4)]: InferSimpleValue<(T1 & T2 & T3 & T4)[K]> }>;
+// Five tuples overload
+async function resolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema, T5 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  tuple3: readonly [Resolver, T3] | [Resolver, T3],
+  tuple4: readonly [Resolver, T4] | [Resolver, T4],
+  tuple5: readonly [Resolver, T5] | [Resolver, T5],
+  options?: Partial<ResolveOptions>
+): Promise<{ [K in keyof (T1 & T2 & T3 & T4 & T5)]: InferSimpleValue<(T1 & T2 & T3 & T4 & T5)[K]> }>;
+// Implementation
 async function resolveAsync(
   arg1: unknown,
   ...rest: unknown[]
@@ -336,23 +389,30 @@ function safeResolve<T extends SimpleEnvSchema>(
     options = rest[0] as Partial<ResolveOptions> | undefined;
   } else {
     // Array syntax: safeResolve([resolver, schema], ..., options?)
-    const { tuples, options: parsedOptions } = splitSyncArgs(args);
-    options = parsedOptions;
+    try {
+      const { tuples, options: parsedOptions } = splitSyncArgs(args);
+      options = parsedOptions;
 
-    if (tuples.length === 0) {
+      if (tuples.length === 0) {
+        return {
+          success: false,
+          error:
+            'safeResolve() requires at least one [resolver, schema] tuple when using array syntax',
+        };
+      }
+
+      // Merge schemas - last one wins for conflicts
+      schema = {} as T;
+      for (const [, tupleSchema] of tuples) {
+        Object.assign(schema, tupleSchema);
+      }
+      resolvers = tuples.map(([resolver]) => resolver);
+    } catch (error) {
       return {
         success: false,
-        error:
-          'safeResolve() requires at least one [resolver, schema] tuple when using array syntax',
+        error: error instanceof Error ? error.message : String(error),
       };
     }
-
-    // Merge schemas - last one wins for conflicts
-    schema = {} as T;
-    for (const [, tupleSchema] of tuples) {
-      Object.assign(schema, tupleSchema);
-    }
-    resolvers = tuples.map(([resolver]) => resolver);
   }
   // Validate that schema doesn't contain async validators (Zod/Valibot/etc)
   for (const [key, value] of Object.entries(schema)) {
@@ -363,7 +423,7 @@ function safeResolve<T extends SimpleEnvSchema>(
         error:
           `❌ safeResolve() cannot be used with async validators.\n` +
           `   Variable '${key}' uses a Standard Schema validator (Zod, Valibot, etc.)\n` +
-          `   💡 Use saferesolveAsync() instead, or use shorthand syntax for sync validation.`,
+          `   💡 Use safeResolveAsync() instead, or use shorthand syntax for sync validation.`,
       };
     }
   }
@@ -452,12 +512,42 @@ function safeResolve<T extends SimpleEnvSchema>(
  * ```
  */
 /* eslint-disable no-redeclare */
-async function safeResolveAsync<
-  TTuples extends readonly ResolverTuple[],
-  MergedSchema extends TuplesToSchema<TTuples>
->(...args: [...TTuples, Partial<ResolveOptions>?]): Promise<SafeResolveResultType<{
-  [K in keyof MergedSchema]: InferSimpleValue<MergedSchema[K]>;
-}>>;
+// Single tuple overload
+async function safeResolveAsync<T extends SimpleEnvSchema>(
+  tuple: readonly [Resolver, T] | [Resolver, T],
+  options?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<{ [K in keyof T]: InferSimpleValue<T[K]> }>>;
+// Two tuples overload
+async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  options?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2)]: InferSimpleValue<(T1 & T2)[K]> }>>;
+// Three tuples overload
+async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  tuple3: readonly [Resolver, T3] | [Resolver, T3],
+  options?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2 & T3)]: InferSimpleValue<(T1 & T2 & T3)[K]> }>>;
+// Four tuples overload
+async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  tuple3: readonly [Resolver, T3] | [Resolver, T3],
+  tuple4: readonly [Resolver, T4] | [Resolver, T4],
+  options?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2 & T3 & T4)]: InferSimpleValue<(T1 & T2 & T3 & T4)[K]> }>>;
+// Five tuples overload
+async function safeResolveAsync<T1 extends SimpleEnvSchema, T2 extends SimpleEnvSchema, T3 extends SimpleEnvSchema, T4 extends SimpleEnvSchema, T5 extends SimpleEnvSchema>(
+  tuple1: readonly [Resolver, T1] | [Resolver, T1],
+  tuple2: readonly [Resolver, T2] | [Resolver, T2],
+  tuple3: readonly [Resolver, T3] | [Resolver, T3],
+  tuple4: readonly [Resolver, T4] | [Resolver, T4],
+  tuple5: readonly [Resolver, T5] | [Resolver, T5],
+  options?: Partial<ResolveOptions>
+): Promise<SafeResolveResultType<{ [K in keyof (T1 & T2 & T3 & T4 & T5)]: InferSimpleValue<(T1 & T2 & T3 & T4 & T5)[K]> }>>;
+// Implementation
 async function safeResolveAsync(
   arg1: unknown,
   ...rest: unknown[]

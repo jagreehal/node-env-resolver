@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { resolveAsync } from 'node-env-resolver';
-import { string, url } from 'node-env-resolver/resolvers';
+import { string, url, number } from 'node-env-resolver/resolvers';
 import { processEnv } from 'node-env-resolver/resolvers';
 import { cached, awsCache } from 'node-env-resolver/utils';
 import type { Resolver } from 'node-env-resolver';
@@ -51,9 +51,9 @@ describe('AWS Secrets - Mixed Syntax', () => {
       // Full object syntax for complex validation
       DATABASE_URL: url({ secret: true }),
       REDIS_URL: url({ optional: true }),
-      MAX_CONNECTIONS: { type: 'number', default: 100, min: 1, max: 1000 },
+      MAX_CONNECTIONS: number({ default: 100, min: 1, max: 1000 }),
       LOG_LEVEL: string({ enum: ['debug', 'info', 'warn', 'error'] as const, default: 'info' }),
-      SESSION_TIMEOUT: { type: 'number', default: 3600, min: 60, max: 86400 },
+      SESSION_TIMEOUT: number({ default: 3600, min: 60, max: 86400 }),
     };
 
     const config = await resolveAsync(

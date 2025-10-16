@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { safeResolve, safeResolveAsync } from 'node-env-resolver';
-import { processEnv, string, url } from 'node-env-resolver/resolvers';
+import { number, processEnv, string, url } from 'node-env-resolver/resolvers';
 
 describe('Safe Resolve Demo', () => {
   it('should demonstrate safeResolve vs resolve behavior', () => {
@@ -20,7 +20,7 @@ describe('Safe Resolve Demo', () => {
 
     // ✅ This returns a result object instead of throwing
     const safeResult = safeResolve({
-      PORT: 'number',
+      PORT: number(),
       MISSING_VAR: string(), // This fails validation
     });
 
@@ -29,7 +29,7 @@ describe('Safe Resolve Demo', () => {
 
     // ✅ This works when validation passes
     const successResult = safeResolve({
-      PORT: 'number',
+      PORT: number(),
       NODE_ENV: ['development', 'production', 'test'] as const,
     });
 
@@ -50,7 +50,7 @@ describe('Safe Resolve Demo', () => {
 
     // ✅ Works with resolvers
     const result = safeResolve({
-      PORT: 'number',
+      PORT: number(),
       DEBUG: false, // boolean with default
     });
 

@@ -60,7 +60,6 @@ const config = await resolveAsync([
   }],
   [awsSecrets(), { DATABASE_URL: url() }]);
 
-// Support for unlimited resolver tuples!
 const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [dotenv(), { DATABASE_URL: postgres() }],
@@ -208,17 +207,12 @@ const config = resolve({
 
 **Lightweight** The core library is **~4.3KB gzipped** with validation and resolver capabilities - **optimized for minimal bundle impact**.
 
-### ✨ New: Unlimited Resolver Tuples
-
-The new **generic type system** supports **any number of resolver tuples** - no more fixed limits! Use 3, 4, 5, 10, or even 20+ resolvers in a single `resolveAsync()` call:
-
 ```ts
 import { resolveAsync, processEnv } from 'node-env-resolver';
 import { dotenv, json, postgres, string, redis as redisValidator } from 'node-env-resolver/resolvers';
 import { awsSecrets, gcpSecrets, vaultSecrets } from 'node-env-resolver-aws';
 import { consul, etcd, redis } from 'node-env-resolver-integrations';
 
-// Previously limited to 4 tuples, now supports unlimited!
 const config = await resolveAsync(
   [processEnv(), { PORT: 3000 }],
   [dotenv(), { DATABASE_URL: postgres() }],
@@ -390,8 +384,7 @@ Available validation functions: `validatePostgres`, `validateMysql`, `validateMo
 
 ## Multiple sources
 
-Load configuration from multiple sources with **unlimited resolver tuples**. By default, later sources override earlier ones:
-
+Load configuration from multiple sources. By default, later sources override earlier ones:
 ```ts
 import { resolve, resolveAsync, processEnv } from 'node-env-resolver';
 import { dotenv, json, postgres, string, redis } from 'node-env-resolver/resolvers';
@@ -893,8 +886,8 @@ Performance:
 |----------|-----------|----------|
 | `resolve()` | Sync, throws on error | Most applications (reading from process.env) |
 | `safeResolve()` | Sync, returns result object | Graceful error handling |
-| `resolveAsync()` | Async, throws on error | Multiple sources (dotenv, AWS, etc.) - **supports unlimited resolver tuples** |
-| `safeResolveAsync()` | Async, returns result object | Multiple sources with error handling - **supports unlimited resolver tuples** |
+| `resolveAsync()` | Async, throws on error | Multiple sources (dotenv, AWS, etc.) |
+| `safeResolveAsync()` | Async, returns result object | Multiple sources with error handling |
 
 ### Resolver API Reference
 

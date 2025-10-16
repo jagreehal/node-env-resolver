@@ -80,13 +80,13 @@ describe('Sync Resolvers', () => {
       };
 
       expect(() => {
-        // @ts-expect-error - Testing runtime validation
         resolve([
+          // @ts-expect-error - Testing runtime validation
           asyncOnlyResolver,
           { ASYNC_VAR: string() },
         ]);
       }).toThrow(
-        'resolve() requires at least one [resolver, schema] tuple when using array syntax',
+        'Resolver \'async-only\' does not support synchronous loading',
       );
     });
 
@@ -273,7 +273,7 @@ describe('Sync Resolvers', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toContain(
-          'safeResolve() requires at least one [resolver, schema] tuple when using array syntax',
+          'does not support synchronous loading',
         );
       }
     });
