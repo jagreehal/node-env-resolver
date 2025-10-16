@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "node-env-resolver": "workspace:*",
     "node-env-resolver-vite": "workspace:*"
   },
   "devDependencies": {
