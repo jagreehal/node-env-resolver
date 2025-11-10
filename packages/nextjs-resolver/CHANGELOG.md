@@ -1,5 +1,12 @@
 # Changelog
 
+## 7.0.1
+
+### Patch Changes
+
+- Updated dependencies [b3de856]
+  - node-env-resolver@6.0.1
+
 ## 7.0.0
 
 ### Major Changes
