@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.1
+
+### Patch Changes
+
+- b3de856: - add default exports to each subpath to improve compatibility with bundler-style module resolution
+  - document TypeScript troubleshooting guidance and update usage examples to prefer validator helpers
+
 ## 6.0.0
 
 ### Major Changes
