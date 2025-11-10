@@ -1625,6 +1625,35 @@ if (policyViolations.length > 0) {
 }
 ```
 
+## Troubleshooting
+
+### TypeScript: Cannot find module 'node-env-resolver/validators'
+
+If you're using `moduleResolution: "bundler"` in your `tsconfig.json` and TypeScript can't resolve subpath exports like `node-env-resolver/validators`, this is a known TypeScript limitation (see [TypeScript issue #55337](https://github.com/microsoft/TypeScript/issues/55337)).
+
+**Workaround options:**
+
+1. **Use `moduleResolution: "NodeNext"`** (recommended for most projects):
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext"
+  }
+}
+```
+
+2. **Use `moduleResolution: "Node"`** (legacy but widely supported):
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "Node"
+  }
+}
+```
+
+**Note:** The runtime will work correctly regardless of TypeScript's resolution mode. This is purely a TypeScript type-checking issue, not a runtime problem.
+
 ## Error messages
 
 The library provides clear, actionable error messages:

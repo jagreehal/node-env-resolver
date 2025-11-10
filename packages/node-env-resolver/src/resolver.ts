@@ -87,38 +87,19 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
         ...(validator.secretsDir !== undefined && { secretsDir: validator.secretsDir })
       };
     } else if (typeof value === 'string') {
-      // String shorthand - infer type from string value
-      const knownTypes = ['string', 'number', 'boolean', 'port', 'url', 'email', 'postgres', 'mysql', 'mongodb', 'redis', 'http', 'https', 'json', 'date', 'timestamp', 'duration', 'file'];
-      
-      if (value.endsWith('?')) {
-        // Optional type or string
-        const baseType = value.slice(0, -1);
-        if (knownTypes.includes(baseType)) {
-          normalized[key] = { type: baseType, optional: true };
-        } else {
-          normalized[key] = { type: 'string', optional: true };
-        }
-      } else if (value.includes(':')) {
-        // Type with default value
-        const [type, defaultValue] = value.split(':', 2);
-        normalized[key] = { type, default: defaultValue };
-      } else if (knownTypes.includes(value)) {
-        // Plain type name - use built-in type
-        normalized[key] = { type: value };
-      } else {
-        // Plain string - treat as default value
-        normalized[key] = { 
-          type: 'string', 
-          default: value,
-          validator: (val: string) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if (val === '' && !(normalized[key] as any).allowEmpty) {
-              throw new Error('String cannot be empty');
-            }
-            return val;
+      // String shorthand - treat as default value
+      // For type validators, use the function syntax: url(), string(), etc.
+      normalized[key] = {
+        type: 'string',
+        default: value,
+        validator: (val: string) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (val === '' && !(normalized[key] as any).allowEmpty) {
+            throw new Error('String cannot be empty');
           }
-        };
-      }
+          return val;
+        }
+      };
     } else if (typeof value === 'number') {
       // Number shorthand - use as default value
       normalized[key] = { 

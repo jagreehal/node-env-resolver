@@ -215,8 +215,8 @@ describe('Type override behavior with multiple resolvers', () => {
     const dbUrl: string = typedConfig.DATABASE_URL;     // ✓ TypeScript: string (second schema)
 
     // Verify the actual expanded type - this should work if PORT was string | undefined before merge
-    type FirstSchema = InferSimpleSchema<{ readonly PORT: "string?"; readonly API_KEY: "string" }>;
-    type FirstPortType = FirstSchema['PORT']; // Hover to see: string | undefined
+    type FirstSchema = InferSimpleSchema<{ readonly PORT: ReturnType<typeof string>; readonly API_KEY: ReturnType<typeof string> }>;
+    type FirstPortType = FirstSchema['PORT']; // Hover to see: string | undefined (because optional: true)
     const testUndefined: FirstPortType = undefined as unknown as FirstPortType; // ✓ Works! Proves PORT is string | undefined
     expect(testUndefined).toBeUndefined();
 

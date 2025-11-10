@@ -88,7 +88,7 @@ describe('Simplified resolve() API', () => {
         }, {
           SECRET_KEY: string(),         // required secret
           OPTIONAL_VAR: string({optional:true}),       // optional
-          BOTH: 'string!?',              // secret and optional
+          BOTH: string({optional:true}), // secret and optional
         }]
       ]
     });
@@ -210,7 +210,7 @@ describe('Simplified resolve() API', () => {
           },
         }, {
           CONTACT_EMAIL: email(),
-          SUPPORT_EMAIL: 'email?',
+          SUPPORT_EMAIL: email({ optional: true }),
         }]
       ]
     });
@@ -948,7 +948,7 @@ describe('Connection String Types', () => {
         const config = await resolveAsync({
       resolvers: [
         [mockProvider({}), {
-            OPTIONAL_DATE: 'date?'
+            OPTIONAL_DATE: date({ optional: true })
           }]
       ]
     });
@@ -959,7 +959,7 @@ describe('Connection String Types', () => {
         const config = await resolveAsync({
       resolvers: [
         [mockProvider({}), {
-            TRIAL_END: 'date:2025-12-31'
+            TRIAL_END: date({ default: '2025-12-31' })
           }]
       ]
     });
@@ -1045,7 +1045,7 @@ describe('Connection String Types', () => {
         const config = await resolveAsync({
       resolvers: [
         [mockProvider({}), {
-            OPTIONAL_TS: 'timestamp?'
+            OPTIONAL_TS: timestamp({ optional: true })
           }]
       ]
     });

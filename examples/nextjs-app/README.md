@@ -155,6 +155,7 @@ If you're migrating from other environment variable libraries:
 - import { createEnv } from "@t3-oss/env-nextjs";
 - import { z } from "zod";
 + import { resolve } from "node-env-resolver-nextjs";
++ import { url, string } from "node-env-resolver/validators";
 
 - export const env = createEnv({
 + export const env = resolve({
@@ -162,15 +163,15 @@ If you're migrating from other environment variable libraries:
 -   DATABASE_URL: z.string().url(),
 -   NODE_ENV: z.enum(["development", "production"]),
 -   PORT: z.number().default(3000),
-+   DATABASE_URL: "url!",
++   DATABASE_URL: url(),
 +   NODE_ENV: ["development", "production"] as const,
 +   PORT: 3000,
   },
   client: {
 -   NEXT_PUBLIC_PUBLISHABLE_KEY: z.string().min(1),
 -   NEXT_PUBLIC_GA_ID: z.string().optional(),
-+   NEXT_PUBLIC_PUBLISHABLE_KEY: "string",
-+   NEXT_PUBLIC_GA_ID: "string?",
++   NEXT_PUBLIC_PUBLISHABLE_KEY: string(),
++   NEXT_PUBLIC_GA_ID: string({ optional: true }),
   },
 - runtimeEnv: {
 -   DATABASE_URL: process.env.DATABASE_URL,
