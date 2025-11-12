@@ -27,7 +27,9 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
     async load() {
       try {
         const client = new SecretsManagerClient({
-          region: options.region || process.env.AWS_REGION || 'us-east-1',
+          ...(options.region || process.env.AWS_REGION ? {
+            region: options.region ?? process.env.AWS_REGION,
+          } : {}),
           // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
           // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
           // 2. IAM roles (EC2, Lambda, ECS)
@@ -82,7 +84,9 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
     async load() {
       try {
         const client = new SSMClient({
-          region: options.region || process.env.AWS_REGION || 'us-east-1',
+          ...(options.region || process.env.AWS_REGION ? {
+            region: options.region ?? process.env.AWS_REGION,
+          } : {}),
           // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
           // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
           // 2. IAM roles (EC2, Lambda, ECS)

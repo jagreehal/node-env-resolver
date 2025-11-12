@@ -7,6 +7,10 @@ const nextConfig = {
   // from being bundled for the browser. Environment variables are handled
   // at runtime in the application code instead.
 
+  // Turbopack config (Next.js 16 uses Turbopack by default)
+  // For now, keep empty to acknowledge Turbopack usage
+  turbopack: {},
+
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't bundle Node.js modules for the client
@@ -14,6 +18,7 @@ const nextConfig = {
         ...config.resolve.fallback,
         fs: false,
         path: false,
+        child_process: false,
       };
     }
     return config;
