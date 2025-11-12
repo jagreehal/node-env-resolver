@@ -139,6 +139,7 @@ export const handler = async (event) => {
   // = most invocations get instant config
 };
 ```
+
 ### Best Practices
 
 1. **Always use `cached()` wrapper** when accessing AWS Secrets Manager or SSM
@@ -382,7 +383,7 @@ const config = await resolveAsync({
 ```ts
 interface AwsSecretsOptions {
   secretId: string;              // Secret ID or ARN
-  region?: string;               // AWS region (default: AWS_REGION env var or 'us-east-1')
+  region?: string;               // AWS region (overrides profile/env defaults)
   accessKeyId?: string;          // AWS access key (optional)
   secretAccessKey?: string;      // AWS secret key (optional)
   parseJson?: boolean;           // Parse JSON secrets (default: true)
@@ -394,7 +395,7 @@ interface AwsSecretsOptions {
 ```ts
 interface AwsSsmOptions {
   path: string;                  // Parameter path
-  region?: string;               // AWS region (default: AWS_REGION env var or 'us-east-1')
+  region?: string;               // AWS region (overrides profile/env defaults)
   accessKeyId?: string;          // AWS access key (optional)
   secretAccessKey?: string;      // AWS secret key (optional)
   recursive?: boolean;           // Get all parameters under path (default: false)

@@ -6,23 +6,38 @@ const mockSsmSend = vi.hoisted(() => vi.fn());
 const mockResolveWith = vi.hoisted(() => vi.fn());
 const mockSafeResolveWith = vi.hoisted(() => vi.fn());
 
+// Mock AWS SDK clients - use class constructors that work with 'new'
+// Must be hoisted to be available in vi.mock calls
+const MockSecretsManagerClient = vi.hoisted(() => {
+  return class {
+    send = mockSecretsManagerSend;
+  };
+});
+
+const MockSSMClient = vi.hoisted(() => {
+  return class {
+    send = mockSsmSend;
+  };
+});
+
 import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index';
 import { string, url } from 'node-env-resolver/validators';
 
-// Mock AWS SDK clients
 vi.mock('@aws-sdk/client-secrets-manager', () => ({
-  SecretsManagerClient: vi.fn().mockImplementation(() => ({
-    send: mockSecretsManagerSend,
-  })),
-  GetSecretValueCommand: vi.fn().mockImplementation((input) => ({ input })),
+  SecretsManagerClient: MockSecretsManagerClient,
+  GetSecretValueCommand: class GetSecretValueCommand {
+    constructor(public input: unknown) {}
+  },
 }));
 
 vi.mock('@aws-sdk/client-ssm', () => ({
-  SSMClient: vi.fn().mockImplementation(() => ({
-    send: mockSsmSend,
-  })),
-  GetParametersByPathCommand: vi.fn().mockImplementation((input) => ({ input })),
-  GetParameterCommand: vi.fn().mockImplementation((input) => ({ input })),
+  SSMClient: MockSSMClient,
+  GetParametersByPathCommand: class GetParametersByPathCommand {
+    constructor(public input: unknown) {}
+  },
+  GetParameterCommand: class GetParameterCommand {
+    constructor(public input: unknown) {}
+  },
 }));
 
 // Mock node-env-resolver
