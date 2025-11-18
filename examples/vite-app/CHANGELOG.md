@@ -1,5 +1,13 @@
 # vite-app-example
 
+## 1.0.5
+
+### Patch Changes
+
+- Updated dependencies [e71a403]
+  - node-env-resolver@6.1.0
+  - node-env-resolver-vite@2.1.0
+
 ## 1.0.4
 
 ### Patch Changes
