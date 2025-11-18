@@ -1236,6 +1236,82 @@ export function oneOf<
 }
 
 /**
+ * Enum validator - validates that a value is one of the allowed values
+ * This is an alias for `oneOf()` with a more descriptive name for enum validation
+ *
+ * @param values Array of allowed values
+ * @param opts Validation options (optional, default)
+ * @returns Enum validator
+ *
+ * @example
+ * ```ts
+ * import { enumOf } from 'node-env-resolver/validators';
+ *
+ * const config = resolve({
+ *   NODE_ENV: enumOf(['development', 'production', 'test'] as const),
+ *   LOG_LEVEL: enumOf(['error', 'warn', 'info', 'debug'] as const, { optional: true }),
+ *   PROTOCOL: enumOf(['http', 'grpc'] as const, { default: 'http' }),
+ * });
+ * // config.NODE_ENV is typed as 'development' | 'production' | 'test'
+ * // config.LOG_LEVEL is typed as 'error' | 'warn' | 'info' | 'debug' | undefined
+ * // config.PROTOCOL is typed as 'http' | 'grpc'
+ * ```
+ */
+export function enumOf<
+  T extends readonly (string | number)[],
+  Opts extends {
+    /** Default value if not provided */
+    default?: T[number];
+    /** Make the field optional */
+    optional?: boolean
+  } = Record<string, never>,
+>(
+  values: T,
+  opts?: Opts,
+): Opts extends { optional: true }
+  ? Validator<T[number]> & { optional: true; default?: Opts['default'] }
+  : Validator<T[number]> & {
+      optional?: Opts['optional'];
+      default?: Opts['default'];
+    } {
+  return oneOf(values, opts);
+}
+
+/**
+ * Marks an array enum as optional
+ * Allows the array literal syntax to support optional values
+ *
+ * @param values Array of enum values to mark as optional
+ * @returns The same array with optional metadata attached
+ *
+ * @example
+ * ```ts
+ * import { optional } from 'node-env-resolver/validators';
+ *
+ * const config = resolve({
+ *   // Required enum (must be set to one of these values)
+ *   NODE_ENV: ['development', 'production', 'test'] as const,
+ *
+ *   // Optional enum (can be undefined or one of these values)
+ *   PROTOCOL: optional(['http', 'grpc'] as const),
+ *   LOG_LEVEL: optional(['error', 'warn', 'info', 'debug'] as const),
+ * });
+ * // config.NODE_ENV is typed as 'development' | 'production' | 'test'
+ * // config.PROTOCOL is typed as 'http' | 'grpc' | undefined
+ * // config.LOG_LEVEL is typed as 'error' | 'warn' | 'info' | 'debug' | undefined
+ * ```
+ */
+export function optional<T extends readonly (string | number)[]>(
+  values: T,
+): T & { __optional: true } {
+  // Create a new array with the same values to avoid mutating the original
+  const wrapped = [...values] as unknown as T & { __optional: true };
+  // Attach the optional marker
+  (wrapped as { __optional: true }).__optional = true;
+  return wrapped;
+}
+
+/**
  * Duration validator with time unit parsing
  * Converts duration strings to milliseconds
  * Supports: s (seconds), m (minutes), h (hours), d (days)

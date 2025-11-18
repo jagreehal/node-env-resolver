@@ -20,7 +20,9 @@ export type InferSimpleValue<V> =
     : V extends boolean
     ? boolean
     : V extends readonly (infer U)[]
-    ? U
+    ? V extends { __optional: true }
+      ? U | undefined
+      : U
     : V extends string
     ? string
     : never;

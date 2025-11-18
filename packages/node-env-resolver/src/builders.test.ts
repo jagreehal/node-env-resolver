@@ -9,6 +9,8 @@ import {
   port,
   custom,
   oneOf,
+  enumOf,
+  optional,
   stringArray,
   numberArray,
 } from './validators';
@@ -218,6 +220,90 @@ describe('Builder Functions', () => {
     });
 
     expect(config.NODE_ENV).toBe('production');
+  });
+
+  it('should handle enumOf builder with optional', async () => {
+    const mockProvider = {
+      name: 'mock',
+      async load() {
+        return {
+          NODE_ENV: 'production',
+        };
+      },
+    };
+
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          NODE_ENV: enumOf(['development', 'production', 'test'] as const),
+          PROTOCOL: enumOf(['http', 'grpc'] as const, { optional: true }),
+        }]
+      ]
+    });
+
+    expect(config.NODE_ENV).toBe('production');
+    expect(config.PROTOCOL).toBeUndefined();
+  });
+
+  it('should handle enumOf with default value', async () => {
+    const mockProvider = {
+      name: 'mock',
+      async load() {
+        return {};
+      },
+    };
+
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          PROTOCOL: enumOf(['http', 'grpc'] as const, { default: 'http' }),
+        }]
+      ]
+    });
+
+    expect(config.PROTOCOL).toBe('http');
+  });
+
+  it('should handle optional() wrapper for array enums', async () => {
+    const mockProvider = {
+      name: 'mock',
+      async load() {
+        return {
+          LOG_LEVEL: 'info',
+        };
+      },
+    };
+
+    const config = await resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          LOG_LEVEL: optional(['error', 'warn', 'info', 'debug'] as const),
+          PROTOCOL: optional(['http', 'grpc'] as const),
+        }]
+      ]
+    });
+
+    expect(config.LOG_LEVEL).toBe('info');
+    expect(config.PROTOCOL).toBeUndefined();
+  });
+
+  it('should validate enum values with optional() wrapper', async () => {
+    const mockProvider = {
+      name: 'mock',
+      async load() {
+        return {
+          PROTOCOL: 'invalid',
+        };
+      },
+    };
+
+    await expect(resolveAsync({
+      resolvers: [
+        [mockProvider, {
+          PROTOCOL: optional(['http', 'grpc'] as const),
+        }]
+      ]
+    })).rejects.toThrow('PROTOCOL must be one of: http, grpc');
   });
 
   it('should handle array type builders', async () => {

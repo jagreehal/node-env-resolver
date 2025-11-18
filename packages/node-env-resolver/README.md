@@ -104,7 +104,8 @@ const config = await resolveAsync({
   - [Required values](#required-values)
   - [Default values](#default-values)
   - [Optional values](#optional-values)
-  - [OneOf](#oneOf)
+  - [Enums](#enums)
+  - [Optional Enums](#optional-enums)
 - [Variable Naming Conventions](#variable-naming-conventions)
 - [Performance & Bundle Size](#performance--bundle-size)
 - [Custom validators](#custom-validators)
@@ -164,7 +165,7 @@ const config = resolve({
 });
 ```
 
-### OneOf
+### Enums
 
 Use arrays for enum validation:
 
@@ -179,6 +180,35 @@ const config = resolve({
 // TypeScript knows the exact types
 config.NODE_ENV;  // 'development' | 'production' | 'test'
 config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
+```
+
+### Optional Enums
+
+Make enum values optional using the `optional()` wrapper or `enumOf()` function:
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { optional, enumOf } from 'node-env-resolver/validators';
+
+const config = resolve({
+  // Required enum (must be set to one of these values)
+  NODE_ENV: ['development', 'production', 'test'] as const,
+
+  // Optional enum - Method 1: optional() wrapper (clean syntax)
+  PROTOCOL: optional(['http', 'grpc'] as const),
+
+  // Optional enum - Method 2: enumOf() function (explicit)
+  LOG_LEVEL: enumOf(['error', 'warn', 'info', 'debug'] as const, { optional: true }),
+
+  // Enum with default value
+  COMPRESSION: enumOf(['gzip', 'brotli', 'none'] as const, { default: 'gzip' }),
+});
+
+// TypeScript infers the correct types:
+// config.NODE_ENV: 'development' | 'production' | 'test'
+// config.PROTOCOL: 'http' | 'grpc' | undefined
+// config.LOG_LEVEL: 'error' | 'warn' | 'info' | 'debug' | undefined
+// config.COMPRESSION: 'gzip' | 'brotli' | 'none'
 ```
 
 ## Variable Naming Conventions
@@ -1003,7 +1033,12 @@ import {
 | `3000` | `number` | Number with default value |
 | `false` | `boolean` | Boolean with default value |
 | `'defaultValue'` | `string` | String with default value |
-| `['a', 'b'] as const` | `'a' \| 'b'` | Enum (requires `as const`) |
+| `['a', 'b'] as const` | `'a' \| 'b'` | Required enum (requires `as const`) |
+| `optional(['a', 'b'] as const)` | `'a' \| 'b' \| undefined` | Optional enum (clean syntax) |
+| `enumOf(['a', 'b'] as const)` | `'a' \| 'b'` | Required enum (explicit function) |
+| `enumOf(['a', 'b'] as const, {optional: true})` | `'a' \| 'b' \| undefined` | Optional enum (explicit function) |
+| `enumOf(['a', 'b'] as const, {default: 'a'})` | `'a' \| 'b'` | Enum with default value |
+| `oneOf(['a', 'b'] as const)` | `'a' \| 'b'` | Alias for enumOf (backward compatible) |
 
 ## Configuration Options
 
