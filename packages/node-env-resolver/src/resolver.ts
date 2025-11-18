@@ -132,9 +132,13 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
     } else if (Array.isArray(value)) {
       // Array shorthand - use as enum with validation
       const enumValues = value.map(String);
-      normalized[key] = { 
-        type: 'string', 
+      // Check if the array has been marked as optional using the optional() wrapper
+      const isOptional = (value as { __optional?: boolean }).__optional === true;
+
+      normalized[key] = {
+        type: 'string',
         enum: enumValues,
+        optional: isOptional,
         validator: (val: string, envKey?: string) => {
           if (!enumValues.includes(val)) {
             const keyName = envKey || key;

@@ -16,7 +16,7 @@ npm install node-env-resolver
 
 ```ts
 import { resolve } from 'node-env-resolver';
-import { string } from 'node-env-resolver/resolvers';
+import { string } from 'node-env-resolver/validators';
 
 const config = resolve({
   PORT: 3000,
@@ -44,7 +44,8 @@ config.API_KEY;      // string | undefined
 
 ```ts
 import { resolve, resolveAsync } from 'node-env-resolver';
-import { processEnv, dotenv, string, url, postgres, redis } from 'node-env-resolver/resolvers';
+import { processEnv, dotenv } from 'node-env-resolver/resolvers';
+import { string, url, postgres, redis } from 'node-env-resolver/validators';
 import { awsSecrets, gcpSecrets, vaultSecrets } from 'node-env-resolver-aws';
 
 // Synchronous with custom resolver (object syntax)
@@ -103,7 +104,8 @@ const config = await resolveAsync({
   - [Required values](#required-values)
   - [Default values](#default-values)
   - [Optional values](#optional-values)
-  - [Enums](#oneOf)
+  - [Enums](#enums)
+  - [Optional Enums](#optional-enums)
 - [Variable Naming Conventions](#variable-naming-conventions)
 - [Performance & Bundle Size](#performance--bundle-size)
 - [Custom validators](#custom-validators)
@@ -127,7 +129,7 @@ If an environment variable is missing and has no default, validation fails:
 
 ```ts
 import { resolve } from 'node-env-resolver';
-import { postgres, string } from 'node-env-resolver/resolvers';
+import { postgres, string } from 'node-env-resolver/validators';
 
 const config = resolve({
   DATABASE_URL: postgres(),  // Required PostgreSQL URL
@@ -154,7 +156,7 @@ const config = resolve({
 Use the `{optional: true}` option to make a value optional:
 
 ```ts
-import { string, url, number } from 'node-env-resolver/resolvers';
+import { string, url, number } from 'node-env-resolver/validators';
 
 const config = resolve({
   API_KEY: string({optional: true}),    // string | undefined
@@ -178,6 +180,35 @@ const config = resolve({
 // TypeScript knows the exact types
 config.NODE_ENV;  // 'development' | 'production' | 'test'
 config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
+```
+
+### Optional Enums
+
+Make enum values optional using the `optional()` wrapper or `enumOf()` function:
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { optional, enumOf } from 'node-env-resolver/validators';
+
+const config = resolve({
+  // Required enum (must be set to one of these values)
+  NODE_ENV: ['development', 'production', 'test'] as const,
+
+  // Optional enum - Method 1: optional() wrapper (clean syntax)
+  PROTOCOL: optional(['http', 'grpc'] as const),
+
+  // Optional enum - Method 2: enumOf() function (explicit)
+  LOG_LEVEL: enumOf(['error', 'warn', 'info', 'debug'] as const, { optional: true }),
+
+  // Enum with default value
+  COMPRESSION: enumOf(['gzip', 'brotli', 'none'] as const, { default: 'gzip' }),
+});
+
+// TypeScript infers the correct types:
+// config.NODE_ENV: 'development' | 'production' | 'test'
+// config.PROTOCOL: 'http' | 'grpc' | undefined
+// config.LOG_LEVEL: 'error' | 'warn' | 'info' | 'debug' | undefined
+// config.COMPRESSION: 'gzip' | 'brotli' | 'none'
 ```
 
 ## Variable Naming Conventions
@@ -958,14 +989,15 @@ const resolver = cached(awsSecrets(), {
 
 ### Resolver API Reference
 
-Import resolver functions from `'node-env-resolver/resolvers'`:
+Import validator functions from `'node-env-resolver/validators'`:
 
 ```ts
 import {
   string, number, boolean, url, email, port, json,
   postgres, mysql, mongodb, redis,
-  http, https, date, timestamp, duration, file
-} from 'node-env-resolver/resolvers';
+  http, https, date, timestamp, duration, file,
+  enumOf, optional, oneOf
+} from 'node-env-resolver/validators';
 ```
 
 | Syntax | Type | Description |
@@ -994,7 +1026,12 @@ import {
 | `3000` | `number` | Number with default value |
 | `false` | `boolean` | Boolean with default value |
 | `'defaultValue'` | `string` | String with default value |
-| `['a', 'b'] as const` | `'a' \| 'b'` | Enum (requires `as const`) |
+| `['a', 'b'] as const` | `'a' \| 'b'` | Required enum (requires `as const`) |
+| `optional(['a', 'b'] as const)` | `'a' \| 'b' \| undefined` | Optional enum (clean syntax) |
+| `enumOf(['a', 'b'] as const)` | `'a' \| 'b'` | Required enum (explicit function) |
+| `enumOf(['a', 'b'] as const, {optional: true})` | `'a' \| 'b' \| undefined` | Optional enum (explicit function) |
+| `enumOf(['a', 'b'] as const, {default: 'a'})` | `'a' \| 'b'` | Enum with default value |
+| `oneOf(['a', 'b'] as const)` | `'a' \| 'b'` | Alias for enumOf (backward compatible) |
 
 ## Configuration Options
 
