@@ -26,6 +26,7 @@ import type {
   ResolveAsyncConfigWithSchema,
   SimpleEnvSchema,
   InferSimpleValue,
+  InferMergedSchemaResult,
 } from './types';
 
 // Re-export all types
@@ -131,10 +132,14 @@ function resolve<T extends SimpleEnvSchema>(
 function resolve<T extends SimpleEnvSchema>(
   config: { resolvers: readonly [[SyncResolver, T]]; options?: Partial<ResolveOptions> }
 ): { [K in keyof T]: InferSimpleValue<T[K]> };
-// Object-based config with multiple resolvers - use explicit typing
+// Object-based config with explicit type parameter and multiple resolvers
 function resolve<T extends SimpleEnvSchema>(
-  config: { resolvers: readonly [SyncResolver, SimpleEnvSchema][]; options?: Partial<ResolveOptions> }
+  config: { resolvers: readonly [SyncResolver, T][]; options?: Partial<ResolveOptions> }
 ): { [K in keyof T]: InferSimpleValue<T[K]> };
+// Object-based config with multiple resolvers - infer merged schema from resolver tuples
+function resolve<T extends readonly [SyncResolver, SimpleEnvSchema][]>(
+  config: { resolvers: T; options?: Partial<ResolveOptions> }
+): InferMergedSchemaResult<T>;
 // Implementation
 function resolve(arg1: unknown, arg2?: unknown): unknown {
   let schema: SimpleEnvSchema;
@@ -263,10 +268,15 @@ async function resolveAsync<T extends SimpleEnvSchema>(
 async function resolveAsync<T extends SimpleEnvSchema>(
   config: { resolvers: readonly [[Resolver, T]]; options?: Partial<ResolveOptions> }
 ): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
-// Object-based config with multiple resolvers - use explicit typing
+// Object-based config with explicit type parameter and multiple resolvers
+// This allows: resolveAsync<typeof schema>({ resolvers: [...] })
 async function resolveAsync<T extends SimpleEnvSchema>(
-  config: { resolvers: readonly [Resolver, SimpleEnvSchema][]; options?: Partial<ResolveOptions> }
+  config: { resolvers: readonly [Resolver, T][]; options?: Partial<ResolveOptions> }
 ): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
+// Object-based config with multiple resolvers - infer merged schema from resolver tuples
+async function resolveAsync<T extends readonly [Resolver, SimpleEnvSchema][]>(
+  config: { resolvers: T; options?: Partial<ResolveOptions> }
+): Promise<InferMergedSchemaResult<T>>;
 // Implementation
 async function resolveAsync(
   config: ResolveAsyncConfig
