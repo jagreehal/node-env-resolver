@@ -1,5 +1,16 @@
 # Changelog
 
+## 7.1.1
+
+### Patch Changes
+
+- 6324d89: - refresh third-party dependencies (aws-sdk, next, vite) to pick up
+  security and bug fixes
+  - align core resolver package with the updated adapters so consumers get
+    consistent peer ranges on install
+- Updated dependencies [6324d89]
+  - node-env-resolver@6.1.1
+
 ## 7.1.0
 
 ### Minor Changes

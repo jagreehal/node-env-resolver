@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver",
-  "version": "6.1.0",
+  "version": "6.1.1",
   "description": "Type-safe environment variable resolver with async resolvers - lightweight, tree-shakeable, no dependencies",
   "type": "module",
   "main": "./dist/index.js",
