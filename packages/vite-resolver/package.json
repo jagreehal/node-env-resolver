@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver-vite",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Zero-config Vite integration for node-env-resolver with client/server split",
   "type": "module",
   "main": "./dist/index.js",
