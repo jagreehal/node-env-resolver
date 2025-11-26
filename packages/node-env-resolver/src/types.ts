@@ -85,8 +85,36 @@ export type SafeResolveResultType<T> =
   | { success: true; data: T }
   | { success: false; error: string; details?: unknown };
 
-// Simplified approach: for multiple resolvers, we'll use a more explicit type
-// This ensures type safety while being practical
+// Extract schema type from a resolver tuple [Resolver, Schema]
+type ExtractSchema<T> = T extends readonly [unknown, infer S] ? S : never;
+
+// Helper: Convert union to intersection
+// UnionToIntersection<A | B | C> = A & B & C
+type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void
+  ? I
+  : never;
+
+// For arrays/tuples of resolver pairs: extract all schemas as a union
+// Then convert to intersection to merge them
+type ExtractSchemasUnion<T> = T extends readonly (infer E)[]
+  ? E extends readonly [unknown, infer S]
+    ? S extends SimpleEnvSchema
+      ? S
+      : never
+    : never
+  : never;
+
+// Merge all schemas from resolver array into a single intersection type
+type MergedSchema<T> = UnionToIntersection<ExtractSchemasUnion<T>>;
+
+// Infer the result type from merged schemas, applying InferSimpleValue to each property
+// This handles multiple resolvers with same or different schemas
+type InferMergedSchemaResult<T extends readonly [unknown, SimpleEnvSchema][]> =
+  MergedSchema<T> extends SimpleEnvSchema
+    ? { [K in keyof MergedSchema<T>]: InferSimpleValue<MergedSchema<T>[K]> }
+    : Record<string, unknown>;
+
+// Legacy type - kept for backward compatibility
 type InferMergedSchema<T extends readonly [unknown, SimpleEnvSchema][]> = T extends readonly [
   unknown,
   infer S1,
@@ -99,8 +127,8 @@ type InferMergedSchema<T extends readonly [unknown, SimpleEnvSchema][]> = T exte
   ? S
   : Record<string, never>;
 
-// Export the merge type for use in function overloads
-export type { InferMergedSchema };
+// Export the merge types for use in function overloads
+export type { InferMergedSchema, InferMergedSchemaResult, MergedSchema, ExtractSchema, UnionToIntersection };
 
 // New object-based API configuration types
 export interface ResolveConfig<T extends SimpleEnvSchema = SimpleEnvSchema> {
