@@ -84,6 +84,18 @@ jobs:
           git tag "v$VERSION"
           git push origin "v$VERSION"
 
-      - name: Publish packages
+      - name: Verify npm authentication
+        if: |
+          (steps.changesets.outputs.has_changesets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "Verifying npm authentication..."
+          npm whoami || echo "Note: npm whoami may fail with OIDC, but publishing should still work"
+
+      - name: Publish packages (after versioning on main)
+        if: steps.changesets.outputs.has_changesets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: pnpm changeset publish
+
+      - name: Publish packages (on tag push)
         if: startsWith(github.ref, 'refs/tags/v')
         run: pnpm changeset publish
