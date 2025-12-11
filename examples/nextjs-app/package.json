@@ -12,17 +12,17 @@
     "env:codegen": "ner codegen"
   },
   "dependencies": {
-    "next": "16.0.4",
+    "next": "16.0.8",
     "react": "^19",
     "react-dom": "^19",
     "node-env-resolver-nextjs": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24",
+    "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.4",
+    "eslint-config-next": "16.0.8",
     "typescript": "^5"
   },
   "engines": {

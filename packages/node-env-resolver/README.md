@@ -12,6 +12,41 @@ Type-safe environment variable resolution with zero dependencies and ultra-small
 npm install node-env-resolver
 ```
 
+### TypeScript Configuration
+
+This package uses modern [package.json `exports`](https://nodejs.org/api/packages.html#exports) for subpath imports (like `node-env-resolver/resolvers`). Your `tsconfig.json` must use a modern module resolution strategy.
+
+**What to change:**
+
+If your `tsconfig.json` has:
+```json
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node"
+  }
+}
+```
+
+**Change it to:**
+```json
+{
+  "compilerOptions": {
+    "module": "NodeNext",        // Changed from "CommonJS"
+    "moduleResolution": "NodeNext" // Changed from "node"
+  }
+}
+```
+
+**Alternative options:**
+- For bundler projects (Vite, Webpack, etc.): Use `"moduleResolution": "bundler"` (you can keep `"module": "CommonJS"` or use `"ESNext"`)
+- For Node.js projects: Use `"moduleResolution": "node16"` with `"module": "node16"`
+
+**Required values:** `"node16"`, `"nodenext"`, or `"bundler"`  
+**Not supported:** `"node"` (legacy resolution doesn't understand exports)
+
+If you see module resolution errors, see the [Troubleshooting](#troubleshooting) section below.
+
 ## Quick start (uses process.env)
 
 ```ts
@@ -1662,32 +1697,68 @@ if (policyViolations.length > 0) {
 
 ## Troubleshooting
 
-### TypeScript: Cannot find module 'node-env-resolver/validators'
+### TypeScript: Cannot find module 'node-env-resolver/resolvers' or 'node-env-resolver/validators'
 
-If you're using `moduleResolution: "bundler"` in your `tsconfig.json` and TypeScript can't resolve subpath exports like `node-env-resolver/validators`, this is a known TypeScript limitation (see [TypeScript issue #55337](https://github.com/microsoft/TypeScript/issues/55337)).
+This package uses modern [package.json `exports`](https://nodejs.org/api/packages.html#exports) for subpath exports (like `node-env-resolver/resolvers`). TypeScript requires a modern module resolution strategy to understand these exports.
 
-**Workaround options:**
+**If you see this error:**
+```
+Cannot find module 'node-env-resolver/resolvers' or its corresponding type declarations.
+There are types at '.../node_modules/node-env-resolver/dist/resolvers.d.ts', 
+but this result could not be resolved under your current 'moduleResolution' setting.
+Consider updating to 'node16', 'nodenext', or 'bundler'.
+```
 
-1. **Use `moduleResolution: "NodeNext"`** (recommended for most projects):
+**Solution:** Update your `tsconfig.json` to use a modern module resolution strategy.
+
+**Example - if your config currently has:**
 ```json
 {
   "compilerOptions": {
-    "moduleResolution": "NodeNext",
-    "module": "NodeNext"
+    "module": "CommonJS",
+    "moduleResolution": "node"
   }
 }
 ```
 
-2. **Use `moduleResolution: "Node"`** (legacy but widely supported):
+**Change to one of these options:**
+
+1. **`moduleResolution: "NodeNext"`** (recommended for most Node.js projects):
 ```json
 {
   "compilerOptions": {
-    "moduleResolution": "Node"
+    "module": "NodeNext",        // Changed from "CommonJS"
+    "moduleResolution": "NodeNext" // Changed from "node"
   }
 }
 ```
 
-**Note:** The runtime will work correctly regardless of TypeScript's resolution mode. This is purely a TypeScript type-checking issue, not a runtime problem.
+2. **`moduleResolution: "bundler"`** (for bundler-based projects like Vite, Webpack, etc.):
+```json
+{
+  "compilerOptions": {
+    "module": "CommonJS",         // Can keep this or use "ESNext"
+    "moduleResolution": "bundler" // Changed from "node"
+  }
+}
+```
+
+3. **`moduleResolution: "node16"`** (alternative to NodeNext):
+```json
+{
+  "compilerOptions": {
+    "module": "node16",           // Changed from "CommonJS"
+    "moduleResolution": "node16"  // Changed from "node"
+  }
+}
+```
+
+**Why this is required:**
+- The legacy `moduleResolution: "node"` strategy doesn't understand package.json `exports` field
+- Modern resolution strategies (`node16`, `nodenext`, `bundler`) properly support subpath exports
+- This is a TypeScript configuration requirement, not a runtime issue - your code will run correctly regardless
+
+**Note:** The runtime will work correctly regardless of TypeScript's resolution mode. This is purely a TypeScript type-checking issue.
 
 ## Error messages
 
