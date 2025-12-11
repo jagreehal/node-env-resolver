@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver-aws",
-  "version": "9.0.1",
+  "version": "9.1.0",
   "description": "AWS resolvers for node-env-resolver (Secrets Manager, SSM Parameter Store)",
   "type": "module",
   "main": "./dist/index.js",

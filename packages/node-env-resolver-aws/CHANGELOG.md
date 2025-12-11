@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.1.0
+
+### Minor Changes
+
+- f5bd404: Add CommonJS (CJS) support alongside ESM. The package now builds both formats, allowing it to be used in both ESM and CommonJS environments. Updated build configuration to match the main `node-env-resolver` package.
+
 ## 9.0.1
 
 ### Patch Changes
