@@ -1,31 +1,26 @@
-name: Publish Package
+name: Release
 
 on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
 
 permissions:
-  id-token: write  # Required for OIDC
-  contents: write  # Required to commit version bumps and create tags
+  id-token: write      # Required for OIDC provenance
+  contents: write      # Required for creating releases/tags
+  pull-requests: write # Required for creating Version Packages PR
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      # Ensure npm 11.5.1 or later is installed
       - name: Update npm
         run: npm install -g npm@latest
 
@@ -52,50 +47,10 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Check for changesets
-        id: changesets
-        run: |
-          if [ -n "$(find .changeset -name '*.md' -type f ! -name 'README.md' ! -name 'config.json')" ]; then
-            echo "has_changesets=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changesets=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Version packages
-        if: steps.changesets.outputs.has_changesets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: pnpm changeset version
+      - name: Create Release PR or Publish
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release
+          version: pnpm changeset version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit version bumps
-        if: steps.changesets.outputs.has_changesets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add .
-          git commit -m "chore: version packages" || exit 0
-          git push
-
-      - name: Create and push version tag
-        if: steps.changesets.outputs.has_changesets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          # Get the latest version from any package.json
-          VERSION=$(node -p "require('./packages/node-env-resolver/package.json').version")
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
-
-      - name: Verify npm authentication
-        if: |
-          (steps.changesets.outputs.has_changesets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-          startsWith(github.ref, 'refs/tags/v')
-        run: |
-          echo "Verifying npm authentication..."
-          npm whoami || echo "Note: npm whoami may fail with OIDC, but publishing should still work"
-
-      - name: Publish packages (after versioning on main)
-        if: steps.changesets.outputs.has_changesets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: pnpm changeset publish
-
-      - name: Publish packages (on tag push)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: pnpm changeset publish
