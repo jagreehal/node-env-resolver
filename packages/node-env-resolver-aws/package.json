@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver-aws",
-  "version": "8.0.1",
+  "version": "9.0.0",
   "description": "AWS resolvers for node-env-resolver (Secrets Manager, SSM Parameter Store)",
   "type": "module",
   "main": "./dist/index.js",
@@ -13,7 +13,9 @@
   },
   "typesVersions": {
     "*": {
-      "*": ["./dist/index.d.ts"]
+      "*": [
+        "./dist/index.d.ts"
+      ]
     }
   },
   "files": [
@@ -53,7 +55,7 @@
     "@aws-sdk/client-ssm": "^3.948.0"
   },
   "peerDependencies": {
-    "node-env-resolver": "^6.1.1"
+    "node-env-resolver": "^6.2.0"
   },
   "publishConfig": {
     "access": "public"

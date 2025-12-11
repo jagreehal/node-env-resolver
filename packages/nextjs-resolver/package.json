@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver-nextjs",
-  "version": "7.1.1",
+  "version": "7.2.0",
   "description": "Zero-config Next.js integration for node-env-resolver with client/server split and App Router support",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,9 +25,15 @@
   },
   "typesVersions": {
     "*": {
-      "client": ["./dist/client.d.ts"],
-      "server": ["./dist/server.d.ts"],
-      "config": ["./dist/config.d.ts"]
+      "client": [
+        "./dist/client.d.ts"
+      ],
+      "server": [
+        "./dist/server.d.ts"
+      ],
+      "config": [
+        "./dist/config.d.ts"
+      ]
     }
   },
   "files": [

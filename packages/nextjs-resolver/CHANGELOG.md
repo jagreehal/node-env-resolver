@@ -1,5 +1,22 @@
 # Changelog
 
+## 7.2.0
+
+### Minor Changes
+
+- 65e07aa: Improved TypeScript compatibility and developer experience
+  - Added `typesVersions` field to package.json for better TypeScript compatibility with older resolution strategies
+  - Enhanced README with clear TypeScript configuration instructions and concrete examples
+  - Added repository field to package.json for better discoverability
+  - Improved troubleshooting section with specific before/after examples for common tsconfig.json setups
+
+  This helps users who encounter module resolution errors by providing clear guidance on updating their `moduleResolution` setting from `"node"` to `"NodeNext"`, `"node16"`, or `"bundler"`.
+
+### Patch Changes
+
+- Updated dependencies [65e07aa]
+  - node-env-resolver@6.2.0
+
 ## 7.1.1
 
 ### Patch Changes
