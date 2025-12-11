@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.1.1
+
+### Patch Changes
+
+- 8734f31: bumping version for publish
+
 ## 9.1.0
 
 ### Minor Changes
