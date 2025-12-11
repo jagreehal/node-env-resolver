@@ -1,27 +1,28 @@
-name: Release
+name: Publish Package
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
 
 jobs:
-  release:
-    name: Release
+  publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Ensure npm 11.5.1 or later is installed
+      - name: Update npm
+        run: npm install -g npm@latest
 
       - name: Enable Corepack
         run: corepack enable
@@ -40,13 +41,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create Release Pull Request or Publish to npm
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          publish: pnpm release
-          commit: "chore: release packages"
-          title: "chore: release packages"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Publish packages
+        run: pnpm release
