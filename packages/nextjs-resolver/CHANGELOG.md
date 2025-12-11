@@ -1,5 +1,13 @@
 # Changelog
 
+## 7.2.1
+
+### Patch Changes
+
+- 3693ad3: Update release workflow to use trusted publishing with OIDC
+- Updated dependencies [3693ad3]
+  - node-env-resolver@6.2.1
+
 ## 7.2.0
 
 ### Minor Changes

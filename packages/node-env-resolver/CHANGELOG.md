@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.2.1
+
+### Patch Changes
+
+- 3693ad3: Update release workflow to use trusted publishing with OIDC
+
 ## 6.2.0
 
 ### Minor Changes

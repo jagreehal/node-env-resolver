@@ -1,5 +1,12 @@
 # nextjs-env-resolver-example
 
+## 0.0.17
+
+### Patch Changes
+
+- Updated dependencies [3693ad3]
+  - node-env-resolver-nextjs@7.2.1
+
 ## 0.0.16
 
 ### Patch Changes
