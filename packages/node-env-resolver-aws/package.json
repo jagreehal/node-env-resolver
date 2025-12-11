@@ -8,7 +8,9 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "typesVersions": {
@@ -23,7 +25,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "NODE_ENV=production tsup",
+    "build:dev": "tsup",
+    "build:dts": "tsc --emitDeclarationOnly",
     "type-check": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src/",
     "test": "vitest run",
