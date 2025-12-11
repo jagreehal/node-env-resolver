@@ -79,6 +79,21 @@
       "default": "./dist/types.js"
     }
   },
+  "typesVersions": {
+    "*": {
+      "resolvers": ["./dist/resolvers.d.ts"],
+      "validators": ["./dist/validators.d.ts"],
+      "utils": ["./dist/utils.d.ts"],
+      "builder": ["./dist/builder.d.ts"],
+      "zod": ["./dist/zod.d.ts"],
+      "valibot": ["./dist/valibot.d.ts"],
+      "web": ["./dist/web.d.ts"],
+      "cli": ["./dist/cli.d.ts"],
+      "audit": ["./dist/audit.d.ts"],
+      "resolver": ["./dist/resolver.d.ts"],
+      "types": ["./dist/types.d.ts"]
+    }
+  },
   "files": [
     "dist",
     "README.md"
@@ -113,6 +128,11 @@
     "url": "https://jagreehal.com"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jagreehal/node-env-resolver.git",
+    "directory": "packages/node-env-resolver"
+  },
   "sideEffects": false,
   "publishConfig": {
     "access": "public"
@@ -122,15 +142,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/node": "^24.10.1",
-    "@typescript-eslint/eslint-plugin": "^8.48.0",
-    "@typescript-eslint/parser": "^8.48.0",
+    "@types/node": "^25.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-zod": "^1.2.1",
-    "prettier": "^3.6.2",
+    "prettier": "^3.7.4",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.15"
   }
 }

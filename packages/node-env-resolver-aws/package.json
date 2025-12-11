@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "typesVersions": {
+    "*": {
+      "*": ["./dist/index.d.ts"]
+    }
+  },
   "files": [
     "dist",
     "README.md"
@@ -44,8 +49,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "^3.940.0",
-    "@aws-sdk/client-ssm": "^3.940.0"
+    "@aws-sdk/client-secrets-manager": "^3.948.0",
+    "@aws-sdk/client-ssm": "^3.948.0"
   },
   "peerDependencies": {
     "node-env-resolver": "^6.1.1"
@@ -56,14 +61,14 @@
   "devDependencies": {
     "node-env-resolver": "workspace:*",
     "@eslint/js": "^9.39.1",
-    "@types/node": "^24.10.1",
-    "@typescript-eslint/eslint-plugin": "^8.48.0",
-    "@typescript-eslint/parser": "^8.48.0",
+    "@types/node": "^25.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.6.2",
+    "prettier": "^3.7.4",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.15"
   }
 }
