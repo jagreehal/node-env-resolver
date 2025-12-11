@@ -46,6 +46,11 @@
     "url": "https://jagreehal.com"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jagreehal/node-env-resolver.git",
+    "directory": "packages/node-env-resolver-aws"
+  },
   "sideEffects": false,
   "engines": {
     "node": ">=18"
