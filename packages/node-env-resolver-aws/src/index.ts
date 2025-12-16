@@ -6,9 +6,10 @@
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParametersByPathCommand, GetParameterCommand } from '@aws-sdk/client-ssm';
 import type { Resolver, SimpleEnvSchema, InferSimpleSchema, ResolveOptions, SafeResolveResultType } from 'node-env-resolver';
+import { resolveAsync, safeResolveAsync } from 'node-env-resolver';
 
 // Re-export main functions for convenience (same as nextjs package pattern)
-export { resolveAsync, safeResolveAsync } from 'node-env-resolver';
+export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
 // AWS Secrets Manager
 export interface AwsSecretsOptions {
@@ -168,10 +169,6 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
   schema: T,
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<InferSimpleSchema<T>> {
-  // Import resolve dynamically to avoid circular dependencies with mocks
-  const { resolveAsync } = await import('node-env-resolver');
-  
-  // TypeScript knows resolveAsync exists from type imports
   return await resolveAsync({
     resolvers: [
       [awsSsm(ssmOptions), schema]
@@ -204,17 +201,13 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
-    // Import safeResolve dynamically to avoid circular dependencies with mocks
-    const { safeResolveAsync } = await import('node-env-resolver');
-    
-     
     const result = await safeResolveAsync({
       resolvers: [
         [awsSsm(ssmOptions), schema]
       ],
       ...(resolveOptions ? { options: resolveOptions } : {})
     });
-    
+
     if (result.success) {
       return { success: true, data: result.data as InferSimpleSchema<T> };
     }
@@ -245,10 +238,6 @@ export async function resolveSecrets<T extends SimpleEnvSchema>(
   schema: T,
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<InferSimpleSchema<T>> {
-  // Import resolve dynamically to avoid circular dependencies with mocks
-  const { resolveAsync } = await import('node-env-resolver');
-  
-   
   return await resolveAsync({
     resolvers: [
       [awsSecrets(secretsOptions), schema]
@@ -281,16 +270,13 @@ export async function safeResolveSecrets<T extends SimpleEnvSchema>(
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
-    // Import safeResolve dynamically to avoid circular dependencies with mocks
-    const { safeResolveAsync } = await import('node-env-resolver');
-    
     const result = await safeResolveAsync({
       resolvers: [
         [awsSecrets(secretsOptions), schema]
       ],
       ...(resolveOptions ? { options: resolveOptions } : {})
     });
-    
+
     if (result.success) {
       return { success: true, data: result.data as InferSimpleSchema<T> };
     }

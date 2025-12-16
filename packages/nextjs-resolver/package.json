@@ -86,8 +86,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
-    "@types/node": "^25.0.0",
-    "eslint": "^9.39.1",
+    "@types/node": "^25.0.2",
+    "eslint": "^9.39.2",
     "eslint-config-next": "latest",
     "prettier": "^3.7.4",
     "tsup": "^8.5.1",

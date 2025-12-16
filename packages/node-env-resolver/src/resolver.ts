@@ -32,39 +32,17 @@ function file(value: string, key?: string): { valid: boolean; value?: string; er
 }
 
 /**
- * Lazy-loaded audit logger (only imported when audit is enabled)
+ * Audit logger - imported statically for reliability across ESM/CommonJS contexts
  */
-import type { AuditEvent } from './audit';
+import {
+  logAuditEvent as auditLogEvent,
+  attachAuditSession as auditAttachSession,
+} from './audit';
 
-let auditLogger: ((event: AuditEvent) => void) | null = null;
-let attachAuditSession: ((config: object) => string) | null = null;
-
-async function logAuditEvent(event: AuditEvent): Promise<void> {
-  if (!auditLogger) {
-    const audit = await import('./audit');
-    auditLogger = audit.logAuditEvent;
-    attachAuditSession = audit.attachAuditSession;
-  }
-  auditLogger(event);
-}
-
-function logAuditEventSync(event: AuditEvent): void {
-  if (!auditLogger) {
-    // Sync context - load audit logger synchronously
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const audit = require('./audit');
-      auditLogger = audit.logAuditEvent;
-      attachAuditSession = audit.attachAuditSession;
-    } catch {
-      // If audit module can't be loaded, skip logging
-      return;
-    }
-  }
-  if (auditLogger) {
-    auditLogger(event);
-  }
-}
+// Re-export for use in this module
+const logAuditEvent = auditLogEvent;
+const logAuditEventSync = auditLogEvent;
+const attachAuditSession = auditAttachSession;
 
 
 
@@ -204,7 +182,7 @@ async function resolveFromResolvers(
     for (const result of results) {
       if (result.status === 'rejected') {
         const error = result.reason;
-        await logAuditEvent({
+        logAuditEvent({
           type: 'resolver_error',
           timestamp: Date.now(),
           source: 'unknown',
@@ -262,7 +240,7 @@ async function resolveFromResolvers(
           }
         }
       } catch (error) {
-        await logAuditEvent({
+        logAuditEvent({
           type: 'resolver_error',
           timestamp: Date.now(),
           source: resolver.name,
@@ -486,22 +464,14 @@ export async function resolveEnvInternal<T extends EnvSchema>(
   let sessionId: string | undefined;
   
   if (enableAudit) {
-    // Ensure audit module is loaded
-    if (!attachAuditSession) {
-      const audit = await import('./audit');
-      auditLogger = audit.logAuditEvent;
-      attachAuditSession = audit.attachAuditSession;
-    }
-    if (attachAuditSession) {
-      sessionId = attachAuditSession(result);
-    }
+    sessionId = attachAuditSession(result);
   }
 
   // Validate environment variable names first
   const nameValidationErrors = validateEnvVarNames(schema);
   if (nameValidationErrors.length > 0) {
     if (enableAudit) {
-      await logAuditEvent({
+      logAuditEvent({
         type: 'validation_failure',
         timestamp: Date.now(),
         error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`,
@@ -596,7 +566,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       if (!validationResult.success) {
         errors.push(validationResult.error!);
         if (enableAudit) {
-          await logAuditEvent({
+          logAuditEvent({
             type: 'validation_failure',
             timestamp: Date.now(),
             key,
@@ -608,7 +578,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         result[key] = validationResult.value;
         // Audit ALL env var loads (not just secrets - all env vars are sensitive)
         if (enableAudit) {
-          await logAuditEvent({
+          logAuditEvent({
             type: 'env_loaded',
             timestamp: Date.now(),
             key,
@@ -622,7 +592,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       const message = error instanceof Error ? error.message : String(error);
       errors.push(`${key}: ${message}`);
       if (enableAudit) {
-        await logAuditEvent({
+        logAuditEvent({
           type: 'validation_failure',
           timestamp: Date.now(),
           key,
@@ -635,7 +605,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
 
   if (errors.length > 0) {
     if (enableAudit) {
-      await logAuditEvent({
+      logAuditEvent({
         type: 'validation_failure',
         timestamp: Date.now(),
         error: `${errors.length} validation error(s)`,
@@ -647,7 +617,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
   }
 
   if (enableAudit) {
-    await logAuditEvent({
+    logAuditEvent({
       type: 'validation_success',
       timestamp: Date.now(),
       metadata: {
@@ -688,20 +658,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
   let sessionId: string | undefined;
   
   if (enableAudit) {
-    // Ensure audit module is loaded
-    if (!attachAuditSession) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const audit = require('./audit');
-        auditLogger = audit.logAuditEvent;
-        attachAuditSession = audit.attachAuditSession;
-      } catch {
-        // Audit module can't be loaded
-      }
-    }
-    if (attachAuditSession) {
-      sessionId = attachAuditSession(result);
-    }
+    sessionId = attachAuditSession(result);
   }
 
   // Validate environment variable names first
