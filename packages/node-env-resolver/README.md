@@ -1760,6 +1760,122 @@ Consider updating to 'node16', 'nodenext', or 'bundler'.
 
 **Note:** The runtime will work correctly regardless of TypeScript's resolution mode. This is purely a TypeScript type-checking issue.
 
+## Testing
+
+### Recommended: Dependency Injection
+
+For testable code, accept resolvers as parameters rather than importing them directly:
+
+```typescript
+// config.ts - Production code
+import { resolveAsync, type Resolver } from 'node-env-resolver';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { awsSecrets } from 'node-env-resolver-aws';
+import { string, number } from 'node-env-resolver/validators';
+
+const schema = {
+  DATABASE_URL: string(),
+  PORT: number({ default: 3000 }),
+};
+
+// Accept resolvers as parameter with sensible defaults
+export async function getConfig(resolvers: Resolver[] = [processEnv(), awsSecrets({ secretId: 'my-app' })]) {
+  return resolveAsync({
+    resolvers: resolvers.map(r => [r, schema])
+  });
+}
+```
+
+```typescript
+// config.test.ts - Test code
+import { getConfig } from './config';
+
+describe('getConfig', () => {
+  it('should resolve environment variables', async () => {
+    // Create a simple inline mock resolver - no jest.mock() needed!
+    const mockResolver = {
+      name: 'test-env',
+      load: async () => ({
+        DATABASE_URL: 'postgres://test:5432/testdb',
+        PORT: '8080',
+      }),
+      loadSync: () => ({
+        DATABASE_URL: 'postgres://test:5432/testdb',
+        PORT: '8080',
+      }),
+    };
+
+    const config = await getConfig([mockResolver]);
+
+    expect(config.DATABASE_URL).toBe('postgres://test:5432/testdb');
+    expect(config.PORT).toBe(8080);
+  });
+
+  it('should use default PORT when not provided', async () => {
+    const mockResolver = {
+      name: 'test-env',
+      load: async () => ({ DATABASE_URL: 'postgres://localhost/db' }),
+      loadSync: () => ({ DATABASE_URL: 'postgres://localhost/db' }),
+    };
+
+    const config = await getConfig([mockResolver]);
+
+    expect(config.PORT).toBe(3000); // default value
+  });
+});
+```
+
+### Creating Mock Resolvers
+
+A resolver is just an object with `name` and `load`/`loadSync` methods:
+
+```typescript
+// Minimal async-only resolver
+const asyncMock = {
+  name: 'async-mock',
+  load: async () => ({ KEY: 'value' }),
+};
+
+// Sync-compatible resolver (works with both resolve() and resolveAsync())
+const syncMock = {
+  name: 'sync-mock',
+  load: async () => ({ KEY: 'value' }),
+  loadSync: () => ({ KEY: 'value' }),
+};
+
+// Dynamic mock that can be configured per-test
+const createMock = (env: Record<string, string>) => ({
+  name: 'configurable-mock',
+  load: async () => env,
+  loadSync: () => env,
+});
+
+// Usage
+const config = await resolveAsync({
+  resolvers: [[createMock({ API_KEY: 'test-key' }), { API_KEY: string() }]]
+});
+```
+
+### Why Avoid Module Mocking
+
+Module-level mocking (`jest.mock()`) creates tight coupling between tests and implementation:
+
+```typescript
+// ❌ Avoid: Requires mocking internal imports
+jest.mock('node-env-resolver/resolvers', () => ({
+  processEnv: jest.fn(() => ({ load: jest.fn(), name: 'processEnv' })),
+}));
+
+// ✅ Better: Use dependency injection
+const config = await getConfig([mockResolver]);
+```
+
+Benefits of dependency injection:
+- Tests are simpler and more readable
+- No need to understand internal module structure
+- Refactoring production code doesn't break tests
+- Works with any test framework (Jest, Vitest, Mocha, etc.)
+
 ## Error messages
 
 The library provides clear, actionable error messages:
