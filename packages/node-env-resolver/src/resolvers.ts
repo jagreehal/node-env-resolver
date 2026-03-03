@@ -4,7 +4,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve as resolvePath } from 'path';
-import type { Resolver } from './types';
+import type { Resolver, SyncResolver } from './types';
 
 export { processEnv } from './process-env';
 
@@ -100,7 +100,7 @@ const parseDotenv = (content: string) => {
  * // Loads: .env.defaults, .env, .env.local, .env.development, .env.development.local
  * ```
  */
-export function dotenv(options?: string | DotenvOptions): Resolver {
+export function dotenv(options?: string | DotenvOptions): SyncResolver {
   const opts =
     typeof options === 'string'
       ? { path: options, expand: false }
@@ -238,6 +238,7 @@ export function packageJson(options?: {
       } catch (error) {
         throw new Error(
           `Failed to read package.json: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -278,6 +279,7 @@ export function packageJson(options?: {
       } catch (error) {
         throw new Error(
           `Failed to read package.json: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -349,10 +351,12 @@ export function http(
         if ((error as Error).name === 'AbortError') {
           throw new Error(
             `HTTP request timeout after ${options?.timeout ?? 5000}ms`,
+            { cause: error }
           );
         }
         throw new Error(
           `Failed to fetch config from ${url}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -406,6 +410,7 @@ export function json(path: string = 'config.json'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to parse JSON file ${path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -437,6 +442,7 @@ export function json(path: string = 'config.json'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to parse JSON file ${path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -491,6 +497,7 @@ export function secrets(path: string = '/run/secrets'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to read secrets from ${path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -523,6 +530,7 @@ export function secrets(path: string = '/run/secrets'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to read secrets from ${path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -601,10 +609,12 @@ export function yaml(options?: string | YamlOptions): Resolver {
               `  npm install js-yaml\n` +
               `  # or\n` +
               `  pnpm add js-yaml`,
+            { cause: error }
           );
         }
         throw new Error(
           `Failed to parse YAML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -646,10 +656,12 @@ export function yaml(options?: string | YamlOptions): Resolver {
               `  npm install js-yaml\n` +
               `  # or\n` +
               `  pnpm add js-yaml`,
+            { cause: error }
           );
         }
         throw new Error(
           `Failed to parse YAML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -728,10 +740,12 @@ export function toml(options?: string | TomlOptions): Resolver {
               `  npm install smol-toml\n` +
               `  # or\n` +
               `  pnpm add smol-toml`,
+            { cause: error }
           );
         }
         throw new Error(
           `Failed to parse TOML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },
@@ -773,10 +787,12 @@ export function toml(options?: string | TomlOptions): Resolver {
               `  npm install smol-toml\n` +
               `  # or\n` +
               `  pnpm add smol-toml`,
+            { cause: error }
           );
         }
         throw new Error(
           `Failed to parse TOML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     },

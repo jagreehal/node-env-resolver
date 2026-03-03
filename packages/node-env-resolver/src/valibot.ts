@@ -29,7 +29,7 @@ async function resolveFromResolvers(resolvers: Resolver[], interpolate: boolean,
       const data = resolver.load ? await resolver.load() : {};
       env = { ...env, ...data };
     } catch (error) {
-      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`);
+      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
     }
   }
 
@@ -53,7 +53,7 @@ function resolveFromResolversSync(resolvers: Resolver[], interpolate: boolean, s
       const data = resolver.loadSync();
       env = { ...env, ...data };
     } catch (error) {
-      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`);
+      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
     }
   }
 

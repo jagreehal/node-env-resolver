@@ -449,7 +449,8 @@ function applyTransforms(
         result[key] = transform(env[key]);
       } catch (error) {
         throw new Error(
-          `Transform failed for ${key}: ${error instanceof Error ? error.message : String(error)}`
+          `Transform failed for ${key}: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error }
         );
       }
     }

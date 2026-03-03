@@ -157,7 +157,7 @@ describe('Custom Validator Functions', () => {
           }
           return parsed;
         } catch (error) {
-          throw new Error(`Invalid config JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new Error(`Invalid config JSON: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
         }
       };
 

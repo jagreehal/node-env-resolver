@@ -79,20 +79,22 @@
     "access": "public"
   },
   "peerDependencies": {
-    "next": "^13.0.0 || ^14.0.0 || ^15.0.0"
+    "next": "^16.1.6"
   },
   "dependencies": {
     "node-env-resolver": "workspace:*"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.3",
-    "@types/node": "^25.0.2",
-    "eslint": "^9.39.2",
-    "eslint-config-next": "latest",
-    "prettier": "^3.7.4",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.3.3",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^10.0.2",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=18"

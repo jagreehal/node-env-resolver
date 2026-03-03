@@ -15,14 +15,14 @@
     "node-env-resolver-aws": "workspace:*"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.159",
-    "@types/node": "^25.0.2",
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^25.3.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "eslint": "^9.39.2",
-    "@eslint/js": "^9.39.2",
-    "@typescript-eslint/eslint-plugin": "^8.50.0",
-    "@typescript-eslint/parser": "^8.50.0",
-    "globals": "^16.5.0"
+    "eslint": "^10.0.2",
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "globals": "^17.4.0"
   }
 }
