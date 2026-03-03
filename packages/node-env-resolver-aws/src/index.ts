@@ -62,7 +62,7 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
         
         return { [options.secretId]: response.SecretString };
       } catch (error) {
-        throw new Error(`AWS Secrets Manager: ${error instanceof Error ? error.message : error}`);
+        throw new Error(`AWS Secrets Manager: ${error instanceof Error ? error.message : error}`, { cause: error });
       }
     },
   };
@@ -143,7 +143,7 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
         
         return env;
       } catch (error) {
-        throw new Error(`AWS SSM: ${error instanceof Error ? error.message : error}`);
+        throw new Error(`AWS SSM: ${error instanceof Error ? error.message : error}`, { cause: error });
       }
     },
   };

@@ -1423,6 +1423,7 @@ export function file<
     } catch (error) {
       throw new Error(
         `Failed to read file: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   }) as unknown;

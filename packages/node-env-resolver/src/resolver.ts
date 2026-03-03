@@ -248,7 +248,7 @@ async function resolveFromResolvers(
         });
 
         if (strict) {
-          throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`);
+          throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
         }
       }
     }
@@ -322,7 +322,7 @@ function resolveFromResolversSync(
       });
 
       if (strict) {
-        throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`);
+        throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
       }
     }
   }
