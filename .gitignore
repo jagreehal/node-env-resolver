@@ -7,3 +7,4 @@ cdk.out/
 coverage
 examples/**/node_modules
 examples/**/.next
+.worktrees/
