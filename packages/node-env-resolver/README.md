@@ -148,6 +148,7 @@ const config = await resolveAsync({
 - [Safe error handling](#safe-error-handling)
 - [Synchronous resolution](#synchronous-resolution)
 - [Advanced features](#advanced-features)
+- [CLI tool](#cli-tool-node-env-resolver)
 - [API Reference](#api-reference)
 - [Configuration Options](#configuration-options)
 - [Framework examples](#framework-examples)
@@ -729,6 +730,78 @@ const config = await resolveAsync({
 - `--kebab-case` → `KEBAB_CASE` (auto-normalization)
 
 **Bundle size:** ~500 bytes (lazy-loaded)
+
+### CLI tool (`node-env-resolver`)
+
+This package also ships a standalone CLI binary for working with an `EnvConfig` file.
+
+#### 1. Create an `env.config` file
+
+Create `env.config.mjs` or `env.config.js` in your project root:
+
+```ts
+// env.config.mjs
+import { processEnv, dotenv } from 'node-env-resolver/resolvers';
+import { string, number, json } from 'node-env-resolver/validators';
+
+/** @type {import('node-env-resolver').ResolveAsyncConfig<any>} */
+export const config = {
+  schema: {
+    NODE_ENV: ['development', 'production', 'test'] as const,
+    PORT: number({ default: 3000 }),
+    API_KEY: string({ optional: true, sensitive: true }),
+    FEATURE_FLAGS: json(), // parsed JSON → unknown
+  },
+  resolvers: [
+    [processEnv(), {}],
+    [dotenv(), {}],
+  ],
+};
+
+export default config;
+```
+
+The CLI loads this file using native `import()` (no ts-node/jiti) and expects a default export (or `config` / `env`) with a `schema` field.
+
+#### 2. Commands
+
+- **`load`** – resolve and print config
+  - Pretty table (default):  
+    ```bash
+    node-env-resolver load
+    node-env-resolver load --config ./env.config.mjs
+    ```
+  - JSON output (honours sensitive redaction):  
+    ```bash
+    node-env-resolver load --format=json
+    node-env-resolver load --format=json --reveal   # show secrets in plaintext
+    ```
+  - `.env`-style output (good for scripting):  
+    ```bash
+    node-env-resolver load --format=env > .env.local
+    ```
+
+- **`run`** – resolve config and run a child process with injected env:
+  ```bash
+  node-env-resolver run -- npm run migrate
+  node-env-resolver run --config ./env.config.mjs -- npm run start
+  node-env-resolver run --no-redact -- node scripts/print-env.ts
+  ```
+
+  - Merges resolved values on top of `process.env`.
+  - By default, stdout/stderr are **redacted** using the same sensitive key detection as the library.
+  - Use `--no-redact` to disable stream redaction when you need raw logs.
+
+- **`typegen`** – generate `EnvSchema` and `process.env` / `import.meta.env` types:
+  ```bash
+  node-env-resolver typegen --output env.d.ts
+  node-env-resolver typegen --config ./env.config.mjs --output ./src/env.d.ts
+  ```
+
+  This uses the same generator as `node-env-resolver/typegen`, including:
+  - `json()` → `unknown` in `EnvSchema` (parsed JSON)
+  - Correct optional flags based on `{ optional: true }`
+  - String-oriented types for `process.env`/`import.meta.env` augmentation
 
 ### Computed fields
 

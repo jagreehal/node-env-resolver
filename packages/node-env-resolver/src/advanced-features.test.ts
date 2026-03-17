@@ -4,7 +4,7 @@ import {
   dotenv,
   json as jsonResolver,
 } from './resolvers';
-import { string, stringArray, numberArray, urlArray, duration, file, number } from './validators';
+import { string, stringArray, numberArray, urlArray, duration, file, number, sensitive } from './validators';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -414,6 +414,22 @@ describe('Advanced Features', () => {
       });
 
       expect(config.API_KEY).toBe('field-key');
+    });
+
+    it('should preserve file validator behavior when wrapped with sensitive()', async () => {
+      const secretsDir = path.join(testDir, 'sensitive-secrets');
+      fs.mkdirSync(secretsDir, { recursive: true });
+      fs.writeFileSync(path.join(secretsDir, 'api-key'), 'sensitive-field-key');
+
+      const config = await resolveAsync({
+        resolvers: [
+          [{ name: 'test', load: () => Promise.resolve({}) }, {
+            API_KEY: sensitive(file({ secretsDir }))
+          }]
+        ]
+      });
+
+      expect(config.API_KEY).toBe('sensitive-field-key');
     });
 
     it('should convert SCREAMING_SNAKE_CASE to kebab-case for K8s', async () => {

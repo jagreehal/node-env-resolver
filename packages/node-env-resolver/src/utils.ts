@@ -2,7 +2,7 @@
  * Core utility resolvers and wrappers
  */
 
-import type { Resolver } from './types';
+import type { Resolver, SyncResolver } from './types';
 import { resolveAsync } from './index';
 // Enhanced caching wrapper with TTL support
 export interface CacheOptions {
@@ -65,7 +65,7 @@ export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver
       // If no cache or cache is expired beyond maxAge, force refresh
       if (!cache || (now - cache.timestamp) > maxAge) {
         const data = resolver.load ? await resolver.load() : {};
-        cache = { data, timestamp: now };
+        cache = { data, timestamp: Date.now() };
         wrapper.metadata = { cached: false };
         return data;
       }
@@ -77,35 +77,25 @@ export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver
       }
       
       // Cache is stale (between TTL and maxAge)
-      // If stale-while-revalidate is enabled, serve stale data while refreshing in background
       if (staleWhileRevalidate && !cache.refreshPromise) {
-        // Trigger background refresh (non-blocking, lazy/on-demand)
-        // This only runs when a request comes in, NOT via setInterval
         const refreshPromise = Promise.resolve(resolver.load ? resolver.load() : Promise.resolve({}));
         cache.refreshPromise = refreshPromise.then(data => {
-          // Success: update cache with fresh data
           cache!.data = data;
           cache!.timestamp = Date.now();
           cache!.refreshPromise = undefined;
           return data;
         }).catch(() => {
-          // Error resilience: if refresh fails (AWS down, network error, etc.):
-          // - Silently catch the error (no throw)
-          // - Keep serving stale data to users
-          // - Clear refreshPromise to allow retry on next request
-          // - App stays up even if AWS is temporarily unavailable
           cache!.refreshPromise = undefined;
           return cache!.data;
         });
         
-        // Immediately return stale data (don't wait for background refresh)
         wrapper.metadata = { cached: true, stale: true };
         return cache.data;
       }
       
       // Cache is stale and no stale-while-revalidate, force refresh
       const data = resolver.load ? await resolver.load() : {};
-      cache = { data, timestamp: now };
+      cache = { data, timestamp: Date.now() };
       wrapper.metadata = { cached: false };
       return data;
     },
@@ -524,6 +514,72 @@ export function withNamespace(
 
       return scoped;
     }
+  };
+}
+
+/**
+ * Combine multiple resolvers, using the first non-undefined value for each key.
+ *
+ * This is useful when you have a chain of potential sources (e.g. process.env,
+ * secrets manager, local overrides) and want a simple "first one wins" policy.
+ *
+ * Both async and sync modes are supported; sync mode requires that all
+ * underlying resolvers implement loadSync().
+ */
+export function fallback(...resolvers: SyncResolver[]): SyncResolver;
+// eslint-disable-next-line no-redeclare
+export function fallback(...resolvers: Resolver[]): Resolver {
+  const name = `fallback(${resolvers.map(r => r.name).join(', ')})`;
+
+  return {
+    name,
+    async load() {
+      const results: Array<Record<string, string>> = [];
+
+      for (const resolver of resolvers) {
+        const env = resolver.load ? await resolver.load() : {};
+        results.push(env);
+      }
+
+      const merged: Record<string, string> = {};
+
+      for (const env of results) {
+        for (const [key, value] of Object.entries(env)) {
+          if (value === undefined) continue;
+          if (merged[key] === undefined) {
+            merged[key] = value;
+          }
+        }
+      }
+
+      return merged;
+    },
+    loadSync() {
+      const results: Array<Record<string, string>> = [];
+
+      for (const resolver of resolvers) {
+        if (!resolver.loadSync) {
+          throw new Error(
+            `Resolver '${resolver.name}' does not support synchronous loading`,
+          );
+        }
+        const env = resolver.loadSync();
+        results.push(env);
+      }
+
+      const merged: Record<string, string> = {};
+
+      for (const env of results) {
+        for (const [key, value] of Object.entries(env)) {
+          if (value === undefined) continue;
+          if (merged[key] === undefined) {
+            merged[key] = value;
+          }
+        }
+      }
+
+      return merged;
+    },
   };
 }
 

@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolve, safeResolve, type SimpleEnvSchema, resolveAsync } from './index';
 
-import { json, secrets, toml, processEnv } from './resolvers';
+import { json, secrets, toml, processEnv, exec as execResolver } from './resolvers';
 import {
   string,
   port,
@@ -502,5 +502,46 @@ url = "https://api.example.com"
       });
     }).rejects.toThrow('TOML resolver requires \'smol-toml\' package. Install it with:');
     delete process.env.TEST_TOML_PARSE;
+  });
+});
+
+describe('Exec Resolver', () => {
+  it('should parse env-style output', async () => {
+    const command = `node -e "console.log('PORT=3000'); console.log('NODE_ENV=development');"`;
+
+    const config = await resolveAsync({
+      resolvers: [
+        [
+          execResolver(command, { format: 'env' }),
+          {
+            PORT: port(),
+            NODE_ENV: string(),
+          },
+        ],
+      ],
+    });
+
+    expect(config.PORT).toBe(3000);
+    expect(config.NODE_ENV).toBe('development');
+  });
+
+  it('should parse json-style output and flatten keys', async () => {
+    const command =
+      "node -e \"process.stdout.write(JSON.stringify({ database: { host: 'localhost', port: '5432' } }))\"";
+
+    const config = await resolveAsync({
+      resolvers: [
+        [
+          execResolver(command, { format: 'json' }),
+          {
+            DATABASE_HOST: string(),
+            DATABASE_PORT: port(),
+          },
+        ],
+      ],
+    });
+
+    expect(config.DATABASE_HOST).toBe('localhost');
+    expect(config.DATABASE_PORT).toBe(5432);
   });
 });
