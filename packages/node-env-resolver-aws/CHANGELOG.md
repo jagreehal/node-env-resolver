@@ -1,5 +1,12 @@
 # Changelog
 
+## 12.0.0
+
+### Patch Changes
+
+- Updated dependencies [a215191]
+  - node-env-resolver@6.5.0
+
 ## 11.0.0
 
 ### Minor Changes
