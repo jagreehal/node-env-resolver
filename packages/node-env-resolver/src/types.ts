@@ -1,9 +1,18 @@
 // Simple, clean type system for node-env-resolver
 
+// Internal metadata bag for validator introspection (typegen, redaction, etc.)
+export interface ValidatorMeta {
+  sensitive?: boolean;
+  description?: string;
+  type?: string;
+  enumValues?: readonly string[];
+}
+
 // Basic validator function type with optional metadata
 export type Validator<T> = ((value: string) => T) & {
   optional?: boolean;
   default?: T;
+  __meta?: ValidatorMeta;
 };
 
 // Simple schema is just a record of validator functions or simple values
@@ -172,6 +181,11 @@ export type Provenance = {
   cached?: boolean;
 };
 
+/**
+ * Symbol used to attach provenance metadata (key -> source/timestamp) to resolved config objects.
+ */
+export const PROVENANCE_SYMBOL = Symbol.for('node-env-resolver:provenance');
+
 export type PolicyOptions = {
   allowDotenvInProduction?: boolean;
   requireSecretsForSensitive?: boolean;
@@ -189,7 +203,12 @@ export interface EnvDefinition {
   default?: unknown;
   optional?: boolean;
   secretsDir?: string;
+  sensitive?: boolean;
+  description?: string;
 }
+
+// Symbol used to attach sensitive key metadata to resolved config objects
+export const SENSITIVE_KEYS_SYMBOL = Symbol.for('node-env-resolver:sensitiveKeys');
 
 // Additional legacy types
 export type InferType = unknown;

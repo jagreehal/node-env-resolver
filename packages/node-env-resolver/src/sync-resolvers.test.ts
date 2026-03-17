@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { resolve, resolveAsync, safeResolve, safeResolveAsync, SyncResolver, AsyncResolver, isSyncResolver, isAsyncOnlyResolver } from './index';
 import { string, oneOf, number } from './validators';
 import { dotenv, processEnv, json } from './resolvers';
+import { fallback } from './utils';
 
 
 describe('Sync Resolvers', () => {
@@ -349,6 +350,104 @@ describe('Sync Resolvers', () => {
     it('json should be a SyncResolver', () => {
       const resolver = json('test.json');
       expect(isSyncResolver(resolver)).toBe(true);
+    });
+  });
+
+  describe('fallback resolver', () => {
+    it('should use first non-undefined value for each key in async mode', async () => {
+      const resolver1: SyncResolver = {
+        name: 'r1',
+        async load() {
+          return { SHARED: 'one', ONLY_ONE: '1' };
+        },
+        loadSync() {
+          return { SHARED: 'one', ONLY_ONE: '1' };
+        }
+      };
+
+      const resolver2: SyncResolver = {
+        name: 'r2',
+        async load() {
+          return { SHARED: 'two', ONLY_TWO: '2' };
+        },
+        loadSync() {
+          return { SHARED: 'two', ONLY_TWO: '2' };
+        }
+      };
+
+      const config = await resolveAsync({
+        resolvers: [
+          [fallback(resolver1, resolver2), {
+            SHARED: string(),
+            ONLY_ONE: string(),
+            ONLY_TWO: string()
+          }]
+        ]
+      });
+
+      expect(config.SHARED).toBe('one');
+      expect(config.ONLY_ONE).toBe('1');
+      expect(config.ONLY_TWO).toBe('2');
+    });
+
+    it('should support sync resolve when all resolvers are sync', () => {
+      const resolver1: SyncResolver = {
+        name: 'r1',
+        async load() {
+          return { SHARED: 'one' };
+        },
+        loadSync() {
+          return { SHARED: 'one' };
+        }
+      };
+
+      const resolver2: SyncResolver = {
+        name: 'r2',
+        async load() {
+          return { SHARED: 'two' };
+        },
+        loadSync() {
+          return { SHARED: 'two' };
+        }
+      };
+
+      const config = resolve({
+        resolvers: [
+          [fallback(resolver1, resolver2), {
+            SHARED: string()
+          }]
+        ]
+      });
+
+      expect(config.SHARED).toBe('one');
+    });
+
+    it('should throw in sync mode if any resolver lacks loadSync', () => {
+      const syncResolver: SyncResolver = {
+        name: 'sync',
+        async load() {
+          return { VAR: 'value' };
+        },
+        loadSync() {
+          return { VAR: 'value' };
+        }
+      };
+
+      const asyncOnlyResolver: AsyncResolver = {
+        name: 'async-only',
+        async load() {
+          return { VAR: 'async' };
+        }
+      };
+
+      expect(() =>
+        resolve({
+          resolvers: [
+            // @ts-expect-error - testing runtime validation
+            [fallback(syncResolver, asyncOnlyResolver), { VAR: string() }]
+          ]
+        }),
+      ).toThrow("Resolver 'async-only' does not support synchronous loading");
     });
   });
 

@@ -2,7 +2,7 @@
  * Core utility resolvers and wrappers
  */
 
-import type { Resolver } from './types';
+import type { Resolver, SyncResolver } from './types';
 import { resolveAsync } from './index';
 // Enhanced caching wrapper with TTL support
 export interface CacheOptions {
@@ -524,6 +524,71 @@ export function withNamespace(
 
       return scoped;
     }
+  };
+}
+
+/**
+ * Combine multiple resolvers, using the first non-undefined value for each key.
+ *
+ * This is useful when you have a chain of potential sources (e.g. process.env,
+ * secrets manager, local overrides) and want a simple "first one wins" policy.
+ *
+ * Both async and sync modes are supported; sync mode requires that all
+ * underlying resolvers implement loadSync().
+ */
+export function fallback(...resolvers: SyncResolver[]): SyncResolver;
+export function fallback(...resolvers: Resolver[]): Resolver {
+  const name = `fallback(${resolvers.map(r => r.name).join(', ')})`;
+
+  return {
+    name,
+    async load() {
+      const results: Array<Record<string, string>> = [];
+
+      for (const resolver of resolvers) {
+        const env = resolver.load ? await resolver.load() : {};
+        results.push(env);
+      }
+
+      const merged: Record<string, string> = {};
+
+      for (const env of results) {
+        for (const [key, value] of Object.entries(env)) {
+          if (value === undefined) continue;
+          if (merged[key] === undefined) {
+            merged[key] = value;
+          }
+        }
+      }
+
+      return merged;
+    },
+    loadSync() {
+      const results: Array<Record<string, string>> = [];
+
+      for (const resolver of resolvers) {
+        if (!resolver.loadSync) {
+          throw new Error(
+            `Resolver '${resolver.name}' does not support synchronous loading`,
+          );
+        }
+        const env = resolver.loadSync();
+        results.push(env);
+      }
+
+      const merged: Record<string, string> = {};
+
+      for (const env of results) {
+        for (const [key, value] of Object.entries(env)) {
+          if (value === undefined) continue;
+          if (merged[key] === undefined) {
+            merged[key] = value;
+          }
+        }
+      }
+
+      return merged;
+    },
   };
 }
 

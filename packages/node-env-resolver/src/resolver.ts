@@ -11,6 +11,7 @@ import type {
   PolicyOptions,
   Provenance,
 } from './types';
+import { PROVENANCE_SYMBOL, SENSITIVE_KEYS_SYMBOL } from './types';
 import { join, resolve } from 'path';
 import { readFileSync } from 'fs';
 
@@ -57,12 +58,15 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
       // Custom validator function - check if it has attached options
       const validator = value as unknown as Record<string, unknown>;
       const isFileValidator = validator.__isFileValidator === true;
-      normalized[key] = { 
-        type: isFileValidator ? 'file' : 'custom', 
+      const meta = validator.__meta as { sensitive?: boolean; description?: string } | undefined;
+      normalized[key] = {
+        type: isFileValidator ? 'file' : 'custom',
         validator: value,
         ...(validator.default !== undefined && { default: validator.default }),
         ...(validator.optional !== undefined && { optional: validator.optional }),
-        ...(validator.secretsDir !== undefined && { secretsDir: validator.secretsDir })
+        ...(validator.secretsDir !== undefined && { secretsDir: validator.secretsDir }),
+        ...(meta?.sensitive !== undefined && { sensitive: meta.sensitive }),
+        ...(meta?.description !== undefined && { description: meta.description }),
       };
     } else if (typeof value === 'string') {
       // String shorthand - treat as default value
@@ -627,6 +631,24 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     });
   }
 
+  // Attach sensitive keys metadata to the result
+  const sensitiveKeys = new Set<string>();
+  for (const [key, def] of Object.entries(schema)) {
+    if ((def as EnvDefinition).sensitive) sensitiveKeys.add(key);
+  }
+  Object.defineProperty(result, SENSITIVE_KEYS_SYMBOL, {
+    value: sensitiveKeys,
+    enumerable: false,
+    configurable: false,
+  });
+
+  // Attach provenance metadata to the result (non-enumerable)
+  Object.defineProperty(result, PROVENANCE_SYMBOL, {
+    value: provenance,
+    enumerable: false,
+    configurable: false,
+  });
+
   // Apply nested delimiter transformation if specified
   if (options.nestedDelimiter) {
     return applyNestedDelimiter(result, options.nestedDelimiter);
@@ -819,6 +841,24 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       sessionId
     });
   }
+
+  // Attach sensitive keys metadata to the result
+  const sensitiveKeysSync = new Set<string>();
+  for (const [key, def] of Object.entries(schema)) {
+    if ((def as EnvDefinition).sensitive) sensitiveKeysSync.add(key);
+  }
+  Object.defineProperty(result, SENSITIVE_KEYS_SYMBOL, {
+    value: sensitiveKeysSync,
+    enumerable: false,
+    configurable: false,
+  });
+
+  // Attach provenance metadata to the result (non-enumerable)
+  Object.defineProperty(result, PROVENANCE_SYMBOL, {
+    value: provenance,
+    enumerable: false,
+    configurable: false,
+  });
 
   // Apply nested delimiter transformation if specified
   if (options.nestedDelimiter) {

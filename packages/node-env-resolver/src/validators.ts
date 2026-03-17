@@ -6,7 +6,28 @@
  * 'postgres', 'mysql', 'mongodb', 'redis', 'http', 'https', 'url', 'email', 'port', 'json', 'date', 'timestamp'
  */
 
-import { Validator } from './types';
+import { Validator, ValidatorMeta } from './types';
+
+/** Common options shared by all validator factories */
+export interface BaseValidatorOpts {
+  sensitive?: boolean;
+  description?: string;
+}
+
+/** Attach __meta bag to a validator function */
+function attachMeta(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  validator: any,
+  typeName: string,
+  opts?: BaseValidatorOpts,
+  extra?: Partial<ValidatorMeta>,
+): void {
+  const meta: ValidatorMeta = { type: typeName };
+  if (opts?.sensitive !== undefined) meta.sensitive = opts.sensitive;
+  if (opts?.description !== undefined) meta.description = opts.description;
+  if (extra) Object.assign(meta, extra);
+  validator.__meta = meta;
+}
 
 /**
  * Result of a validation operation
@@ -354,7 +375,7 @@ export function validateFile(value: string, key?: string): ValidationResult {
  * @returns HTTP URL validator
  */
 export function http<
-  Opts extends { default?: string; optional?: boolean } = Record<string, never>,
+  Opts extends { default?: string; optional?: boolean } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -375,6 +396,7 @@ export function http<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -388,7 +410,7 @@ export function http<
  * @returns JSON validator
  */
 export function json<
-  Opts extends { default?: unknown; optional?: boolean } = Record<
+  Opts extends { default?: unknown; optional?: boolean } & BaseValidatorOpts = Record<
     string,
     never
   >,
@@ -413,6 +435,7 @@ export function json<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'json', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -450,7 +473,7 @@ export function string<
     allowEmpty?: boolean;
     /** Regex pattern to validate against */
     pattern?: string;
-  } = Record<string, never>,
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -483,6 +506,7 @@ export function string<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -515,7 +539,7 @@ export function number<
     min?: number;
     /** Maximum number value */
     max?: number;
-  } = Record<string, never>,
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -543,6 +567,7 @@ export function number<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'number', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -567,12 +592,12 @@ export function number<
  * ```
  */
 export function boolean<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: boolean; 
+    default?: boolean;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -597,6 +622,7 @@ export function boolean<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'boolean', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -620,12 +646,12 @@ export function boolean<
  * ```
  */
 export function url<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -648,6 +674,7 @@ export function url<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'url', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -671,12 +698,12 @@ export function url<
  * ```
  */
 export function email<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -698,6 +725,7 @@ export function email<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'email', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -721,12 +749,12 @@ export function email<
  * ```
  */
 export function port<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: number; 
+    default?: number;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -748,6 +776,7 @@ export function port<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'port', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -772,12 +801,12 @@ export function port<
  * ```
  */
 export function postgres<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -801,6 +830,7 @@ export function postgres<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -830,7 +860,7 @@ export function mysql<
     default?: string;
     /** Make the field optional */
     optional?: boolean;
-  } = Record<string, never>,
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -851,6 +881,7 @@ export function mysql<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -875,12 +906,12 @@ export function mysql<
  * ```
  */
 export function mongodb<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -904,6 +935,7 @@ export function mongodb<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -928,12 +960,12 @@ export function mongodb<
  * ```
  */
 export function redis<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -954,6 +986,7 @@ export function redis<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -979,12 +1012,12 @@ export function redis<
  * ```
  */
 export function https<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1005,6 +1038,7 @@ export function https<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1036,7 +1070,7 @@ export function stringArray<
     optional?: boolean;
     /** Separator character (default: ',') */
     separator?: string;
-  } = Record<string, never>,
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1058,6 +1092,7 @@ export function stringArray<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string[]', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1089,7 +1124,7 @@ export function numberArray<
     optional?: boolean;
     /** Separator character (default: ',') */
     separator?: string;
-  } = Record<string, never>,
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1114,6 +1149,7 @@ export function numberArray<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'number[]', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1145,7 +1181,7 @@ export function urlArray<
     optional?: boolean;
     /** Separator character (default: ',') */
     separator?: string;
-  } = Record<string, never>,
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1175,6 +1211,7 @@ export function urlArray<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string[]', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1201,12 +1238,12 @@ export function urlArray<
  */
 export function oneOf<
   T extends readonly (string | number)[],
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: T[number]; 
+    default?: T[number];
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   values: T,
   opts?: Opts,
@@ -1230,6 +1267,7 @@ export function oneOf<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'oneOf', opts, { enumValues: values as unknown as readonly string[] });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1331,12 +1369,12 @@ export function optional<T extends readonly (string | number)[]>(
  * ```
  */
 export function duration<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: number; 
+    default?: number;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1364,6 +1402,7 @@ export function duration<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'number', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1395,7 +1434,7 @@ export function file<
     optional?: boolean;
     /** Base directory for secrets (Docker/K8s) */
     secretsDir?: string;
-  } = Record<string, never>,
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1437,6 +1476,7 @@ export function file<
 
   // Mark this as a file validator for secretsDir support
   (validator as Record<string, unknown>).__isFileValidator = true;
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1461,12 +1501,12 @@ export function file<
  * ```
  */
 export function secret<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1485,6 +1525,7 @@ export function secret<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', { ...opts, sensitive: true });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1521,12 +1562,12 @@ export function secret<
  */
 export function custom<
   T = unknown,
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: T; 
+    default?: T;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   validator: (value: string) => T,
   opts?: Opts,
@@ -1540,6 +1581,7 @@ export function custom<
     (validatorWithOptions as Record<string, unknown>).default = opts.default;
     (validatorWithOptions as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validatorWithOptions, 'custom', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validatorWithOptions as any;
@@ -1564,12 +1606,12 @@ export function custom<
  * ```
  */
 export function date<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: string; 
+    default?: string;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1597,6 +1639,7 @@ export function date<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'string', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
@@ -1621,12 +1664,12 @@ export function date<
  * ```
  */
 export function timestamp<
-  Opts extends { 
+  Opts extends {
     /** Default value if not provided */
-    default?: number; 
+    default?: number;
     /** Make the field optional */
-    optional?: boolean 
-  } = Record<string, never>,
+    optional?: boolean
+  } & BaseValidatorOpts = Record<string, never>,
 >(
   opts?: Opts,
 ): Opts extends { optional: true }
@@ -1655,7 +1698,33 @@ export function timestamp<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  attachMeta(validator, 'number', opts);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
+}
+
+/**
+ * Non-mutating wrapper that marks a validator as sensitive.
+ * Creates a new validator that forwards to the original, preserving all metadata.
+ *
+ * @param validator - The validator to wrap
+ * @returns A new validator with sensitive: true in __meta
+ *
+ * @example
+ * ```ts
+ * import { string, sensitive } from 'node-env-resolver/validators';
+ *
+ * const config = resolve({
+ *   API_KEY: sensitive(string()),
+ *   DATABASE_URL: sensitive(postgres()),
+ * });
+ * ```
+ */
+export function sensitive<T>(validator: Validator<T>): Validator<T> {
+  const wrapped: Validator<T> = ((value: string) => validator(value)) as Validator<T>;
+  wrapped.__meta = { ...validator.__meta, sensitive: true };
+  if (validator.optional !== undefined) wrapped.optional = validator.optional;
+  if (validator.default !== undefined) wrapped.default = validator.default;
+  return wrapped;
 }

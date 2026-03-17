@@ -5,6 +5,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "node-env-resolver": "./dist/cli-main.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -54,6 +57,18 @@
       "require": "./dist/utils.cjs",
       "default": "./dist/utils.js"
     },
+    "./redaction": {
+      "types": "./dist/redaction.d.ts",
+      "import": "./dist/redaction.js",
+      "require": "./dist/redaction.cjs",
+      "default": "./dist/redaction.js"
+    },
+    "./typegen": {
+      "types": "./dist/typegen.d.ts",
+      "import": "./dist/typegen.js",
+      "require": "./dist/typegen.cjs",
+      "default": "./dist/typegen.js"
+    },
     "./cli": {
       "types": "./dist/cli.d.ts",
       "import": "./dist/cli.js",
@@ -89,6 +104,12 @@
       ],
       "utils": [
         "./dist/utils.d.ts"
+      ],
+      "redaction": [
+        "./dist/redaction.d.ts"
+      ],
+      "typegen": [
+        "./dist/typegen.d.ts"
       ],
       "builder": [
         "./dist/builder.d.ts"
@@ -161,6 +182,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "ansis": "^3.17.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
