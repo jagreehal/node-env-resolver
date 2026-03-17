@@ -75,8 +75,8 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
         type: 'string',
         default: value,
         validator: (val: string) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (val === '' && !(normalized[key] as any).allowEmpty) {
+          const def = normalized[key] as EnvDefinition & { allowEmpty?: boolean };
+          if (val === '' && !def.allowEmpty) {
             throw new Error('String cannot be empty');
           }
           return val;
@@ -172,9 +172,6 @@ async function resolveFromResolvers(
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
 
-  // Optimization: parallel execution for priority: 'last'
-  // When priority is 'last', resolver order doesn't affect which values win
-  // (last write wins), so we can call all resolvers in parallel for better performance
   if (priority === 'last') {
     const results = await Promise.allSettled(
       resolvers.map(async (resolver) => ({
@@ -235,8 +232,6 @@ async function resolveFromResolvers(
           }
         }
 
-        // Optimization: early termination
-        // If we have ALL schema keys (including optional and defaults), skip remaining resolvers
         if (allSchemaKeys && allSchemaKeys.size > 0) {
           const hasAllKeys = Array.from(allSchemaKeys).every(key => mergedEnv[key] !== undefined);
           if (hasAllKeys) {
@@ -280,7 +275,6 @@ function resolveFromResolversSync(
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
 
-  // Note: sync resolvers cannot be parallelized, always sequential
   for (const resolver of resolvers) {
     try {
       if (!resolver.loadSync) {
@@ -309,8 +303,6 @@ function resolveFromResolversSync(
         }
       }
 
-      // Optimization: early termination for priority: 'first'
-      // If we have ALL schema keys (including optional and defaults), skip remaining resolvers
       if (priority === 'first' && allSchemaKeys && allSchemaKeys.size > 0) {
         const hasAllKeys = Array.from(allSchemaKeys).every(key => mergedEnv[key] !== undefined);
         if (hasAllKeys) {
@@ -379,13 +371,9 @@ function applyPolicies(
     return `${key} cannot be sourced from .env files in production (secure default). Production platforms (Vercel, AWS, etc.) use process.env. To allow .env in production: policies.allowDotenvInProduction: true`;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (policies.enforceAllowedSources && (policies.enforceAllowedSources as any)[key] && provenanceForKey) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allowed = (policies.enforceAllowedSources as any)[key];
-    if (!allowed.includes(provenanceForKey.source)) {
-      return `${key} must be sourced from one of: ${allowed.join(', ')} (actual: ${provenanceForKey.source})`;
-    }
+  const allowed = policies.enforceAllowedSources?.[key];
+  if (allowed && provenanceForKey && !allowed.includes(provenanceForKey.source)) {
+    return `${key} must be sourced from one of: ${allowed.join(', ')} (actual: ${provenanceForKey.source})`;
   }
 
   return null;
@@ -442,7 +430,15 @@ function applyNestedDelimiter(
     current[lastPart] = value;
   }
 
-  return nested;
+  // Mutate the original object in place so that any metadata attached via
+  // symbols or WeakMaps (e.g. redaction provenance, audit sessions) remains
+  // associated with the same object reference.
+  for (const key of Object.keys(flat)) {
+    delete flat[key];
+  }
+  Object.assign(flat, nested);
+
+  return flat;
 }
 
 /**
@@ -631,11 +627,40 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     });
   }
 
-  // Attach sensitive keys metadata to the result
+  // Compute sensitive keys and capture their resolved string values before any
+  // nested transformation so redaction metadata can be preserved.
   const sensitiveKeys = new Set<string>();
+  const sensitiveValues = new Map<string, string>();
   for (const [key, def] of Object.entries(schema)) {
-    if ((def as EnvDefinition).sensitive) sensitiveKeys.add(key);
+    if ((def as EnvDefinition).sensitive) {
+      sensitiveKeys.add(key);
+      const val = result[key];
+      if (typeof val === 'string' && val.length > 0) {
+        sensitiveValues.set(key, val);
+      }
+    }
   }
+
+  // Apply nested delimiter transformation if specified – this mutates `result`
+  // in place so attached metadata (symbols, audit session) stays associated
+  // with the same config object.
+  if (options.nestedDelimiter) {
+    applyNestedDelimiter(result, options.nestedDelimiter);
+
+    // Re-attach flat, non-enumerable shadow properties for sensitive keys so
+    // redaction can still look them up by their original env key names.
+    for (const [key, value] of sensitiveValues.entries()) {
+      if (!(key in result)) {
+        Object.defineProperty(result, key, {
+          value,
+          enumerable: false,
+          configurable: false,
+        });
+      }
+    }
+  }
+
+  // Attach sensitive keys metadata to the result
   Object.defineProperty(result, SENSITIVE_KEYS_SYMBOL, {
     value: sensitiveKeys,
     enumerable: false,
@@ -648,11 +673,6 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     enumerable: false,
     configurable: false,
   });
-
-  // Apply nested delimiter transformation if specified
-  if (options.nestedDelimiter) {
-    return applyNestedDelimiter(result, options.nestedDelimiter);
-  }
 
   return result;
 }
@@ -842,11 +862,40 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     });
   }
 
-  // Attach sensitive keys metadata to the result
+  // Compute sensitive keys and capture their resolved string values before any
+  // nested transformation so redaction metadata can be preserved.
   const sensitiveKeysSync = new Set<string>();
+  const sensitiveValuesSync = new Map<string, string>();
   for (const [key, def] of Object.entries(schema)) {
-    if ((def as EnvDefinition).sensitive) sensitiveKeysSync.add(key);
+    if ((def as EnvDefinition).sensitive) {
+      sensitiveKeysSync.add(key);
+      const val = result[key];
+      if (typeof val === 'string' && val.length > 0) {
+        sensitiveValuesSync.set(key, val);
+      }
+    }
   }
+
+  // Apply nested delimiter transformation if specified – this mutates `result`
+  // in place so attached metadata (symbols, audit session) stays associated
+  // with the same config object.
+  if (options.nestedDelimiter) {
+    applyNestedDelimiter(result, options.nestedDelimiter);
+
+    // Re-attach flat, non-enumerable shadow properties for sensitive keys so
+    // redaction can still look them up by their original env key names.
+    for (const [key, value] of sensitiveValuesSync.entries()) {
+      if (!(key in result)) {
+        Object.defineProperty(result, key, {
+          value,
+          enumerable: false,
+          configurable: false,
+        });
+      }
+    }
+  }
+
+  // Attach sensitive keys metadata to the result
   Object.defineProperty(result, SENSITIVE_KEYS_SYMBOL, {
     value: sensitiveKeysSync,
     enumerable: false,
@@ -859,11 +908,6 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     enumerable: false,
     configurable: false,
   });
-
-  // Apply nested delimiter transformation if specified
-  if (options.nestedDelimiter) {
-    return applyNestedDelimiter(result, options.nestedDelimiter);
-  }
 
   return result;
 }

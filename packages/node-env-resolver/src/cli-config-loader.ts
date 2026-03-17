@@ -54,8 +54,6 @@ export async function loadEnvConfig(
   assertNotTypeScriptConfig(configPath);
 
   const url = pathToFileURL(configPath).href;
-  // Native import() only – no jiti/tsx
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const mod = await import(url);
 
   const candidate =

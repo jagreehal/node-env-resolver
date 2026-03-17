@@ -190,7 +190,7 @@ export type PolicyOptions = {
   allowDotenvInProduction?: boolean;
   requireSecretsForSensitive?: boolean;
   blockInsecureProtocols?: boolean;
-  enforceAllowedSources?: boolean;
+  enforceAllowedSources?: Record<string, readonly string[]>;
 };
 
 export type SimpleEnvValue = Validator<unknown> | string | number | boolean | readonly string[];

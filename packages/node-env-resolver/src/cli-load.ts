@@ -4,6 +4,45 @@ import { createRedactor, getSensitiveKeys } from './redaction';
 import { resolveAsync } from './index';
 import { PROVENANCE_SYMBOL, type Provenance } from './types';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function flattenForEnv(
+  obj: Record<string, unknown>,
+  delimiter: string,
+  options: {
+    prefix?: string;
+    preserveTopLevelKeys?: ReadonlySet<string>;
+  } = {}
+): Record<string, string> {
+  const prefix = options.prefix ?? '';
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const segment = key.toUpperCase();
+    const path = prefix ? `${prefix}${delimiter}${segment}` : segment;
+    if (!prefix && options.preserveTopLevelKeys?.has(path)) {
+      out[path] =
+        value == null
+          ? ''
+          : typeof value === 'string'
+            ? value
+            : JSON.stringify(value);
+      continue;
+    }
+
+    if (isRecord(value)) {
+      Object.assign(
+        out,
+        flattenForEnv(value, delimiter, { ...options, prefix: path })
+      );
+    } else {
+      out[path] = value == null ? '' : String(value);
+    }
+  }
+  return out;
+}
+
 export interface CliLoadParsedArgs {
   format: 'pretty' | 'json' | 'env';
   reveal: boolean;
@@ -70,7 +109,7 @@ function printPrettyTable(
 
   for (const key of keys) {
     const raw = resolved[key];
-    const valueToShow = reveal ? raw : redactor(raw) as unknown;
+    const valueToShow = reveal ? raw : redactor(raw);
     const type =
       raw === null
         ? 'null'
@@ -102,7 +141,6 @@ function printPrettyTable(
 
   const [hKey, hType, hSource, hValue] = header;
   // Header
-  // eslint-disable-next-line no-console
   console.log(
     ansis.bold(
       `${hKey.padEnd(widths[0]!)}  ${hType.padEnd(widths[1]!)}  ${hSource.padEnd(widths[2]!)}  ${hValue}`,
@@ -113,7 +151,6 @@ function printPrettyTable(
     const keyOut = getSensitiveKeys(resolved).has(key)
       ? ansis.yellow(key)
       : key;
-    // eslint-disable-next-line no-console
     console.log(
       `${keyOut.padEnd(widths[0]!)}  ${type.padEnd(widths[1]!)}  ${source.padEnd(widths[2]!)}  ${value}`,
     );
@@ -124,10 +161,7 @@ export async function runLoadCommand(argv: string[]): Promise<number> {
   const args = parseLoadArgs(argv);
   const envConfig = await loadEnvConfig({ configPath: args.configPath });
 
-  const resolved = (await resolveAsync(envConfig as never)) as Record<
-    string,
-    unknown
-  >;
+  const resolved = (await resolveAsync(envConfig)) as Record<string, unknown>;
 
   if (args.format === 'pretty') {
     printPrettyTable(resolved, args.reveal);
@@ -137,21 +171,26 @@ export async function runLoadCommand(argv: string[]): Promise<number> {
   if (args.format === 'json') {
     const redactor = createRedactor(resolved);
     const output = args.reveal ? resolved : (redactor(resolved) as unknown);
-    // eslint-disable-next-line no-console
     console.log(JSON.stringify(output, null, 2));
     return 0;
   }
 
-  // env format
+  const delimiter = envConfig.options?.nestedDelimiter;
+  const flat = delimiter
+    ? (() => {
+        const preserveTopLevelKeys = new Set(
+          Object.keys(envConfig.schema).filter((k) => !k.includes(delimiter)),
+        );
+        return flattenForEnv(resolved, delimiter, { preserveTopLevelKeys });
+      })()
+    : Object.fromEntries(Object.entries(resolved).map(([k, v]) => [k, String(v ?? '')]));
+
   const redactor = createRedactor(resolved);
-  const keys = Object.keys(resolved).sort();
+  const keys = Object.keys(flat).sort();
   for (const key of keys) {
-    const raw = resolved[key];
-    const valueStr = String(raw ?? '');
-    const safe = args.reveal
-      ? valueStr
-      : (redactor(valueStr) as unknown as string);
-    // eslint-disable-next-line no-console
+    const valueStr = flat[key] ?? '';
+    const maybeRedacted = args.reveal ? valueStr : redactor(valueStr);
+    const safe = typeof maybeRedacted === 'string' ? maybeRedacted : valueStr;
     console.log(`${key}=${safe}`);
   }
 

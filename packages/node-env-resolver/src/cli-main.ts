@@ -22,7 +22,6 @@ function getVersion(): string {
 }
 
 function printHelp(): void {
-  // eslint-disable-next-line no-console
   console.log(
     [
       ansis.bold('node-env-resolver CLI'),
@@ -57,7 +56,6 @@ async function main(): Promise<number> {
   }
 
   if (argv.includes('--version') || argv.includes('-v')) {
-    // eslint-disable-next-line no-console
     console.log(getVersion());
     return 0;
   }
@@ -78,7 +76,6 @@ async function main(): Promise<number> {
       case 'typegen':
         return await runTypegenCommand(rest);
       default:
-        // eslint-disable-next-line no-console
         console.error(ansis.red(`Unknown command: ${command}`));
         printHelp();
         return 1;
@@ -86,7 +83,6 @@ async function main(): Promise<number> {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-console
     console.error(ansis.red(message));
     return 1;
   }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolve, resolveAsync, safeResolve } from './index';
-import { string, port, url, boolean } from './validators';
+import { createRedactor, getSensitiveKeys } from './redaction';
+import { string, port, url, boolean, sensitive } from './validators';
 
 /**
  * Tests for nested delimiter functionality
@@ -157,6 +158,19 @@ describe('Nested Delimiter', () => {
       name: 'MyApp',
       version: '1.0.0'
     });
+  });
+
+  it('should preserve sensitive metadata after nested transformation', () => {
+    process.env.APP__API_KEY = 'super-secret-token';
+
+    const config = resolve({
+      APP__API_KEY: sensitive(string())
+    }, { nestedDelimiter: '__' });
+
+    const sensitiveKeys = getSensitiveKeys(config);
+
+    expect(sensitiveKeys.has('APP__API_KEY')).toBe(true);
+    expect(createRedactor(config)('super-secret-token')).toBe('su*****');
   });
 
   it('should work with safeResolve', () => {

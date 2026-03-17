@@ -1722,9 +1722,22 @@ export function timestamp<
  * ```
  */
 export function sensitive<T>(validator: Validator<T>): Validator<T> {
-  const wrapped: Validator<T> = ((value: string) => validator(value)) as Validator<T>;
-  wrapped.__meta = { ...validator.__meta, sensitive: true };
-  if (validator.optional !== undefined) wrapped.optional = validator.optional;
-  if (validator.default !== undefined) wrapped.default = validator.default;
+  const wrapped: Validator<T> = ((value: string) =>
+    validator(value)
+  ) as unknown as Validator<T>;
+
+  const source = validator as unknown as Record<string, unknown>;
+  const target = wrapped as unknown as Record<string, unknown>;
+
+  // Copy all runtime metadata from the original validator so that wrapped
+  // validators (including file()) preserve their special behaviour.
+  for (const [prop, value] of Object.entries(source)) {
+    if (prop === '__meta') continue;
+    target[prop] = value;
+  }
+
+  const originalMeta = (source.__meta ?? {}) as ValidatorMeta | undefined;
+  target.__meta = { ...(originalMeta || {}), sensitive: true };
+
   return wrapped;
 }

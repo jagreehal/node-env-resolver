@@ -33,7 +33,6 @@ export async function runTypegenCommand(argv: string[]): Promise<number> {
 
   writeTypes(envConfig.schema, args.outputPath);
 
-  // eslint-disable-next-line no-console
   console.log(
     ansis.green(
       `Type definitions written to ${args.outputPath} based on EnvConfig schema.`,

@@ -60,8 +60,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "^3.1001.0",
-    "@aws-sdk/client-ssm": "^3.1001.0"
+    "@aws-sdk/client-secrets-manager": "^3.1008.0",
+    "@aws-sdk/client-ssm": "^3.1008.0"
   },
   "peerDependencies": {
     "node-env-resolver": "^6.3.0"
@@ -72,14 +72,14 @@
   "devDependencies": {
     "node-env-resolver": "workspace:*",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.3.3",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.1",
-    "eslint": "^10.0.2",
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   }
 }

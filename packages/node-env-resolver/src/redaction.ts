@@ -1,22 +1,3 @@
-/**
- * Redaction utilities for sensitive environment variables.
- *
- * Core primitives for detecting and masking sensitive values in logs, objects,
- * and strings. Console patching is a best-effort convenience layer on top.
- *
- * @example
- * ```ts
- * import { resolve } from 'node-env-resolver';
- * import { sensitive, string } from 'node-env-resolver/validators';
- * import { createRedactor, patchGlobalConsole } from 'node-env-resolver/redaction';
- *
- * const config = resolve({ API_KEY: sensitive(string()) });
- * const unpatch = patchGlobalConsole(config);
- * console.log(config.API_KEY); // "sk***" (redacted)
- * unpatch();
- * ```
- */
-
 import { SENSITIVE_KEYS_SYMBOL } from './types';
 
 /**
@@ -48,8 +29,6 @@ function isRevealed(value: unknown): value is Revealed<unknown> {
     (value as Revealed<unknown>)[REVEAL_SYMBOL] === true
   );
 }
-
-// ── Core Primitives ──────────────────────────────────────────────────
 
 /**
  * Extract the set of keys marked as sensitive from a resolved config object.
@@ -162,23 +141,9 @@ function redactStringValue(
   });
 }
 
-/**
- * Convenience wrapper: recursively redact sensitive values in a value.
- *
- * @param value - The value to redact (string, array, object)
- * @param config - A resolved config object
- */
 export function redactSensitiveConfig(value: unknown, config: object): unknown {
   return createRedactor(config)(value);
 }
-
-// ── Console Patching (best-effort convenience layer) ─────────────────
-//
-// Known limitations:
-// - Third-party loggers that bypass console are not covered
-// - Object inspection depth may not catch deeply nested secrets
-// - Secrets split across multiple console arguments may not be caught
-// - Node.js only
 
 const PATCHED_SYMBOL = Symbol.for('node-env-resolver:consolePatchedBy');
 
@@ -192,7 +157,6 @@ const PATCHED_SYMBOL = Symbol.for('node-env-resolver:consolePatchedBy');
  * @returns A function to unpatch (restore original console methods)
  */
 export function patchGlobalConsole(config: object): () => void {
-  // Guard against double-patching
   if ((globalThis as Record<symbol, unknown>)[PATCHED_SYMBOL]) {
     return () => {};
   }

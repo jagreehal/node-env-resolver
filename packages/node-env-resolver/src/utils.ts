@@ -65,7 +65,7 @@ export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver
       // If no cache or cache is expired beyond maxAge, force refresh
       if (!cache || (now - cache.timestamp) > maxAge) {
         const data = resolver.load ? await resolver.load() : {};
-        cache = { data, timestamp: now };
+        cache = { data, timestamp: Date.now() };
         wrapper.metadata = { cached: false };
         return data;
       }
@@ -77,35 +77,25 @@ export function cached(resolver: Resolver, options: CacheOptions = {}): Resolver
       }
       
       // Cache is stale (between TTL and maxAge)
-      // If stale-while-revalidate is enabled, serve stale data while refreshing in background
       if (staleWhileRevalidate && !cache.refreshPromise) {
-        // Trigger background refresh (non-blocking, lazy/on-demand)
-        // This only runs when a request comes in, NOT via setInterval
         const refreshPromise = Promise.resolve(resolver.load ? resolver.load() : Promise.resolve({}));
         cache.refreshPromise = refreshPromise.then(data => {
-          // Success: update cache with fresh data
           cache!.data = data;
           cache!.timestamp = Date.now();
           cache!.refreshPromise = undefined;
           return data;
         }).catch(() => {
-          // Error resilience: if refresh fails (AWS down, network error, etc.):
-          // - Silently catch the error (no throw)
-          // - Keep serving stale data to users
-          // - Clear refreshPromise to allow retry on next request
-          // - App stays up even if AWS is temporarily unavailable
           cache!.refreshPromise = undefined;
           return cache!.data;
         });
         
-        // Immediately return stale data (don't wait for background refresh)
         wrapper.metadata = { cached: true, stale: true };
         return cache.data;
       }
       
       // Cache is stale and no stale-while-revalidate, force refresh
       const data = resolver.load ? await resolver.load() : {};
-      cache = { data, timestamp: now };
+      cache = { data, timestamp: Date.now() };
       wrapper.metadata = { cached: false };
       return data;
     },
@@ -537,6 +527,7 @@ export function withNamespace(
  * underlying resolvers implement loadSync().
  */
 export function fallback(...resolvers: SyncResolver[]): SyncResolver;
+// eslint-disable-next-line no-redeclare
 export function fallback(...resolvers: Resolver[]): Resolver {
   const name = `fallback(${resolvers.map(r => r.name).join(', ')})`;
 
