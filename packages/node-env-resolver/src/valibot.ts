@@ -17,53 +17,114 @@
  */
 
 import {
-   type Resolver, type PolicyOptions
+  type Resolver,
+  type PolicyOptions,
+  type Provenance,
+  type ReferenceOptions,
 } from './index';
 import { processEnv } from './resolvers';
+import { resolveReferences, resolveReferencesSync } from './references';
 import type { SafeResolveResult, ValidationIssue } from './validation-types';
 
-async function resolveFromResolvers(resolvers: Resolver[], interpolate: boolean, strict: boolean) {
+type ResolveValibotOptions = {
+  resolvers?: Resolver[];
+  interpolate?: boolean;
+  strict?: boolean;
+  policies?: PolicyOptions;
+  references?: ReferenceOptions;
+};
+
+async function resolveFromResolvers(
+  resolvers: Resolver[],
+  interpolate: boolean,
+  strict: boolean,
+  references?: ReferenceOptions,
+) {
   let env: Record<string, string> = {};
+  const provenance: Record<string, Provenance> = {};
   for (const resolver of resolvers) {
     try {
       const data = resolver.load ? await resolver.load() : {};
       env = { ...env, ...data };
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          provenance[key] = {
+            source: resolver.name || 'unknown',
+            timestamp: Date.now(),
+          };
+        }
+      }
     } catch (error) {
-      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
+      if (strict)
+        throw new Error(
+          `Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`,
+          { cause: error },
+        );
     }
   }
 
   if (interpolate) {
     for (const [key, value] of Object.entries(env)) {
-      env[key] = value.replace(/\$\{([^}]+)\}/g, (_, varName) => env[varName] || '');
+      env[key] = value.replace(
+        /\$\{([^}]+)\}/g,
+        (_, varName) => env[varName] || '',
+      );
     }
   }
 
-  return env;
+  await resolveReferences(env, provenance, references);
+
+  return { env, provenance };
 }
 
-function resolveFromResolversSync(resolvers: Resolver[], interpolate: boolean, strict: boolean) {
+function resolveFromResolversSync(
+  resolvers: Resolver[],
+  interpolate: boolean,
+  strict: boolean,
+  references?: ReferenceOptions,
+) {
   let env: Record<string, string> = {};
+  const provenance: Record<string, Provenance> = {};
   for (const resolver of resolvers) {
     try {
       if (!resolver.loadSync) {
-        if (strict) throw new Error(`Resolver ${resolver.name} does not support sync loading`);
+        if (strict)
+          throw new Error(
+            `Resolver ${resolver.name} does not support sync loading`,
+          );
         continue;
       }
       const data = resolver.loadSync();
       env = { ...env, ...data };
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          provenance[key] = {
+            source: resolver.name || 'unknown',
+            timestamp: Date.now(),
+          };
+        }
+      }
     } catch (error) {
-      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
+      if (strict)
+        throw new Error(
+          `Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`,
+          { cause: error },
+        );
     }
   }
 
   if (interpolate) {
     for (const [key, value] of Object.entries(env)) {
-      env[key] = value.replace(/\$\{([^}]+)\}/g, (_, varName) => env[varName] || '');
+      env[key] = value.replace(
+        /\$\{([^}]+)\}/g,
+        (_, varName) => env[varName] || '',
+      );
     }
   }
 
-  return env;
+  resolveReferencesSync(env, provenance, references);
+
+  return { env, provenance };
 }
 
 /**
@@ -73,8 +134,8 @@ function resolveFromResolversSync(resolvers: Resolver[], interpolate: boolean, s
 export type InferValibotOutput<T> = T extends { _types?: { output: infer O } }
   ? O
   : T extends { parse: (input: unknown) => infer R }
-  ? R
-  : unknown;
+    ? R
+    : unknown;
 
 /**
  * Convert Valibot issues to unified ValidationIssue format
@@ -96,9 +157,9 @@ function valibotIssuesToIssues(vIssues: unknown): ValidationIssue[] {
     };
 
     return {
-      path: vIssue.path?.map(p => p.key) || [],
+      path: vIssue.path?.map((p) => p.key) || [],
       message: vIssue.message || 'Validation failed',
-      code: vIssue.type
+      code: vIssue.type,
     };
   });
 }
@@ -120,13 +181,27 @@ function valibotIssuesToIssues(vIssues: unknown): ValidationIssue[] {
  * console.log(env.PORT);  // number
  * ```
  */
-export async function resolveValibot<TSchema extends { parseAsync: (input: unknown) => Promise<unknown> }>(
+export async function resolveValibot<
+  TSchema extends { parseAsync: (input: unknown) => Promise<unknown> },
+>(
   valibotSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveValibotOptions = {},
 ): Promise<InferValibotOutput<TSchema>> {
-  const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-  const mergedEnv = await resolveFromResolvers(resolvers, interpolate, strict);
-  return valibotSchema.parseAsync(mergedEnv) as Promise<InferValibotOutput<TSchema>>;
+  const {
+    resolvers = [processEnv()],
+    interpolate = false,
+    strict = true,
+    references,
+  } = options;
+  const { env: mergedEnv } = await resolveFromResolvers(
+    resolvers,
+    interpolate,
+    strict,
+    references,
+  );
+  return valibotSchema.parseAsync(mergedEnv) as Promise<
+    InferValibotOutput<TSchema>
+  >;
 }
 
 /**
@@ -154,27 +229,52 @@ export async function resolveValibot<TSchema extends { parseAsync: (input: unkno
  * }
  * ```
  */
-export async function safeResolveValibot<TSchema extends { safeParseAsync: (input: unknown) => Promise<{ success: boolean; output?: unknown; issues?: unknown }> }>(
+export async function safeResolveValibot<
+  TSchema extends {
+    safeParseAsync: (
+      input: unknown,
+    ) => Promise<{ success: boolean; output?: unknown; issues?: unknown }>;
+  },
+>(
   valibotSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveValibotOptions = {},
 ): Promise<SafeResolveResult<InferValibotOutput<TSchema>>> {
   try {
-    const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-    const mergedEnv = await resolveFromResolvers(resolvers, interpolate, strict);
+    const {
+      resolvers = [processEnv()],
+      interpolate = false,
+      strict = true,
+      references,
+    } = options;
+    const { env: mergedEnv } = await resolveFromResolvers(
+      resolvers,
+      interpolate,
+      strict,
+      references,
+    );
     const result = await valibotSchema.safeParseAsync(mergedEnv);
 
     if (result.success) {
-      return { success: true, data: result.output as InferValibotOutput<TSchema> };
+      return {
+        success: true,
+        data: result.output as InferValibotOutput<TSchema>,
+      };
     }
 
     const issues = valibotIssuesToIssues(result.issues);
-    const errorMessage = issues.map(issue => issue.message).join(', ');
+    const errorMessage = issues.map((issue) => issue.message).join(', ');
     return { success: false, error: errorMessage, issues };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
-      issues: [{ path: [], message: error instanceof Error ? error.message : String(error), code: 'resolver_error' }]
+      issues: [
+        {
+          path: [],
+          message: error instanceof Error ? error.message : String(error),
+          code: 'resolver_error',
+        },
+      ],
     };
   }
 }
@@ -195,12 +295,24 @@ export async function safeResolveValibot<TSchema extends { safeParseAsync: (inpu
  * console.log(env.PORT);
  * ```
  */
-export function resolveSyncValibot<TSchema extends { parse: (input: unknown) => unknown }>(
+export function resolveSyncValibot<
+  TSchema extends { parse: (input: unknown) => unknown },
+>(
   valibotSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveValibotOptions = {},
 ): InferValibotOutput<TSchema> {
-  const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-  const mergedEnv = resolveFromResolversSync(resolvers, interpolate, strict);
+  const {
+    resolvers = [processEnv()],
+    interpolate = false,
+    strict = true,
+    references,
+  } = options;
+  const { env: mergedEnv } = resolveFromResolversSync(
+    resolvers,
+    interpolate,
+    strict,
+    references,
+  );
   return valibotSchema.parse(mergedEnv) as InferValibotOutput<TSchema>;
 }
 
@@ -228,27 +340,54 @@ export function resolveSyncValibot<TSchema extends { parse: (input: unknown) => 
  * }
  * ```
  */
-export function safeResolveSyncValibot<TSchema extends { safeParse: (input: unknown) => { success: boolean; output?: unknown; issues?: unknown } }>(
+export function safeResolveSyncValibot<
+  TSchema extends {
+    safeParse: (input: unknown) => {
+      success: boolean;
+      output?: unknown;
+      issues?: unknown;
+    };
+  },
+>(
   valibotSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveValibotOptions = {},
 ): SafeResolveResult<InferValibotOutput<TSchema>> {
   try {
-    const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-    const mergedEnv = resolveFromResolversSync(resolvers, interpolate, strict);
+    const {
+      resolvers = [processEnv()],
+      interpolate = false,
+      strict = true,
+      references,
+    } = options;
+    const { env: mergedEnv } = resolveFromResolversSync(
+      resolvers,
+      interpolate,
+      strict,
+      references,
+    );
     const result = valibotSchema.safeParse(mergedEnv);
 
     if (result.success) {
-      return { success: true, data: result.output as InferValibotOutput<TSchema> };
+      return {
+        success: true,
+        data: result.output as InferValibotOutput<TSchema>,
+      };
     }
 
     const issues = valibotIssuesToIssues(result.issues);
-    const errorMessage = issues.map(issue => issue.message).join(', ');
+    const errorMessage = issues.map((issue) => issue.message).join(', ');
     return { success: false, error: errorMessage, issues };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
-      issues: [{ path: [], message: error instanceof Error ? error.message : String(error), code: 'resolver_error' }]
+      issues: [
+        {
+          path: [],
+          message: error instanceof Error ? error.message : String(error),
+          code: 'resolver_error',
+        },
+      ],
     };
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver-nextjs",
-  "version": "7.4.1",
+  "version": "7.3.0",
   "description": "Zero-config Next.js integration for node-env-resolver with client/server split and App Router support",
   "type": "module",
   "main": "./dist/index.js",
@@ -79,22 +79,22 @@
     "access": "public"
   },
   "peerDependencies": {
-    "next": "^16.1.6"
+    "next": "^16.2.3"
   },
   "dependencies": {
     "node-env-resolver": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.5.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.0",
-    "@typescript-eslint/parser": "^8.57.0",
-    "eslint": "^10.0.3",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^10.2.0",
     "globals": "^17.4.0",
-    "prettier": "^3.8.1",
+    "prettier": "^3.8.2",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.0"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   },
   "engines": {
     "node": ">=18"

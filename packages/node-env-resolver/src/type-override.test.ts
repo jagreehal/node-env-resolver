@@ -9,21 +9,21 @@ describe('Type override behavior with multiple resolvers', () => {
       name: 'resolver1',
       async load() {
         return { PORT: '8080' };
-      }
+      },
     };
 
     const resolver2 = {
       name: 'resolver2',
       async load() {
         return { PORT: '3000' };
-      }
+      },
     };
 
     const config = await resolveAsync({
       resolvers: [
-        [resolver1, { PORT: string() }],  // First schema: string
-        [resolver2, { PORT: 3000 }]        // Last schema: number (wins)
-      ]
+        [resolver1, { PORT: string() }], // First schema: string
+        [resolver2, { PORT: 3000 }], // Last schema: number (wins)
+      ],
     });
 
     // Last resolver's value AND last schema's type both win
@@ -36,21 +36,21 @@ describe('Type override behavior with multiple resolvers', () => {
       name: 'resolver1',
       async load() {
         return { API_KEY: 'key123' };
-      }
+      },
     };
 
     const resolver2 = {
       name: 'resolver2',
       async load() {
         return {}; // No API_KEY
-      }
+      },
     };
 
     const config = await resolveAsync({
       resolvers: [
-        [resolver1, { API_KEY: string() }],   // Required
-        [resolver2, { API_KEY: string({optional:true}) }]   // Optional (last schema wins)
-      ]
+        [resolver1, { API_KEY: string() }], // Required
+        [resolver2, { API_KEY: string({ optional: true }) }], // Optional (last schema wins)
+      ],
     });
 
     // Last schema makes it optional
@@ -64,21 +64,21 @@ describe('Type override behavior with multiple resolvers', () => {
       name: 'resolver1',
       async load() {
         return { ENDPOINT: 'just-a-string' };
-      }
+      },
     };
 
     const resolver2 = {
       name: 'resolver2',
       async load() {
         return { ENDPOINT: 'https://api.example.com' };
-      }
+      },
     };
 
     const config = await resolveAsync({
       resolvers: [
         [resolver1, { ENDPOINT: string() }],
-        [resolver2, { ENDPOINT: url() }]  // Last schema validates as URL
-      ]
+        [resolver2, { ENDPOINT: url() }], // Last schema validates as URL
+      ],
     });
 
     // Last schema validates as URL (returns validated string)
@@ -92,21 +92,21 @@ describe('Type override behavior with multiple resolvers', () => {
       name: 'resolver1',
       async load() {
         return { ENV: 'development' };
-      }
+      },
     };
 
     const resolver2 = {
       name: 'resolver2',
       async load() {
         return { ENV: 'production' };
-      }
+      },
     };
 
     const config = await resolveAsync({
       resolvers: [
         [resolver1, { ENV: oneOf(['development', 'staging']) }],
-        [resolver2, { ENV: oneOf(['production', 'test']) }]  // Last schema
-      ]
+        [resolver2, { ENV: oneOf(['production', 'test']) }], // Last schema
+      ],
     });
 
     // Last schema's enum validation wins
@@ -119,24 +119,24 @@ describe('Type override behavior with multiple resolvers', () => {
       name: 'resolver1',
       async load() {
         return { VALUE: 'not-a-number' };
-      }
+      },
     };
 
     const resolver2 = {
       name: 'resolver2',
       async load() {
         return { VALUE: 'not-a-number' };
-      }
+      },
     };
 
     // Last schema expects number, but value is string - should fail
     await expect(
-        resolveAsync({
+      resolveAsync({
         resolvers: [
           [resolver1, { VALUE: string() }],
-          [resolver2, { VALUE: number() }]  // Stricter
-        ]
-      })  
+          [resolver2, { VALUE: number() }], // Stricter
+        ],
+      }),
     ).rejects.toThrow();
   });
 
@@ -145,21 +145,21 @@ describe('Type override behavior with multiple resolvers', () => {
       name: 'resolver1',
       async load() {
         return {};
-      }
+      },
     };
 
     const resolver2 = {
       name: 'resolver2',
       async load() {
         return {};
-      }
+      },
     };
 
     const config = await resolveAsync({
       resolvers: [
-        [resolver1, { PORT: 8080 }],    // Default 8080
-        [resolver2, { PORT: 3000 }]     // Default 3000 (last schema wins)
-      ]
+        [resolver1, { PORT: 8080 }], // Default 8080
+        [resolver2, { PORT: 3000 }], // Default 3000 (last schema wins)
+      ],
     });
 
     // Last schema's default wins
@@ -171,51 +171,60 @@ describe('Type override behavior with multiple resolvers', () => {
       name: 'local',
       async load() {
         return {
-          PORT: '8080',        // String value
-          API_KEY: 'local-key'
+          PORT: '8080', // String value
+          API_KEY: 'local-key',
         };
-      }
+      },
     };
 
     const aws = {
       name: 'aws',
       async load() {
         return {
-          PORT: '3000',         // String value
-          DATABASE_URL: 'postgres://db'
+          PORT: '3000', // String value
+          DATABASE_URL: 'postgres://db',
         };
-      }
+      },
     };
 
     const config = await resolveAsync({
       resolvers: [
-        [local, {
-          PORT: string({optional:true}),          // Schema type: string | undefined (optional)
-          API_KEY: string()
-        }],
-        [aws, {
-          PORT: 3000,              // Schema type: number (WINS for type)
-          DATABASE_URL: postgres()  // New variable
-        }]
-      ]
-    }); 
+        [
+          local,
+          {
+            PORT: string({ optional: true }), // Schema type: string | undefined (optional)
+            API_KEY: string(),
+          },
+        ],
+        [
+          aws,
+          {
+            PORT: 3000, // Schema type: number (WINS for type)
+            DATABASE_URL: postgres(), // New variable
+          },
+        ],
+      ],
+    });
 
     // TypeScript type checking with satisfies
     // Note: With multiple schemas, TypeScript can't infer the exact merged type
     // so we use type assertion here
     const typedConfig = config as unknown as {
-      PORT: number;        // Last schema wins - should be number
-      API_KEY: string;     // First schema
+      PORT: number; // Last schema wins - should be number
+      API_KEY: string; // First schema
       DATABASE_URL: string; // Second schema
     };
 
     // Verify TypeScript infers correct types for each property
-    const port: number = typedConfig.PORT;              // ✓ TypeScript: number (last schema)
-    const apiKey: string = typedConfig.API_KEY;         // ✓ TypeScript: string (first schema)
-    const dbUrl: string = typedConfig.DATABASE_URL;     // ✓ TypeScript: string (second schema)
+    const port: number = typedConfig.PORT; // ✓ TypeScript: number (last schema)
+    const apiKey: string = typedConfig.API_KEY; // ✓ TypeScript: string (first schema)
+    const dbUrl: string = typedConfig.DATABASE_URL; // ✓ TypeScript: string (second schema)
 
     // Verify the actual expanded type - this should work if PORT was string | undefined before merge
-    type FirstSchema = InferSimpleSchema<{ readonly PORT: ReturnType<typeof string>; readonly API_KEY: ReturnType<typeof string> }>;
+    type FirstSchema = InferSimpleSchema<{
+      readonly PORT: ReturnType<typeof string>;
+      readonly API_KEY: ReturnType<typeof string>;
+    }>;
     type FirstPortType = FirstSchema['PORT']; // Hover to see: string | undefined (because optional: true)
     const testUndefined: FirstPortType = undefined as unknown as FirstPortType; // ✓ Works! Proves PORT is string | undefined
     expect(testUndefined).toBeUndefined();

@@ -1,17 +1,19 @@
 /**
  * node-env-resolver/vite
  * Zero-config Vite integration with automatic client/server split
- *
- * Vite handles .env files via process.env automatically.
- * resolve() is synchronous and works with ALL validator types:
- * - Basic types: string, number, boolean, oneOf, pattern, custom
- * - Advanced types: postgres, url, email, json, port, etc.
  */
 
-import { resolve as nodeEnvResolve } from 'node-env-resolver';
-import type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema } from 'node-env-resolver';
+import { resolve as nodeEnvResolve, resolveAsync } from 'node-env-resolver';
+import { dotenv } from 'node-env-resolver/resolvers';
+import type {
+  SimpleEnvSchema,
+  ResolveOptions,
+  InferSimpleSchema,
+  ReferenceHandler,
+} from 'node-env-resolver';
 
-// Re-export all validators for convenience
+export type { ReferenceHandler };
+
 export {
   string,
   url,
@@ -38,10 +40,8 @@ export {
   timestamp,
 } from 'node-env-resolver/validators';
 
-// Re-export useful types
 export type { EnvDefinition } from 'node-env-resolver';
 
-// Safe resolve result types (Zod-like)
 export interface SafeResolveResult<T> {
   success: true;
   data: T;
@@ -60,174 +60,140 @@ export interface ViteEnvConfig<TServer extends SimpleEnvSchema, TClient extends 
 }
 
 export interface ViteOptions extends Omit<ResolveOptions, 'resolvers'> {
-  /**
-   * Prefix for client environment variables
-   * @default 'VITE_'
-   */
   clientPrefix?: string;
-  
-  /**
-   * Enable variable expansion in .env files
-   * @default true
-   */
   expandVars?: boolean;
-  
-  /**
-   * Enable runtime protection for server variables in client components
-   * @default true
-   */
   runtimeProtection?: boolean;
+  async?: boolean;
+  referenceHandlers?: Record<string, ReferenceHandler>;
 }
 
-/**
- * Create type-safe environment configuration for Vite with automatic client/server split
- *
- * Vite handles .env files automatically.
- * This function is synchronous and supports ALL validator types:
- * - Basic types: string, number, boolean, oneOf, pattern, custom
- * - Advanced types: postgres, url, email, json, port, date, etc.
- *
- * @example
- * ```typescript
- * // env.ts
- * import { resolve } from 'node-env-resolver-vite';
- *
- * export const env = resolve({
- *   server: {
- *     DATABASE_URL: url(),
- *     API_SECRET: string(),
- *     PORT: 'port:5173',
- *     NODE_ENV: ['development', 'production'] as const
- *   },
- *   client: {
- *     VITE_API_URL: url(),
- *     VITE_ENABLE_ANALYTICS: false,
- *     VITE_GA_ID: string({optional:true})
- *   }
- * });
- *
- * // In server/build code (vite.config.ts, SSR)
- * import { env } from './env';
- *
- * console.log(env.server.DATABASE_URL); // ✅ Works, type: URL
- * console.log(env.client.VITE_API_URL); // ✅ Works, type: URL
- *
- * // In browser code
- * console.log(env.server.DATABASE_URL); // ❌ Throws helpful error in dev
- * console.log(env.client.VITE_API_URL); // ✅ Works, type: URL
- * ```
- */
+function createIsBrowser(): () => boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const globalAny = globalThis as any;
+  const isBrowserOverride = globalAny.__NODE_ENV_RESOLVER_VITE_IS_BROWSER;
+  if (typeof isBrowserOverride === 'function') {
+    return isBrowserOverride;
+  }
+  return () => typeof window !== 'undefined';
+}
+
+function validatePrefixes<
+  TServer extends SimpleEnvSchema,
+  TClient extends SimpleEnvSchema,
+>(config: ViteEnvConfig<TServer, TClient>, clientPrefix: string): string | null {
+  const badClientKeys = Object.keys(config.client).filter((k) => !k.startsWith(clientPrefix));
+  if (badClientKeys.length > 0) {
+    return `Client env vars must be prefixed '${clientPrefix}': ${badClientKeys.join(', ')}`;
+  }
+  const badServerKeys = Object.keys(config.server).filter((k) => k.startsWith(clientPrefix));
+  if (badServerKeys.length > 0) {
+    return `Server env vars should not be prefixed '${clientPrefix}': ${badServerKeys.join(', ')}`;
+  }
+  return null;
+}
+
+function resolveInternal<TServer extends SimpleEnvSchema, TClient extends SimpleEnvSchema>(
+  config: ViteEnvConfig<TServer, TClient>,
+  options: Omit<ViteOptions, 'async' | 'referenceHandlers'>
+) {
+  try {
+    const { clientPrefix = 'VITE_', runtimeProtection = true } = options;
+
+    const prefixError = validatePrefixes(config, clientPrefix);
+    if (prefixError) return { error: prefixError };
+
+    const serverResult = nodeEnvResolve(config.server);
+    const clientResult = nodeEnvResolve(config.client);
+
+    const isBrowser = createIsBrowser();
+
+    const protectedEnv = {
+      server: runtimeProtection
+        ? new Proxy(serverResult, {
+            get(_target, prop) {
+              if (isBrowser()) {
+                throw new Error(`Cannot access server env var '${String(prop)}' in client code`);
+              }
+              return (serverResult as Record<string, unknown>)[prop as string];
+            },
+          })
+        : serverResult,
+      client: clientResult,
+    };
+
+    return { data: protectedEnv };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleEnvSchema>(
   config: ViteEnvConfig<TServer, TClient>,
-  options: Omit<ViteOptions, 'resolvers'> & { resolvers?: never } = {}
-): {
-  server: InferSimpleSchema<TServer>;
-  client: InferSimpleSchema<TClient>;
-} {
-  const {
-    clientPrefix = 'VITE_',
-    runtimeProtection = true
-  } = options;
-
-  // Validate client keys have correct prefix
-  const clientKeys = Object.keys(config.client);
-  const incorrectClientKeys = clientKeys.filter(key => !key.startsWith(clientPrefix));
-  if (incorrectClientKeys.length > 0) {
-    throw new Error(
-      `❌ Client environment variables must be prefixed with '${clientPrefix}': ${incorrectClientKeys.join(', ')}\n` +
-      `💡 Rename these variables to start with '${clientPrefix}' (e.g., ${incorrectClientKeys[0]} → ${clientPrefix}${incorrectClientKeys[0]})`
-    );
+  options: Omit<ViteOptions, 'async' | 'referenceHandlers'> = {}
+): { server: InferSimpleSchema<TServer>; client: InferSimpleSchema<TClient> } {
+  const result = resolveInternal(config, options);
+  if ('error' in result) {
+    throw new Error(result.error);
   }
-
-  // Validate server keys don't have client prefix
-  const serverKeys = Object.keys(config.server);
-  const incorrectServerKeys = serverKeys.filter(key => key.startsWith(clientPrefix));
-  if (incorrectServerKeys.length > 0) {
-    throw new Error(
-      `❌ Server environment variables should not be prefixed with '${clientPrefix}': ${incorrectServerKeys.join(', ')}\n` +
-      `💡 These variables will be exposed to the client. Move to client schema or remove prefix.`
-    );
-  }
-
-  // Use resolve - Vite already handles .env files via process.env, so no custom resolvers needed
-  const serverResult = nodeEnvResolve(config.server) as InferSimpleSchema<TServer>;
-  const clientResult = nodeEnvResolve(config.client) as InferSimpleSchema<TClient>;
-
-  // Create protected environment object with runtime guards
-  const isBrowser = () => typeof window !== 'undefined';
-
-  const protectedEnv = {
-    server: new Proxy(serverResult, {
-      get(target, prop) {
-        // Runtime protection for server variables in client
-        if (runtimeProtection && isBrowser()) {
-          throw new Error(
-            `❌ Cannot access server environment variable '${String(prop)}' in client-side code.\n` +
-            `💡 Server variables are only available in server context (vite.config.ts, SSR, build scripts).\n` +
-            `💡 If you need this data on the client, consider:\n` +
-            `   - Moving it to the client schema with ${clientPrefix} prefix\n` +
-            `   - Fetching it via an API endpoint\n` +
-            `   - Using SSR to pass data to client components`
-          );
-        }
-        return (target as Record<string, unknown>)[prop as string];
-      }
-    }),
-    client: clientResult
-  };
-
-  return protectedEnv;
+  return result.data as { server: InferSimpleSchema<TServer>; client: InferSimpleSchema<TClient> };
 }
 
-/**
- * Safe version of resolve() - returns result object instead of throwing (Zod-like pattern)
- *
- * Supports all validator types (basic and advanced).
- *
- * @example
- * ```typescript
- * // env.ts
- * import { safeResolve } from 'node-env-resolver-vite';
- *
- * const result = safeResolve({
- *   server: {
- *     DATABASE_URL: url(),
- *     API_SECRET: string(),
- *     PORT: 'port:5173'
- *   },
- *   client: {
- *     VITE_API_URL: url(),
- *     VITE_ENABLE_ANALYTICS: false,
- *   }
- * });
- *
- * if (result.success) {
- *   export const env = result.data;
- * } else {
- *   console.error('Environment validation failed:', result.error);
- *   process.exit(1);
- * }
- * ```
- */
+export async function resolveAsyncFn<
+  TServer extends SimpleEnvSchema,
+  TClient extends SimpleEnvSchema,
+>(
+  config: ViteEnvConfig<TServer, TClient>,
+  options: ViteOptions = {}
+): Promise<{ server: InferSimpleSchema<TServer>; client: InferSimpleSchema<TClient> }> {
+  const { clientPrefix = 'VITE_', runtimeProtection = true, referenceHandlers } = options;
+
+  const prefixError = validatePrefixes(config, clientPrefix);
+  if (prefixError) throw new Error(prefixError);
+
+  const referenceOptions = referenceHandlers ? { handlers: referenceHandlers } : undefined;
+
+  // Resolve server and client independently so they stay isolated
+  const [serverResult, clientResult] = await Promise.all([
+    resolveAsync({
+      resolvers: [[dotenv(), config.server]],
+      references: referenceOptions,
+    }),
+    resolveAsync({
+      resolvers: [[dotenv(), config.client]],
+      references: referenceOptions,
+    }),
+  ]);
+
+  const isBrowser = createIsBrowser();
+
+  return {
+    server: runtimeProtection
+      ? new Proxy(serverResult, {
+          get(_target, prop) {
+            if (isBrowser()) {
+              throw new Error(`Cannot access server env var '${String(prop)}' in client code`);
+            }
+            return (serverResult as Record<string, unknown>)[prop as string];
+          },
+        })
+      : serverResult,
+    client: clientResult,
+  } as { server: InferSimpleSchema<TServer>; client: InferSimpleSchema<TClient> };
+}
+
 export function safeResolve<TServer extends SimpleEnvSchema, TClient extends SimpleEnvSchema>(
   config: ViteEnvConfig<TServer, TClient>,
-  options: Omit<ViteOptions, 'resolvers'> & { resolvers?: never } = {}
+  options: Omit<ViteOptions, 'async' | 'referenceHandlers'> = {}
 ): SafeResolveResultType<{
   server: InferSimpleSchema<TServer>;
   client: InferSimpleSchema<TClient>;
 }> {
   try {
-    const result = resolve(config, options);
-    return { success: true, data: result };
+    return { success: true, data: resolve(config, options) };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-// Utility for runtime environment detection
 export const isServer = typeof window === 'undefined';
 export const isClient = !isServer;
-

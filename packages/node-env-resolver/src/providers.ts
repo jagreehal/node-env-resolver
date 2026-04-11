@@ -39,7 +39,10 @@ const parseDotenv = (content: string) => {
     // Handle quoted values with escape sequences
     if (value.length >= 2) {
       const quote = value[0];
-      if ((quote === '"' || quote === "'") && value[value.length - 1] === quote) {
+      if (
+        (quote === '"' || quote === "'") &&
+        value[value.length - 1] === quote
+      ) {
         value = value.slice(1, -1);
 
         // Process escape sequences for double quotes only (like bash)
@@ -89,7 +92,10 @@ const parseDotenv = (content: string) => {
  * ```
  */
 export function dotenv(options?: string | DotenvOptions): Resolver {
-  const opts = typeof options === 'string' ? { path: options, expand: false } : { path: options?.path ?? '.env', expand: options?.expand ?? false };
+  const opts =
+    typeof options === 'string'
+      ? { path: options, expand: false }
+      : { path: options?.path ?? '.env', expand: options?.expand ?? false };
 
   return {
     name: opts.expand ? `dotenv-expand(${opts.path})` : `dotenv(${opts.path})`,
@@ -101,13 +107,23 @@ export function dotenv(options?: string | DotenvOptions): Resolver {
 
       const base = opts.path!;
       const env = process.env.NODE_ENV || 'development';
-      const files = [`${base}.defaults`, base, `${base}.local`, `${base}.${env}`, `${base}.${env}.local`];
+      const files = [
+        `${base}.defaults`,
+        base,
+        `${base}.local`,
+        `${base}.${env}`,
+        `${base}.${env}.local`,
+      ];
       let merged: Record<string, string> = {};
 
       for (const file of files) {
         const p = join(process.cwd(), file);
         if (existsSync(p)) {
-          try { merged = { ...merged, ...parseDotenv(readFileSync(p, 'utf8')) }; } catch { /* ignore file read errors */ }
+          try {
+            merged = { ...merged, ...parseDotenv(readFileSync(p, 'utf8')) };
+          } catch {
+            /* ignore file read errors */
+          }
         }
       }
 
@@ -121,18 +137,28 @@ export function dotenv(options?: string | DotenvOptions): Resolver {
 
       const base = opts.path!;
       const env = process.env.NODE_ENV || 'development';
-      const files = [`${base}.defaults`, base, `${base}.local`, `${base}.${env}`, `${base}.${env}.local`];
+      const files = [
+        `${base}.defaults`,
+        base,
+        `${base}.local`,
+        `${base}.${env}`,
+        `${base}.${env}.local`,
+      ];
       let merged: Record<string, string> = {};
 
       for (const file of files) {
         const p = join(process.cwd(), file);
         if (existsSync(p)) {
-          try { merged = { ...merged, ...parseDotenv(readFileSync(p, 'utf8')) }; } catch { /* ignore file read errors */ }
+          try {
+            merged = { ...merged, ...parseDotenv(readFileSync(p, 'utf8')) };
+          } catch {
+            /* ignore file read errors */
+          }
         }
       }
 
       return merged;
-    }
+    },
   };
 }
 
@@ -158,6 +184,6 @@ export function processEnv(): Resolver {
     },
     loadSync() {
       return { ...process.env } as Record<string, string>;
-    }
+    },
   };
 }

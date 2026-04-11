@@ -13,7 +13,7 @@ import type { Resolver } from './types';
 function createTrackedResolver(
   name: string,
   env: Record<string, string>,
-  delay: number = 0
+  delay: number = 0,
 ): Resolver & { loadCalled: boolean; loadCount: number } {
   const tracker = {
     loadCalled: false,
@@ -26,7 +26,7 @@ function createTrackedResolver(
       tracker.loadCalled = true;
       tracker.loadCount++;
       if (delay > 0) {
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
       return env;
     },
@@ -40,7 +40,7 @@ function createTrackedResolver(
     },
     get loadCount() {
       return tracker.loadCount;
-    }
+    },
   };
 }
 
@@ -49,17 +49,17 @@ describe('Early termination optimization (priority: first)', () => {
     const resolver1 = createTrackedResolver('first', {
       DATABASE_URL: 'http://localhost:5432/db',
       API_KEY: 'secret123',
-      PORT: '8080'
+      PORT: '8080',
     });
 
     const resolver2 = createTrackedResolver('second', {
       DATABASE_URL: 'should-not-be-used',
       API_KEY: 'should-not-be-used',
-      PORT: 'should-not-be-used'
+      PORT: 'should-not-be-used',
     });
 
     const resolver3 = createTrackedResolver('third', {
-      DATABASE_URL: 'should-not-be-used'
+      DATABASE_URL: 'should-not-be-used',
     });
 
     const config = await resolveAsync({
@@ -68,7 +68,7 @@ describe('Early termination optimization (priority: first)', () => {
         [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
         [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       ],
-      options: { priority: 'first' }
+      options: { priority: 'first' },
     });
 
     // First resolver should be called
@@ -87,26 +87,26 @@ describe('Early termination optimization (priority: first)', () => {
 
   it('should call second resolver if first does not provide all required keys', async () => {
     const resolver1 = createTrackedResolver('first', {
-      DATABASE_URL: 'http://localhost:5432/db'
+      DATABASE_URL: 'http://localhost:5432/db',
       // Missing API_KEY and PORT
     });
 
     const resolver2 = createTrackedResolver('second', {
       API_KEY: 'secret123',
-      PORT: '8080'
+      PORT: '8080',
     });
 
     const resolver3 = createTrackedResolver('third', {
-      EXTRA_VAR: 'should-not-be-called'
+      EXTRA_VAR: 'should-not-be-called',
     });
 
     const config = await resolveAsync({
       resolvers: [
         [resolver1, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-          [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-      [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+        [resolver2, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+        [resolver3, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
       ],
-      options: { priority: 'first' }
+      options: { priority: 'first' },
     });
 
     // First two resolvers should be called
@@ -125,28 +125,33 @@ describe('Early termination optimization (priority: first)', () => {
   it('should skip second resolver when all schema keys satisfied (including optional)', async () => {
     const resolver1 = createTrackedResolver('first', {
       REQUIRED_VAR: 'value1',
-      OPTIONAL_VAR: 'value1-optional'
+      OPTIONAL_VAR: 'value1-optional',
       // Provides both required and optional vars
     });
 
     const resolver2 = createTrackedResolver('second', {
-      OPTIONAL_VAR: 'value2'
+      OPTIONAL_VAR: 'value2',
     });
 
-    const config = await resolveAsync(
-      {
-        resolvers: [
-          [resolver1, {
+    const config = await resolveAsync({
+      resolvers: [
+        [
+          resolver1,
+          {
             REQUIRED_VAR: string(),
-            OPTIONAL_VAR: string({ optional: true })
-          }],
-          [resolver2, {
-            REQUIRED_VAR: string(),
-            OPTIONAL_VAR: string({ optional: true })
-          }]
+            OPTIONAL_VAR: string({ optional: true }),
+          },
         ],
-        options: { priority: 'first' }
-      });
+        [
+          resolver2,
+          {
+            REQUIRED_VAR: string(),
+            OPTIONAL_VAR: string({ optional: true }),
+          },
+        ],
+      ],
+      options: { priority: 'first' },
+    });
 
     // Only first resolver should be called (all keys satisfied)
     expect(resolver1.loadCalled).toBe(true);
@@ -159,20 +164,26 @@ describe('Early termination optimization (priority: first)', () => {
   it('should skip second resolver when all schema keys satisfied (including vars with defaults)', async () => {
     const resolver1 = createTrackedResolver('first', {
       VAR1: 'value1',
-      VAR2: 'value2-from-first'
+      VAR2: 'value2-from-first',
       // Provides all vars
     });
 
     const resolver2 = createTrackedResolver('second', {
-      VAR2: 'value2-from-second'
+      VAR2: 'value2-from-second',
     });
 
     const config = await resolveAsync({
       resolvers: [
-        [resolver1, { VAR1: string(), VAR2: string({ default: 'default-value' }) }],
-        [resolver2, { VAR1: string(), VAR2: string({ default: 'default-value' }) }],
+        [
+          resolver1,
+          { VAR1: string(), VAR2: string({ default: 'default-value' }) },
+        ],
+        [
+          resolver2,
+          { VAR1: string(), VAR2: string({ default: 'default-value' }) },
+        ],
       ],
-      options: { priority: 'first' }
+      options: { priority: 'first' },
     });
 
     // Only first resolver should be called (all keys satisfied)
@@ -184,30 +195,48 @@ describe('Early termination optimization (priority: first)', () => {
   });
 
   it('should skip expensive remote resolvers when local .env has everything', async () => {
-    const localResolver = createTrackedResolver('dotenv(.env)', {
-      DATABASE_URL: 'http://localhost:5432/dev',
-      API_KEY: 'dev-key',
-      PORT: '3000'
-    }, 0); // Fast
+    const localResolver = createTrackedResolver(
+      'dotenv(.env)',
+      {
+        DATABASE_URL: 'http://localhost:5432/dev',
+        API_KEY: 'dev-key',
+        PORT: '3000',
+      },
+      0,
+    ); // Fast
 
-    const awsSecretsResolver = createTrackedResolver('aws-secrets', {
-      DATABASE_URL: 'postgres://prod:5432/db',
-      API_KEY: 'prod-key',
-      PORT: '443'
-    }, 100); // Slow remote call
+    const awsSecretsResolver = createTrackedResolver(
+      'aws-secrets',
+      {
+        DATABASE_URL: 'postgres://prod:5432/db',
+        API_KEY: 'prod-key',
+        PORT: '443',
+      },
+      100,
+    ); // Slow remote call
 
-    const parameterStoreResolver = createTrackedResolver('aws-parameter-store', {
-      DATABASE_URL: 'postgres://other:5432/db'
-    }, 100); // Slow remote call
+    const parameterStoreResolver = createTrackedResolver(
+      'aws-parameter-store',
+      {
+        DATABASE_URL: 'postgres://other:5432/db',
+      },
+      100,
+    ); // Slow remote call
 
     const startTime = Date.now();
     const config = await resolveAsync({
       resolvers: [
         [localResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-        [awsSecretsResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
-        [parameterStoreResolver, { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 }],
+        [
+          awsSecretsResolver,
+          { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 },
+        ],
+        [
+          parameterStoreResolver,
+          { DATABASE_URL: url(), API_KEY: string(), PORT: 3000 },
+        ],
       ],
-      options: { priority: 'first' }
+      options: { priority: 'first' },
     });
     const duration = Date.now() - startTime;
 
@@ -228,17 +257,29 @@ describe('Early termination optimization (priority: first)', () => {
 
 describe('Parallel resolver execution (priority: last)', () => {
   it('should call all resolvers in parallel', async () => {
-    const resolver1 = createTrackedResolver('first', {
-      VAR1: 'value1'
-    }, 50); // 50ms delay
+    const resolver1 = createTrackedResolver(
+      'first',
+      {
+        VAR1: 'value1',
+      },
+      50,
+    ); // 50ms delay
 
-    const resolver2 = createTrackedResolver('second', {
-      VAR2: 'value2'
-    }, 50); // 50ms delay
+    const resolver2 = createTrackedResolver(
+      'second',
+      {
+        VAR2: 'value2',
+      },
+      50,
+    ); // 50ms delay
 
-    const resolver3 = createTrackedResolver('third', {
-      VAR3: 'value3'
-    }, 50); // 50ms delay
+    const resolver3 = createTrackedResolver(
+      'third',
+      {
+        VAR3: 'value3',
+      },
+      50,
+    ); // 50ms delay
 
     const startTime = Date.now();
     const config = await resolveAsync({
@@ -247,7 +288,7 @@ describe('Parallel resolver execution (priority: last)', () => {
         [resolver2, { VAR2: string() }],
         [resolver3, { VAR3: string() }],
       ],
-      options: { priority: 'last' } // Default, but explicit
+      options: { priority: 'last' }, // Default, but explicit
     });
     const duration = Date.now() - startTime;
 
@@ -267,20 +308,32 @@ describe('Parallel resolver execution (priority: last)', () => {
   });
 
   it('should respect priority: last when merging parallel results', async () => {
-    const resolver1 = createTrackedResolver('first', {
-      SHARED_VAR: 'value-from-first',
-      VAR1: 'only-in-first'
-    }, 30);
+    const resolver1 = createTrackedResolver(
+      'first',
+      {
+        SHARED_VAR: 'value-from-first',
+        VAR1: 'only-in-first',
+      },
+      30,
+    );
 
-    const resolver2 = createTrackedResolver('second', {
-      SHARED_VAR: 'value-from-second',
-      VAR2: 'only-in-second'
-    }, 20);
+    const resolver2 = createTrackedResolver(
+      'second',
+      {
+        SHARED_VAR: 'value-from-second',
+        VAR2: 'only-in-second',
+      },
+      20,
+    );
 
-    const resolver3 = createTrackedResolver('third', {
-      SHARED_VAR: 'value-from-third',
-      VAR3: 'only-in-third'
-    }, 10);
+    const resolver3 = createTrackedResolver(
+      'third',
+      {
+        SHARED_VAR: 'value-from-third',
+        VAR3: 'only-in-third',
+      },
+      10,
+    );
 
     const config = await resolveAsync({
       resolvers: [
@@ -288,7 +341,7 @@ describe('Parallel resolver execution (priority: last)', () => {
         [resolver2, { SHARED_VAR: string(), VAR2: string() }],
         [resolver3, { SHARED_VAR: string(), VAR3: string() }],
       ],
-      options: { priority: 'last' }
+      options: { priority: 'last' },
     });
 
     // All resolvers should be called
@@ -305,28 +358,28 @@ describe('Parallel resolver execution (priority: last)', () => {
 
   it('should handle resolver failures gracefully in parallel mode', async () => {
     const resolver1 = createTrackedResolver('first', {
-      VAR1: 'value1'
+      VAR1: 'value1',
     });
 
     const failingResolver: Resolver = {
       name: 'failing',
       async load() {
         throw new Error('Simulated failure');
-      }
+      },
     };
 
     const resolver3 = createTrackedResolver('third', {
-      VAR3: 'value3'
+      VAR3: 'value3',
     });
 
     // With strict: false, should continue despite failure
-    const config = await resolveAsync({ 
+    const config = await resolveAsync({
       resolvers: [
         [resolver1, { VAR1: string(), VAR3: string() }],
         [failingResolver, { VAR1: string(), VAR3: string() }],
         [resolver3, { VAR1: string(), VAR3: string() }],
       ],
-      options: { priority: 'last', strict: false }
+      options: { priority: 'last', strict: false },
     });
 
     expect(resolver1.loadCalled).toBe(true);
@@ -337,30 +390,38 @@ describe('Parallel resolver execution (priority: last)', () => {
   });
 
   it('should fail fast when strict: true and a resolver fails in parallel', async () => {
-    const resolver1 = createTrackedResolver('first', {
-      VAR1: 'value1'
-    }, 50);
+    const resolver1 = createTrackedResolver(
+      'first',
+      {
+        VAR1: 'value1',
+      },
+      50,
+    );
 
     const failingResolver: Resolver = {
       name: 'failing',
       async load() {
         throw new Error('Simulated failure');
-      }
+      },
     };
 
-    const resolver3 = createTrackedResolver('third', {
-      VAR3: 'value3'
-    }, 50);
+    const resolver3 = createTrackedResolver(
+      'third',
+      {
+        VAR3: 'value3',
+      },
+      50,
+    );
 
     await expect(
       resolveAsync({
-        resolvers: [  
-        [resolver1, { VAR1: string(), VAR3: string() }],
-        [failingResolver, { VAR1: string(), VAR3: string() }],
-        [resolver3, { VAR1: string(), VAR3: string() }],
+        resolvers: [
+          [resolver1, { VAR1: string(), VAR3: string() }],
+          [failingResolver, { VAR1: string(), VAR3: string() }],
+          [resolver3, { VAR1: string(), VAR3: string() }],
         ],
-        options: { priority: 'last', strict: true }
-      })
+        options: { priority: 'last', strict: true },
+      }),
     ).rejects.toThrow('Resolver failed');
 
     // All resolvers should have been called (parallel)
@@ -369,17 +430,29 @@ describe('Parallel resolver execution (priority: last)', () => {
   });
 
   it('should provide significant speedup for multiple slow resolvers', async () => {
-    const awsSecrets = createTrackedResolver('aws-secrets', {
-      DATABASE_URL: 'postgres://aws:5432/db'
-    }, 60);
+    const awsSecrets = createTrackedResolver(
+      'aws-secrets',
+      {
+        DATABASE_URL: 'postgres://aws:5432/db',
+      },
+      60,
+    );
 
-    const awsParams = createTrackedResolver('aws-parameters', {
-      API_KEY: 'aws-api-key'
-    }, 60);
+    const awsParams = createTrackedResolver(
+      'aws-parameters',
+      {
+        API_KEY: 'aws-api-key',
+      },
+      60,
+    );
 
-    const gcpSecrets = createTrackedResolver('gcp-secrets', {
-      JWT_SECRET: 'gcp-jwt-secret'
-    }, 60);
+    const gcpSecrets = createTrackedResolver(
+      'gcp-secrets',
+      {
+        JWT_SECRET: 'gcp-jwt-secret',
+      },
+      60,
+    );
 
     const startTime = Date.now();
     const config = await resolveAsync({
@@ -388,7 +461,7 @@ describe('Parallel resolver execution (priority: last)', () => {
         [awsParams, { API_KEY: string() }],
         [gcpSecrets, { JWT_SECRET: string() }],
       ],
-      options: { priority: 'last' }
+      options: { priority: 'last' },
     });
     const duration = Date.now() - startTime;
 
@@ -409,11 +482,11 @@ describe('Parallel resolver execution (priority: last)', () => {
 describe('Performance optimizations - edge cases', () => {
   it('early termination: should call all resolvers with empty schema', async () => {
     const resolver1 = createTrackedResolver('first', {
-      VAR1: 'value1'
+      VAR1: 'value1',
     });
 
     const resolver2 = createTrackedResolver('second', {
-      VAR2: 'value2'
+      VAR2: 'value2',
     });
 
     const config = await resolveAsync({
@@ -421,7 +494,7 @@ describe('Performance optimizations - edge cases', () => {
         [resolver1, {}], // Empty schema
         [resolver2, {}],
       ],
-      options: { priority: 'first' }
+      options: { priority: 'first' },
     });
 
     // With empty schema (no keys to satisfy), both resolvers run
@@ -434,16 +507,18 @@ describe('Performance optimizations - edge cases', () => {
   });
 
   it('parallel: should work with single resolver', async () => {
-    const resolver = createTrackedResolver('only', {
-      VAR: 'value'
-    }, 30);
+    const resolver = createTrackedResolver(
+      'only',
+      {
+        VAR: 'value',
+      },
+      30,
+    );
 
     const startTime = Date.now();
     const config = await resolveAsync({
-      resolvers: [
-        [resolver, { VAR: string() }],
-      ],
-      options: { priority: 'last' }
+      resolvers: [[resolver, { VAR: string() }]],
+      options: { priority: 'last' },
     });
     const duration = Date.now() - startTime;
 
@@ -454,26 +529,32 @@ describe('Performance optimizations - edge cases', () => {
 
   it('early termination: should continue when optional keys are missing', async () => {
     const resolver1 = createTrackedResolver('first', {
-      REQUIRED: 'req-value'
+      REQUIRED: 'req-value',
       // Missing OPTIONAL
     });
 
     const resolver2 = createTrackedResolver('second', {
-      OPTIONAL: 'opt-value'
+      OPTIONAL: 'opt-value',
     });
 
-    const config = await resolveAsync({ 
+    const config = await resolveAsync({
       resolvers: [
-        [resolver1, {
-        REQUIRED: string(),
-        OPTIONAL: string({ optional: true })
-        }],
-        [resolver2, {
-          REQUIRED: string(),
-          OPTIONAL: string({ optional: true })
-        }],
+        [
+          resolver1,
+          {
+            REQUIRED: string(),
+            OPTIONAL: string({ optional: true }),
+          },
+        ],
+        [
+          resolver2,
+          {
+            REQUIRED: string(),
+            OPTIONAL: string({ optional: true }),
+          },
+        ],
       ],
-      options: { priority: 'first' }
+      options: { priority: 'first' },
     });
 
     // Both should be called (first doesn't have all keys - OPTIONAL is missing)

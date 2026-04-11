@@ -8,55 +8,55 @@ describe('cliArgs resolver', () => {
   describe('basic functionality', () => {
     it('should parse --key value format', async () => {
       const resolver = cliArgs({
-        argv: ['--port', '8080', '--host', 'localhost']
+        argv: ['--port', '8080', '--host', 'localhost'],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
         PORT: '8080',
-        HOST: 'localhost'
+        HOST: 'localhost',
       });
     });
 
     it('should parse --key=value format', async () => {
       const resolver = cliArgs({
-        argv: ['--port=8080', '--host=localhost']
+        argv: ['--port=8080', '--host=localhost'],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
         PORT: '8080',
-        HOST: 'localhost'
+        HOST: 'localhost',
       });
     });
 
     it('should parse boolean flags', async () => {
       const resolver = cliArgs({
-        argv: ['--verbose', '--debug', '--port', '3000']
+        argv: ['--verbose', '--debug', '--port', '3000'],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
         VERBOSE: 'true',
         DEBUG: 'true',
-        PORT: '3000'
+        PORT: '3000',
       });
     });
 
     it('should handle mixed formats', async () => {
       const resolver = cliArgs({
-        argv: ['--port=8080', '--host', 'localhost', '--verbose']
+        argv: ['--port=8080', '--host', 'localhost', '--verbose'],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
         PORT: '8080',
         HOST: 'localhost',
-        VERBOSE: 'true'
+        VERBOSE: 'true',
       });
     });
   });
@@ -64,27 +64,27 @@ describe('cliArgs resolver', () => {
   describe('key normalization', () => {
     it('should convert kebab-case to SCREAMING_SNAKE_CASE by default', async () => {
       const resolver = cliArgs({
-        argv: ['--database-url', '//localhost', '--api-key', 'secret-value']
+        argv: ['--database-url', '//localhost', '--api-key', 'secret-value'],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
         DATABASE_URL: '//localhost',
-        API_KEY: 'secret-value'
+        API_KEY: 'secret-value',
       });
     });
 
     it('should preserve original keys when normalizeKeys is false', async () => {
       const resolver = cliArgs({
         argv: ['--database-url', '//localhost'],
-        normalizeKeys: false
+        normalizeKeys: false,
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
-        'database-url': '//localhost'
+        'database-url': '//localhost',
       });
     });
   });
@@ -92,50 +92,50 @@ describe('cliArgs resolver', () => {
   describe('edge cases', () => {
     it('should ignore non-prefixed arguments', async () => {
       const resolver = cliArgs({
-        argv: ['node', 'script.js', '--port', '3000', 'extra']
+        argv: ['node', 'script.js', '--port', '3000', 'extra'],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
-        PORT: '3000'
+        PORT: '3000',
       });
     });
 
     it('should handle empty argv', async () => {
       const resolver = cliArgs({
-        argv: []
+        argv: [],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({});
     });
 
     it('should handle custom prefix', async () => {
       const resolver = cliArgs({
         argv: ['-p', '8080', '-h', 'localhost'],
-        prefix: '-'
+        prefix: '-',
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
         P: '8080',
-        H: 'localhost'
+        H: 'localhost',
       });
     });
 
     it('should treat consecutive flags as booleans', async () => {
       const resolver = cliArgs({
-        argv: ['--verbose', '--debug']
+        argv: ['--verbose', '--debug'],
       });
-      
+
       const result = resolver.load ? await resolver.load() : {};
-      
+
       expect(result).toEqual({
         VERBOSE: 'true',
-        DEBUG: 'true'
+        DEBUG: 'true',
       });
     });
   });
@@ -143,14 +143,14 @@ describe('cliArgs resolver', () => {
   describe('sync loading', () => {
     it('should support loadSync', () => {
       const resolver = cliArgs({
-        argv: ['--port', '8080', '--verbose']
+        argv: ['--port', '8080', '--verbose'],
       });
-      
+
       const result = resolver.loadSync!();
-      
+
       expect(result).toEqual({
         PORT: '8080',
-        VERBOSE: 'true'
+        VERBOSE: 'true',
       });
     });
   });
@@ -159,14 +159,23 @@ describe('cliArgs resolver', () => {
     it('should work with resolveAsync() for CLI-based config', async () => {
       const config = await resolveAsync({
         resolvers: [
-          [cliArgs({
-            argv: ['--port', '8080', '--database-url', 'postgres://localhost:5432/mydb', '--verbose']
-          }), {
-            PORT: 3000,
-            DATABASE_URL: postgres(),
-            VERBOSE: false
-          }]
-        ]
+          [
+            cliArgs({
+              argv: [
+                '--port',
+                '8080',
+                '--database-url',
+                'postgres://localhost:5432/mydb',
+                '--verbose',
+              ],
+            }),
+            {
+              PORT: 3000,
+              DATABASE_URL: postgres(),
+              VERBOSE: false,
+            },
+          ],
+        ],
       });
 
       expect(config.PORT).toBe(8080);
@@ -179,19 +188,25 @@ describe('cliArgs resolver', () => {
 
       const config = await resolveAsync({
         resolvers: [
-          [processEnv(), {
-            PORT: 3000,
-            DATABASE_URL: postgres(),
-            LOG_LEVEL: string({optional:true})
-          }],
-          [cliArgs({
-            argv: ['--port', '8080']
-          }), {
-            PORT: 3000,
-            DATABASE_URL: postgres(),
-            LOG_LEVEL: string({optional:true})
-          }]
-        ]
+          [
+            processEnv(),
+            {
+              PORT: 3000,
+              DATABASE_URL: postgres(),
+              LOG_LEVEL: string({ optional: true }),
+            },
+          ],
+          [
+            cliArgs({
+              argv: ['--port', '8080'],
+            }),
+            {
+              PORT: 3000,
+              DATABASE_URL: postgres(),
+              LOG_LEVEL: string({ optional: true }),
+            },
+          ],
+        ],
       });
 
       expect(config.PORT).toBe(8080);
@@ -206,13 +221,16 @@ describe('cliArgs resolver', () => {
 
       const config = await resolveAsync({
         resolvers: [
-          [cliArgs({
-            argv: ['--port', '8080']
-          }), {
-            PORT: 3000
-          }]
+          [
+            cliArgs({
+              argv: ['--port', '8080'],
+            }),
+            {
+              PORT: 3000,
+            },
+          ],
         ],
-        options: { priority: 'last' }
+        options: { priority: 'last' },
       });
 
       expect(config.PORT).toBe(8080);
@@ -225,20 +243,26 @@ describe('cliArgs resolver', () => {
     it('should handle typical CLI app config', async () => {
       const config = await resolveAsync({
         resolvers: [
-          [cliArgs({
-            argv: [
-              '--config', './config.json',
-              '--output', './dist',
-              '--verbose',
-              '--max-workers', '4'
-            ]
-          }), {
-            CONFIG: string({optional:true}),
-            OUTPUT: string({optional:true}),
-            VERBOSE: false,
-            MAX_WORKERS: number({ optional: true })
-          }]
-        ]
+          [
+            cliArgs({
+              argv: [
+                '--config',
+                './config.json',
+                '--output',
+                './dist',
+                '--verbose',
+                '--max-workers',
+                '4',
+              ],
+            }),
+            {
+              CONFIG: string({ optional: true }),
+              OUTPUT: string({ optional: true }),
+              VERBOSE: false,
+              MAX_WORKERS: number({ optional: true }),
+            },
+          ],
+        ],
       });
 
       expect(config.CONFIG).toBe('./config.json');
@@ -250,21 +274,27 @@ describe('cliArgs resolver', () => {
     it('should handle database connection from CLI', async () => {
       const config = await resolveAsync({
         resolvers: [
-          [cliArgs({
-            argv: [
-              '--database-url', 'postgres://user:pass@localhost:5432/mydb',
-              '--redis-url', 'redis://localhost:6379'
-            ]
-          }), {
-            DATABASE_URL: postgres(),
-            REDIS_URL: string({ optional: true, default: 'redis' })
-          }]
-        ]
+          [
+            cliArgs({
+              argv: [
+                '--database-url',
+                'postgres://user:pass@localhost:5432/mydb',
+                '--redis-url',
+                'redis://localhost:6379',
+              ],
+            }),
+            {
+              DATABASE_URL: postgres(),
+              REDIS_URL: string({ optional: true, default: 'redis' }),
+            },
+          ],
+        ],
       });
 
-      expect(config.DATABASE_URL).toBe('postgres://user:pass@localhost:5432/mydb');
+      expect(config.DATABASE_URL).toBe(
+        'postgres://user:pass@localhost:5432/mydb',
+      );
       expect(config.REDIS_URL).toBe('redis://localhost:6379');
     });
   });
 });
-

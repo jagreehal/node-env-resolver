@@ -1,6 +1,6 @@
 {
   "name": "vite-app-example",
-  "version": "1.0.11",
+  "version": "1.0.9",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,8 +14,8 @@
     "node-env-resolver-vite": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.0"
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8"
   }
 }

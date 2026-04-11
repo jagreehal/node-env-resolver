@@ -10,7 +10,7 @@ Vite integration with automatic client/server environment variable splitting.
 - ✅ Runtime protection to prevent leaking server vars to client
 - ✅ Full TypeScript support with IntelliSense
 - ✅ **Auto-generate TypeScript definitions** for `import.meta.env`
-- ✅ Works with Vite 4.x, 5.x, 6.x, and 7.x
+- ✅ Works with Vite 4.x, 5.x, 6.x, 7.x, 8.x
 - ✅ Framework agnostic (Vue, React, Svelte, Solid, Astro)
 - ✅ Zero configuration required
 - ✅ Supports all validator types (basic and advanced)
@@ -42,8 +42,8 @@ export const env = resolve({
   client: {
     VITE_API_URL: url(),
     VITE_ENABLE_ANALYTICS: false,
-    VITE_GA_ID: string({optional:true}),
-  }
+    VITE_GA_ID: string({ optional: true }),
+  },
 });
 ```
 
@@ -53,16 +53,16 @@ Use in your app:
 // Server code (vite.config.ts, SSR, Node.js)
 import { env } from './env';
 
-console.log(env.server.DATABASE_URL);    // ✅ Works
-console.log(env.client.VITE_API_URL);     // ✅ Works
+console.log(env.server.DATABASE_URL); // ✅ Works
+console.log(env.client.VITE_API_URL); // ✅ Works
 ```
 
 ```typescript
 // Client code (browser)
 import { env } from './env';
 
-console.log(env.client.VITE_API_URL);     // ✅ Works
-console.log(env.server.DATABASE_URL);     // ❌ Throws error
+console.log(env.client.VITE_API_URL); // ✅ Works
+console.log(env.server.DATABASE_URL); // ❌ Throws error
 ```
 
 ## Safe Resolve (Zod-like Pattern)
@@ -80,7 +80,7 @@ export const env = resolve({
   },
   client: {
     VITE_API_URL: url(),
-  }
+  },
 });
 
 // ✅ Returns result object (like Zod's safeParse())
@@ -91,7 +91,7 @@ const result = safeResolve({
   },
   client: {
     VITE_API_URL: url(),
-  }
+  },
 });
 
 if (result.success) {
@@ -104,6 +104,7 @@ if (result.success) {
 ```
 
 **Use cases:**
+
 - `resolve()` - Throws on error (simpler, fail-fast)
 - `safeResolve()` - Returns `{ success, data?, error? }` (graceful error handling)
 
@@ -144,29 +145,29 @@ export const env = resolve({
     NODE_ENV: ['development', 'production', 'test'] as const,
     API_KEY: string(),
     MAX_CONNECTIONS: 'number',
-    TIMEOUT: 'duration',  // e.g., '30s', '5m'
+    TIMEOUT: 'duration', // e.g., '30s', '5m'
   },
   client: {
     VITE_API_URL: url(),
     VITE_ENABLE_ANALYTICS: false,
-    VITE_GA_ID: string({optional:true}),
-    VITE_FEATURE_FLAGS: 'string[]',  // Comma-separated
-  }
+    VITE_GA_ID: string({ optional: true }),
+    VITE_FEATURE_FLAGS: 'string[]', // Comma-separated
+  },
 });
 ```
 
 TypeScript knows all the types:
 
 ```typescript
-env.server.PORT;                    // number
-env.server.DATABASE_URL;            // string
-env.server.NODE_ENV;                // 'development' | 'production' | 'test'
-env.server.MAX_CONNECTIONS;         // number
-env.server.TIMEOUT;                 // number (milliseconds)
-env.client.VITE_API_URL;            // string
-env.client.VITE_ENABLE_ANALYTICS;   // boolean
-env.client.VITE_GA_ID;              // string | undefined
-env.client.VITE_FEATURE_FLAGS;      // string[]
+env.server.PORT; // number
+env.server.DATABASE_URL; // string
+env.server.NODE_ENV; // 'development' | 'production' | 'test'
+env.server.MAX_CONNECTIONS; // number
+env.server.TIMEOUT; // number (milliseconds)
+env.client.VITE_API_URL; // string
+env.client.VITE_ENABLE_ANALYTICS; // boolean
+env.client.VITE_GA_ID; // string | undefined
+env.client.VITE_FEATURE_FLAGS; // string[]
 ```
 
 ## Runtime Protection
@@ -187,6 +188,24 @@ console.log(env.server.DATABASE_URL);
 ```
 
 This protection works in both development and production.
+
+You can disable runtime protection if needed:
+
+```typescript
+export const env = resolve(
+  {
+    server: {
+      DATABASE_URL: postgres(),
+    },
+    client: {
+      VITE_API_URL: url(),
+    },
+  },
+  {
+    runtimeProtection: false, // Disable server var protection
+  }
+);
+```
 
 ## TypeScript IntelliSense
 
@@ -209,11 +228,11 @@ export default defineConfig({
       client: {
         VITE_API_URL: url(),
         VITE_ENABLE_ANALYTICS: false,
-        VITE_GA_ID: string({optional:true}),
+        VITE_GA_ID: string({ optional: true }),
       },
-      generateTypes: 'src/vite-env.d.ts'  // ✨ Auto-generates types!
-    })
-  ]
+      generateTypes: 'src/vite-env.d.ts', // ✨ Auto-generates types!
+    }),
+  ],
 });
 ```
 
@@ -228,17 +247,18 @@ This automatically generates `src/vite-env.d.ts` with proper TypeScript types:
  */
 
 interface ImportMetaEnv {
-  readonly VITE_API_URL: string
-  readonly VITE_ENABLE_ANALYTICS: boolean
-  readonly VITE_GA_ID: string | undefined
+  readonly VITE_API_URL: string;
+  readonly VITE_ENABLE_ANALYTICS: boolean;
+  readonly VITE_GA_ID: string | undefined;
 }
 
 interface ImportMeta {
-  readonly env: ImportMetaEnv
+  readonly env: ImportMetaEnv;
 }
 ```
 
 **Features:**
+
 - ✅ Types auto-update when you change your schema
 - ✅ Proper type inference (url → string, false → boolean, etc.)
 - ✅ Won't overwrite files with custom content
@@ -252,13 +272,13 @@ You can also manually create `vite-env.d.ts`:
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_API_URL: string
-  readonly VITE_ENABLE_ANALYTICS: boolean
-  readonly VITE_GA_ID?: string
+  readonly VITE_API_URL: string;
+  readonly VITE_ENABLE_ANALYTICS: boolean;
+  readonly VITE_GA_ID?: string;
 }
 
 interface ImportMeta {
-  readonly env: ImportMetaEnv
+  readonly env: ImportMetaEnv;
 }
 ```
 
@@ -285,13 +305,14 @@ export default defineConfig({
         VITE_ENABLE_ANALYTICS: false,
       },
       // Auto-generate TypeScript definitions (optional)
-      generateTypes: 'src/vite-env.d.ts'
-    })
-  ]
+      generateTypes: 'src/vite-env.d.ts',
+    }),
+  ],
 });
 ```
 
 **Plugin Features:**
+
 - ✅ Validates env vars at config resolution time
 - ✅ Fails fast if validation errors occur
 - ✅ Logs validation status
@@ -301,14 +322,21 @@ export default defineConfig({
 ## Options
 
 ```typescript
-export const env = resolve({
-  server: { /* ... */ },
-  client: { /* ... */ }
-}, {
-  clientPrefix: 'VITE_',         // Default prefix
-  runtimeProtection: true,        // Enable runtime checks (default: true)
-  expandVars: true,               // Enable ${VAR} expansion (default: true)
-});
+export const env = resolve(
+  {
+    server: {
+      /* ... */
+    },
+    client: {
+      /* ... */
+    },
+  },
+  {
+    clientPrefix: 'VITE_', // Default prefix
+    runtimeProtection: true, // Enable runtime checks (default: true)
+    expandVars: true, // Enable ${VAR} expansion (default: true)
+  }
+);
 ```
 
 ## Framework Examples
@@ -365,16 +393,19 @@ import { env } from './env';
 // env.ts
 import { resolve } from 'node-env-resolver-vite';
 
-export const env = resolve({
-  server: {
-    DATABASE_URL: postgres(),
+export const env = resolve(
+  {
+    server: {
+      DATABASE_URL: postgres(),
+    },
+    client: {
+      VITE_PUBLIC_API_URL: url(),
+    },
   },
-  client: {
-    VITE_PUBLIC_API_URL: url(),
+  {
+    clientPrefix: 'VITE_PUBLIC_', // SvelteKit uses PUBLIC_ internally
   }
-}, {
-  clientPrefix: 'VITE_PUBLIC_'  // SvelteKit uses PUBLIC_ internally
-});
+);
 ```
 
 ### Solid + Vite
@@ -404,16 +435,19 @@ function App() {
 // env.ts
 import { resolve } from 'node-env-resolver-vite';
 
-export const env = resolve({
-  server: {
-    DATABASE_URL: postgres(),
+export const env = resolve(
+  {
+    server: {
+      DATABASE_URL: postgres(),
+    },
+    client: {
+      VITE_PUBLIC_API_URL: url(),
+    },
   },
-  client: {
-    VITE_PUBLIC_API_URL: url(),
+  {
+    clientPrefix: 'VITE_PUBLIC_', // Astro convention
   }
-}, {
-  clientPrefix: 'VITE_PUBLIC_'  // Astro convention
-});
+);
 ```
 
 ## SSR Support
@@ -425,14 +459,14 @@ Works seamlessly with Vite's SSR mode:
 import { env } from './env';
 
 // Both server and client vars accessible in SSR context
-console.log(env.server.DATABASE_URL);   // ✅ Works
-console.log(env.client.VITE_API_URL);   // ✅ Works
+console.log(env.server.DATABASE_URL); // ✅ Works
+console.log(env.client.VITE_API_URL); // ✅ Works
 
 // client.ts (browser entry)
 import { env } from './env';
 
-console.log(env.server.DATABASE_URL);   // ❌ Throws error
-console.log(env.client.VITE_API_URL);   // ✅ Works
+console.log(env.server.DATABASE_URL); // ❌ Throws error
+console.log(env.client.VITE_API_URL); // ✅ Works
 ```
 
 ## Production Security
@@ -447,11 +481,12 @@ export const env = resolve({
   },
   client: {
     VITE_API_URL: url(),
-  }
+  },
 });
 ```
 
 **Best practices:**
+
 - Never commit `.env.local` files
 - Use platform environment variables in production (Vercel, Netlify, AWS, etc.)
 - Keep server secrets in `server` schema only
@@ -472,7 +507,7 @@ export const env = resolve({
     // External APIs
     STRIPE_SECRET_KEY: string(),
     OPENAI_API_KEY: string(),
-    
+
     // App configuration
     NODE_ENV: ['development', 'production', 'test'] as const,
     PORT: 'port:5173',
@@ -482,41 +517,45 @@ export const env = resolve({
     // Public API endpoints
     VITE_API_URL: url(),
     VITE_WS_URL: url(),
-    
+
     // Feature flags
     VITE_ENABLE_ANALYTICS: false,
     VITE_ENABLE_DARK_MODE: true,
     VITE_FEATURE_FLAGS: 'string[]',
-    
+
     // Public keys
     VITE_STRIPE_PUBLISHABLE_KEY: string(),
-    VITE_GA_ID: string({optional:true}),
-    
+    VITE_GA_ID: string({ optional: true }),
+
     // App info
     VITE_APP_VERSION: string(),
-  }
+  },
 });
 ```
 
 ## Troubleshooting
 
 **Variables not loading?**
+
 - Check file names and locations
 - Ensure client variables have `VITE_` prefix
 - Restart dev server after adding new variables
 - Verify `.env` files are in project root
 
 **TypeScript errors?**
+
 - Verify schema matches `.env` files
 - Restart TypeScript server in your editor
 - Check for typos in variable names
 
 **Runtime errors in browser?**
+
 - Don't access `env.server.*` in client code
 - Use `env.client.*` for browser-accessible values
 - Check browser console for helpful error messages
 
 **Production issues?**
+
 - Verify platform environment variables are set
 - Ensure secrets aren't sourced from `.env` files
 - Confirm client variables are properly prefixed with `VITE_`
@@ -527,8 +566,8 @@ Before (Vite built-in):
 
 ```typescript
 // No validation, no types
-const apiUrl = import.meta.env.VITE_API_URL;  // string | undefined
-const port = import.meta.env.PORT;            // string | undefined
+const apiUrl = import.meta.env.VITE_API_URL; // string | undefined
+const port = import.meta.env.PORT; // string | undefined
 ```
 
 After (node-env-resolver-vite):
@@ -542,12 +581,12 @@ export const env = resolve({
   },
   client: {
     VITE_API_URL: url(),
-  }
+  },
 });
 
 // Fully typed, validated at startup
-env.server.PORT;          // number
-env.client.VITE_API_URL;  // string (validated URL)
+env.server.PORT; // number
+env.client.VITE_API_URL; // string (validated URL)
 ```
 
 ## Related Packages
@@ -559,4 +598,3 @@ env.client.VITE_API_URL;  // string (validated URL)
 ## License
 
 MIT
-

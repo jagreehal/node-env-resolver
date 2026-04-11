@@ -1,4 +1,4 @@
-import { SyncResolver } from "./types";
+import { SyncResolver } from './types';
 
 /**
  * Resolver that reads from process.env
@@ -34,6 +34,6 @@ export function processEnv(): SyncResolver {
         }
       }
       return env;
-    }
+    },
   };
 }

@@ -4,7 +4,6 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve as resolvePath } from 'path';
-import { exec as execAsync, execSync } from 'child_process';
 import type { Resolver, SyncResolver } from './types';
 
 export { processEnv } from './process-env';
@@ -239,7 +238,7 @@ export function packageJson(options?: {
       } catch (error) {
         throw new Error(
           `Failed to read package.json: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -280,7 +279,7 @@ export function packageJson(options?: {
       } catch (error) {
         throw new Error(
           `Failed to read package.json: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -352,12 +351,12 @@ export function http(
         if ((error as Error).name === 'AbortError') {
           throw new Error(
             `HTTP request timeout after ${options?.timeout ?? 5000}ms`,
-            { cause: error }
+            { cause: error },
           );
         }
         throw new Error(
           `Failed to fetch config from ${url}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -411,7 +410,7 @@ export function json(path: string = 'config.json'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to parse JSON file ${path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -443,7 +442,7 @@ export function json(path: string = 'config.json'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to parse JSON file ${path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -498,7 +497,7 @@ export function secrets(path: string = '/run/secrets'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to read secrets from ${path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -531,7 +530,7 @@ export function secrets(path: string = '/run/secrets'): Resolver {
       } catch (error) {
         throw new Error(
           `Failed to read secrets from ${path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -610,12 +609,12 @@ export function yaml(options?: string | YamlOptions): Resolver {
               `  npm install js-yaml\n` +
               `  # or\n` +
               `  pnpm add js-yaml`,
-            { cause: error }
+            { cause: error },
           );
         }
         throw new Error(
           `Failed to parse YAML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -657,12 +656,12 @@ export function yaml(options?: string | YamlOptions): Resolver {
               `  npm install js-yaml\n` +
               `  # or\n` +
               `  pnpm add js-yaml`,
-            { cause: error }
+            { cause: error },
           );
         }
         throw new Error(
           `Failed to parse YAML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -741,12 +740,12 @@ export function toml(options?: string | TomlOptions): Resolver {
               `  npm install smol-toml\n` +
               `  # or\n` +
               `  pnpm add smol-toml`,
-            { cause: error }
+            { cause: error },
           );
         }
         throw new Error(
           `Failed to parse TOML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
+          { cause: error },
         );
       }
     },
@@ -788,173 +787,11 @@ export function toml(options?: string | TomlOptions): Resolver {
               `  npm install smol-toml\n` +
               `  # or\n` +
               `  pnpm add smol-toml`,
-            { cause: error }
+            { cause: error },
           );
         }
         throw new Error(
           `Failed to parse TOML file ${opts.path}: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error }
-        );
-      }
-    },
-  };
-}
-
-export interface ExecResolverOptions {
-  /**
-   * Output format to parse from stdout.
-   * - 'env': KEY=VALUE lines
-   * - 'json': JSON object (optionally nested)
-   *
-   * Default: 'env'
-   */
-  format?: 'env' | 'json';
-  /**
-   * Maximum time in milliseconds before killing the process.
-   * Default: 5000ms
-   */
-  timeout?: number;
-}
-
-/**
- * Execute a shell command and load configuration from its stdout.
- *
- * Supports two formats:
- * - 'env': KEY=VALUE lines (one per line)
- * - 'json': JSON object (optionally nested, flattened to UPPER_SNAKE_CASE)
- *
- * Both async and sync modes are supported via exec/execSync.
- */
-export function exec(
-  command: string,
-  options: ExecResolverOptions = {},
-): SyncResolver {
-  const format = options.format ?? 'env';
-  const timeout = options.timeout ?? 5000;
-
-  const parseEnvOutput = (stdout: string): Record<string, string> => {
-    const env: Record<string, string> = {};
-    const lines = stdout.split('\n');
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line || line.startsWith('#')) continue;
-
-      const eqIndex = line.indexOf('=');
-      if (eqIndex <= 0) continue;
-
-      const key = line.slice(0, eqIndex).trim();
-      const value = line.slice(eqIndex + 1).trim();
-      if (!key) continue;
-
-      env[key] = value;
-    }
-
-    return env;
-  };
-
-  const parseJsonOutput = (stdout: string): Record<string, string> => {
-    const text = stdout.trim();
-    if (!text) return {};
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch (error) {
-      throw new Error(
-        `Failed to parse JSON from exec(${command}): ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        { cause: error },
-      );
-    }
-
-    const flattened: Record<string, string> = {};
-    const flatten = (obj: unknown, prefix = '') => {
-      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-        for (const [key, value] of Object.entries(obj)) {
-          const newKey = prefix ? `${prefix}_${key}` : key;
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
-            flatten(value, newKey);
-          } else {
-            flattened[newKey.toUpperCase()] = String(value);
-          }
-        }
-      }
-    };
-    flatten(parsed);
-
-    return flattened;
-  };
-
-  const parseOutput = (stdout: string): Record<string, string> =>
-    format === 'json' ? parseJsonOutput(stdout) : parseEnvOutput(stdout);
-
-  return {
-    name: `exec(${command})`,
-    async load() {
-      try {
-        const stdout = await new Promise<string>((resolve, reject) => {
-          execAsync(
-            command,
-            { timeout },
-            (error, stdoutData, stderrData) => {
-              if (error) {
-                const message =
-                  error instanceof Error ? error.message : String(error);
-                const stderrText =
-                  typeof stderrData === 'string' ? stderrData.trim() : '';
-                reject(
-                  new Error(
-                    `Failed to execute command "${command}": ${message}${
-                      stderrText ? `\n${stderrText}` : ''
-                    }`,
-                    { cause: error },
-                  ),
-                );
-                return;
-              }
-              resolve(String(stdoutData ?? ''));
-            },
-          );
-        });
-
-        return parseOutput(stdout);
-      } catch (error) {
-        if (
-          (error as { code?: string }).code === 'ETIMEDOUT' ||
-          (error as Error).message?.includes('ETIMEDOUT')
-        ) {
-          throw new Error(
-            `Command "${command}" timed out after ${timeout}ms`,
-            { cause: error },
-          );
-        }
-        throw error;
-      }
-    },
-    loadSync() {
-      try {
-        const stdout = execSync(command, {
-          timeout,
-          encoding: 'utf8',
-        });
-        return parseOutput(stdout);
-      } catch (error) {
-        if (
-          (error as { code?: string }).code === 'ETIMEDOUT' ||
-          (error as Error).message?.includes('ETIMEDOUT')
-        ) {
-          throw new Error(
-            `Command "${command}" timed out after ${timeout}ms`,
-            { cause: error },
-          );
-        }
-
-        const message =
-          error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `Failed to execute command "${command}" synchronously: ${message}`,
           { cause: error },
         );
       }
