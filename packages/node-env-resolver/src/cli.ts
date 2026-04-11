@@ -1,17 +1,17 @@
 /**
  * CLI argument parser resolver
  * Converts --kebab-case flags to SCREAMING_SNAKE_CASE env vars
- * 
+ *
  * @example
  * ```bash
  * node app.js --port 8080 --database-url postgres://localhost --verbose
  * ```
- * 
+ *
  * @example
  * ```ts
  * import { resolve } from 'node-env-resolver';
  * import { cliArgs } from 'node-env-resolver/cli';
- * 
+ *
  * const config = await resolveAsync(
  *   [cliArgs(), {
  *     PORT: 3000,
@@ -38,13 +38,13 @@ export interface CliArgsOptions {
 
 /**
  * Parse CLI arguments as environment variables
- * 
+ *
  * Supports:
  * - `--key value` → KEY=value
  * - `--key=value` → KEY=value
  * - `--flag` → FLAG=true (boolean flags)
  * - `--kebab-case` → KEBAB_CASE (auto-normalization)
- * 
+ *
  * @param options Configuration options
  * @returns Resolver that parses CLI arguments
  */
@@ -52,18 +52,18 @@ export function cliArgs(options: CliArgsOptions = {}): Resolver {
   const {
     argv = process.argv.slice(2),
     prefix = '--',
-    normalizeKeys = true
+    normalizeKeys = true,
   } = options;
 
   const parse = () => {
     const env: Record<string, string> = {};
-    
+
     for (let i = 0; i < argv.length; i++) {
       const arg = argv[i];
       if (!arg.startsWith(prefix)) continue;
-      
+
       let key = arg.slice(prefix.length);
-      
+
       // Handle --key=value
       if (key.includes('=')) {
         const [k, v] = key.split('=', 2);
@@ -71,10 +71,12 @@ export function cliArgs(options: CliArgsOptions = {}): Resolver {
         env[key] = v;
         continue;
       }
-      
+
       // Normalize key
-      const normalizedKey = normalizeKeys ? key.replace(/-/g, '_').toUpperCase() : key;
-      
+      const normalizedKey = normalizeKeys
+        ? key.replace(/-/g, '_').toUpperCase()
+        : key;
+
       // Handle --key value or --flag
       const next = argv[i + 1];
       if (!next || next.startsWith(prefix)) {
@@ -86,7 +88,7 @@ export function cliArgs(options: CliArgsOptions = {}): Resolver {
         i++; // Skip next arg
       }
     }
-    
+
     return env;
   };
 
@@ -97,8 +99,6 @@ export function cliArgs(options: CliArgsOptions = {}): Resolver {
     },
     loadSync() {
       return parse();
-    }
+    },
   };
 }
-
-

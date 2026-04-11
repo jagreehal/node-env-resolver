@@ -1,22 +1,16 @@
 // Simple, clean type system for node-env-resolver
 
-// Internal metadata bag for validator introspection (typegen, redaction, etc.)
-export interface ValidatorMeta {
-  sensitive?: boolean;
-  description?: string;
-  type?: string;
-  enumValues?: readonly string[];
-}
-
 // Basic validator function type with optional metadata
 export type Validator<T> = ((value: string) => T) & {
   optional?: boolean;
   default?: T;
-  __meta?: ValidatorMeta;
 };
 
 // Simple schema is just a record of validator functions or simple values
-export type SimpleEnvSchema = Record<string, Validator<unknown> | string | number | boolean | readonly string[]>;
+export type SimpleEnvSchema = Record<
+  string,
+  Validator<unknown> | string | number | boolean | readonly string[]
+>;
 
 // Simple type inference - extract return type and handle optional
 export type InferSimpleValue<V> =
@@ -25,16 +19,16 @@ export type InferSimpleValue<V> =
       ? R | undefined
       : R
     : V extends number
-    ? number
-    : V extends boolean
-    ? boolean
-    : V extends readonly (infer U)[]
-    ? V extends { __optional: true }
-      ? U | undefined
-      : U
-    : V extends string
-    ? string
-    : never;
+      ? number
+      : V extends boolean
+        ? boolean
+        : V extends readonly (infer U)[]
+          ? V extends { __optional: true }
+            ? U | undefined
+            : U
+          : V extends string
+            ? string
+            : never;
 
 export type InferSimpleSchema<T extends SimpleEnvSchema> = {
   [K in keyof T]: InferSimpleValue<T[K]>;
@@ -45,10 +39,12 @@ export type InferSimpleSchema<T extends SimpleEnvSchema> = {
 export type InferNestedSchema<T extends SimpleEnvSchema> = InferSimpleSchema<T>;
 
 // Conditional return type based on whether nested delimiter is used
-export type InferResolveResult<T extends SimpleEnvSchema, O extends ResolveOptions | undefined> = 
-  O extends { nestedDelimiter: string } 
-    ? InferNestedSchema<T>
-    : InferSimpleSchema<T>;
+export type InferResolveResult<
+  T extends SimpleEnvSchema,
+  O extends ResolveOptions | undefined,
+> = O extends { nestedDelimiter: string }
+  ? InferNestedSchema<T>
+  : InferSimpleSchema<T>;
 
 // Resolver types - keeping the existing structure for now
 export interface SyncResolver {
@@ -67,12 +63,45 @@ export interface AsyncResolver {
 
 export type Resolver = SyncResolver | AsyncResolver;
 
+export interface ReferenceResolution {
+  value: string;
+  resolvedVia?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ReferenceContext {
+  key: string;
+  source: string | null;
+  reference: string;
+}
+
+export interface ReferenceHandler {
+  name?: string;
+  resolve(
+    reference: string,
+    context: ReferenceContext,
+  ): string | ReferenceResolution | Promise<string | ReferenceResolution>;
+  resolveSync?(
+    reference: string,
+    context: ReferenceContext,
+  ): string | ReferenceResolution;
+}
+
+export interface ReferenceOptions {
+  handlers: Record<string, ReferenceHandler>;
+  onUnresolved?: 'error' | 'ignore';
+}
+
 // Helper functions
-export const isSyncResolver = (resolver: Resolver): resolver is SyncResolver => {
+export const isSyncResolver = (
+  resolver: Resolver,
+): resolver is SyncResolver => {
   return 'loadSync' in resolver;
 };
 
-export const isAsyncOnlyResolver = (resolver: Resolver): resolver is AsyncResolver => {
+export const isAsyncOnlyResolver = (
+  resolver: Resolver,
+): resolver is AsyncResolver => {
   return 'load' in resolver && !('loadSync' in resolver);
 };
 
@@ -87,10 +116,14 @@ export interface ResolveOptions {
   strict?: boolean;
   policies?: Record<string, unknown>;
   enableAudit?: boolean;
+  /** Debug view options for safe inspection */
+  debug?: import('./debug.js').DebugOptions;
+  /** Optional secret/reference dereferencing */
+  references?: ReferenceOptions;
 }
 
 // Safe resolve result
-export type SafeResolveResultType<T> = 
+export type SafeResolveResultType<T> =
   | { success: true; data: T }
   | { success: false; error: string; details?: unknown };
 
@@ -99,7 +132,9 @@ type ExtractSchema<T> = T extends readonly [unknown, infer S] ? S : never;
 
 // Helper: Convert union to intersection
 // UnionToIntersection<A | B | C> = A & B & C
-type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void
+type UnionToIntersection<U> = (
+  U extends unknown ? (k: U) => void : never
+) extends (k: infer I) => void
   ? I
   : never;
 
@@ -124,53 +159,68 @@ type InferMergedSchemaResult<T extends readonly [unknown, SimpleEnvSchema][]> =
     : Record<string, unknown>;
 
 // Legacy type - kept for backward compatibility
-type InferMergedSchema<T extends readonly [unknown, SimpleEnvSchema][]> = T extends readonly [
-  unknown,
-  infer S1,
-  ...infer Rest
-]
-  ? Rest extends readonly [unknown, SimpleEnvSchema][]
-    ? S1 & InferMergedSchema<Rest>
-    : S1
-  : T extends readonly [unknown, infer S]
-  ? S
-  : Record<string, never>;
+type InferMergedSchema<T extends readonly [unknown, SimpleEnvSchema][]> =
+  T extends readonly [unknown, infer S1, ...infer Rest]
+    ? Rest extends readonly [unknown, SimpleEnvSchema][]
+      ? S1 & InferMergedSchema<Rest>
+      : S1
+    : T extends readonly [unknown, infer S]
+      ? S
+      : Record<string, never>;
 
 // Export the merge types for use in function overloads
-export type { InferMergedSchema, InferMergedSchemaResult, MergedSchema, ExtractSchema, UnionToIntersection };
+export type {
+  InferMergedSchema,
+  InferMergedSchemaResult,
+  MergedSchema,
+  ExtractSchema,
+  UnionToIntersection,
+};
 
 // New object-based API configuration types
 export interface ResolveConfig<T extends SimpleEnvSchema = SimpleEnvSchema> {
   schema?: T;
   resolvers?: readonly [SyncResolver, SimpleEnvSchema][];
   options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
 }
 
-export interface ResolveAsyncConfig<T extends SimpleEnvSchema = SimpleEnvSchema> {
+export interface ResolveAsyncConfig<
+  T extends SimpleEnvSchema = SimpleEnvSchema,
+> {
   schema?: T;
   resolvers?: readonly [Resolver, SimpleEnvSchema][];
   options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
 }
 
 // Specific config types for better type inference
 export interface ResolveConfigWithSchema<T extends SimpleEnvSchema> {
   schema: T;
   options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
 }
 
-export interface ResolveConfigWithResolvers<T extends readonly [SyncResolver, SimpleEnvSchema][]> {
+export interface ResolveConfigWithResolvers<
+  T extends readonly [SyncResolver, SimpleEnvSchema][],
+> {
   resolvers: T;
   options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
 }
 
 export interface ResolveAsyncConfigWithSchema<T extends SimpleEnvSchema> {
   schema: T;
   options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
 }
 
-export interface ResolveAsyncConfigWithResolvers<T extends readonly [Resolver, SimpleEnvSchema][]> {
+export interface ResolveAsyncConfigWithResolvers<
+  T extends readonly [Resolver, SimpleEnvSchema][],
+> {
   resolvers: T;
   options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
 }
 
 // Additional types needed by existing code
@@ -179,21 +229,23 @@ export type Provenance = {
   timestamp: number;
   metadata?: Record<string, unknown>;
   cached?: boolean;
+  reference?: string;
+  resolvedVia?: string;
 };
-
-/**
- * Symbol used to attach provenance metadata (key -> source/timestamp) to resolved config objects.
- */
-export const PROVENANCE_SYMBOL = Symbol.for('node-env-resolver:provenance');
 
 export type PolicyOptions = {
   allowDotenvInProduction?: boolean;
   requireSecretsForSensitive?: boolean;
   blockInsecureProtocols?: boolean;
-  enforceAllowedSources?: Record<string, readonly string[]>;
+  enforceAllowedSources?: Record<string, string[]>;
 };
 
-export type SimpleEnvValue = Validator<unknown> | string | number | boolean | readonly string[];
+export type SimpleEnvValue =
+  | Validator<unknown>
+  | string
+  | number
+  | boolean
+  | readonly string[];
 
 // Legacy types for backward compatibility
 export type EnvSchema = Record<string, unknown>;
@@ -203,12 +255,7 @@ export interface EnvDefinition {
   default?: unknown;
   optional?: boolean;
   secretsDir?: string;
-  sensitive?: boolean;
-  description?: string;
 }
-
-// Symbol used to attach sensitive key metadata to resolved config objects
-export const SENSITIVE_KEYS_SYMBOL = Symbol.for('node-env-resolver:sensitiveKeys');
 
 // Additional legacy types
 export type InferType = unknown;

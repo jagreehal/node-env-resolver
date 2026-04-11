@@ -24,6 +24,7 @@ import type {
   ResolveAsyncConfig,
   ResolveConfigWithSchema,
   ResolveAsyncConfigWithSchema,
+  ReferenceOptions,
   SimpleEnvSchema,
   InferSimpleValue,
   InferMergedSchemaResult,
@@ -38,6 +39,10 @@ export type {
   ResolveOptions,
   ResolveConfig,
   ResolveAsyncConfig,
+  ReferenceOptions,
+  ReferenceHandler,
+  ReferenceContext,
+  ReferenceResolution,
   Provenance,
   PolicyOptions,
   SimpleEnvValue,
@@ -54,16 +59,38 @@ export { isSyncResolver, isAsyncOnlyResolver, AsyncResolver } from './types';
 // Re-export validation types for Zod/Valibot integrations
 export type {
   ValidationIssue,
-  SafeResolveResult as SafeResolveResultWithIssues
+  SafeResolveResult as SafeResolveResultWithIssues,
 } from './validation-types';
 // Re-export audit types and functions
-export { getAuditLog, clearAuditLog, type AuditEvent, type AuditEventType } from './audit';
+export {
+  getAuditLog,
+  clearAuditLog,
+  type AuditEvent,
+  type AuditEventType,
+} from './audit';
+
+// Re-export debug view types and functions
+export {
+  type DebugValueMode,
+  type DebugOptions,
+  type DebugEntry,
+  type VisibilityLevel,
+  type SecuritySnapshotOptions,
+  type SecuritySnapshotEntry,
+  createDebugView,
+  createSecuritySnapshot,
+  createRedactedObject,
+  DEFAULT_DEBUG_OPTIONS,
+  DEFAULT_SENSITIVE_PATTERNS,
+} from './debug';
 
 // Import resolver functions
-import { normalizeSchema, resolveEnvInternal, resolveEnvInternalSync } from './resolver';
+import {
+  normalizeSchema,
+  resolveEnvInternal,
+  resolveEnvInternalSync,
+} from './resolver';
 import { processEnv } from './process-env';
-
-
 
 /**
  * Helper to build default resolvers (just processEnv)
@@ -100,9 +127,15 @@ export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
  * @returns True if argument is a config object
  * @private
  */
-function isConfigObject(arg: unknown): arg is ResolveConfig | ResolveAsyncConfig {
-  return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && 
-    ('resolvers' in arg || 'schema' in arg || 'options' in arg);
+function isConfigObject(
+  arg: unknown,
+): arg is ResolveConfig | ResolveAsyncConfig {
+  return (
+    typeof arg === 'object' &&
+    arg !== null &&
+    !Array.isArray(arg) &&
+    ('resolvers' in arg || 'schema' in arg || 'options' in arg)
+  );
 }
 
 /**
@@ -113,8 +146,28 @@ function isConfigObject(arg: unknown): arg is ResolveConfig | ResolveAsyncConfig
  * @private
  */
 function isSimpleSchema(arg: unknown): arg is SimpleEnvSchema {
-  return typeof arg === 'object' && arg !== null && !Array.isArray(arg) &&
-    !('resolvers' in arg) && !('schema' in arg) && !('options' in arg);
+  return (
+    typeof arg === 'object' &&
+    arg !== null &&
+    !Array.isArray(arg) &&
+    !('resolvers' in arg) &&
+    !('schema' in arg) &&
+    !('options' in arg)
+  );
+}
+
+function mergeReferences(
+  options: Partial<ResolveOptions> | undefined,
+  references: ReferenceOptions | undefined,
+): Partial<ResolveOptions> | undefined {
+  if (!references) {
+    return options;
+  }
+
+  return {
+    ...options,
+    references,
+  };
 }
 
 // Function overloads for resolve
@@ -122,24 +175,30 @@ function isSimpleSchema(arg: unknown): arg is SimpleEnvSchema {
 // Simple schema-only overload (backward compatible)
 function resolve<T extends SimpleEnvSchema>(
   schema: T,
-  options?: Partial<ResolveOptions>
+  options?: Partial<ResolveOptions>,
 ): { [K in keyof T]: InferSimpleValue<T[K]> };
 // Object-based config with schema
 function resolve<T extends SimpleEnvSchema>(
-  config: ResolveConfigWithSchema<T>
+  config: ResolveConfigWithSchema<T>,
 ): { [K in keyof T]: InferSimpleValue<T[K]> };
 // Object-based config with single resolver
-function resolve<T extends SimpleEnvSchema>(
-  config: { resolvers: readonly [[SyncResolver, T]]; options?: Partial<ResolveOptions> }
-): { [K in keyof T]: InferSimpleValue<T[K]> };
+function resolve<T extends SimpleEnvSchema>(config: {
+  resolvers: readonly [[SyncResolver, T]];
+  options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
+}): { [K in keyof T]: InferSimpleValue<T[K]> };
 // Object-based config with explicit type parameter and multiple resolvers
-function resolve<T extends SimpleEnvSchema>(
-  config: { resolvers: readonly [SyncResolver, T][]; options?: Partial<ResolveOptions> }
-): { [K in keyof T]: InferSimpleValue<T[K]> };
+function resolve<T extends SimpleEnvSchema>(config: {
+  resolvers: readonly [SyncResolver, T][];
+  options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
+}): { [K in keyof T]: InferSimpleValue<T[K]> };
 // Object-based config with multiple resolvers - infer merged schema from resolver tuples
-function resolve<T extends readonly [SyncResolver, SimpleEnvSchema][]>(
-  config: { resolvers: T; options?: Partial<ResolveOptions> }
-): InferMergedSchemaResult<T>;
+function resolve<T extends readonly [SyncResolver, SimpleEnvSchema][]>(config: {
+  resolvers: T;
+  options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
+}): InferMergedSchemaResult<T>;
 // Implementation
 function resolve(arg1: unknown, arg2?: unknown): unknown {
   let schema: SimpleEnvSchema;
@@ -149,7 +208,7 @@ function resolve(arg1: unknown, arg2?: unknown): unknown {
   // Check if first arg is a config object
   if (isConfigObject(arg1)) {
     const config = arg1 as ResolveConfig;
-    
+
     if (config.schema) {
       schema = config.schema;
     } else if (config.resolvers && config.resolvers.length > 0) {
@@ -160,12 +219,14 @@ function resolve(arg1: unknown, arg2?: unknown): unknown {
       }
     } else {
       throw new Error(
-        'resolve() config object must have either a "schema" property or "resolvers" array'
+        'resolve() config object must have either a "schema" property or "resolvers" array',
       );
     }
-    
-    resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
-    options = config.options;
+
+    resolvers = config.resolvers
+      ? config.resolvers.map(([resolver]) => resolver)
+      : buildDefaultResolvers();
+    options = mergeReferences(config.options, config.references);
   } else if (isSimpleSchema(arg1)) {
     // Simple syntax: resolve(schema, options?)
     schema = arg1;
@@ -173,7 +234,7 @@ function resolve(arg1: unknown, arg2?: unknown): unknown {
     options = arg2 as Partial<ResolveOptions> | undefined;
   } else {
     throw new Error(
-      'resolve() expects either a schema object or a config object with "schema" or "resolvers" property'
+      'resolve() expects either a schema object or a config object with "schema" or "resolvers" property',
     );
   }
 
@@ -262,26 +323,32 @@ function resolve(arg1: unknown, arg2?: unknown): unknown {
 /* eslint-disable no-redeclare */
 // Object-based config with schema
 async function resolveAsync<T extends SimpleEnvSchema>(
-  config: ResolveAsyncConfigWithSchema<T>
+  config: ResolveAsyncConfigWithSchema<T>,
 ): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
 // Object-based config with single resolver
-async function resolveAsync<T extends SimpleEnvSchema>(
-  config: { resolvers: readonly [[Resolver, T]]; options?: Partial<ResolveOptions> }
-): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
+async function resolveAsync<T extends SimpleEnvSchema>(config: {
+  resolvers: readonly [[Resolver, T]];
+  options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
+}): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
 // Object-based config with explicit type parameter and multiple resolvers
 // This allows: resolveAsync<typeof schema>({ resolvers: [...] })
-async function resolveAsync<T extends SimpleEnvSchema>(
-  config: { resolvers: readonly [Resolver, T][]; options?: Partial<ResolveOptions> }
-): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
+async function resolveAsync<T extends SimpleEnvSchema>(config: {
+  resolvers: readonly [Resolver, T][];
+  options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
+}): Promise<{ [K in keyof T]: InferSimpleValue<T[K]> }>;
 // Object-based config with multiple resolvers - infer merged schema from resolver tuples
-async function resolveAsync<T extends readonly [Resolver, SimpleEnvSchema][]>(
-  config: { resolvers: T; options?: Partial<ResolveOptions> }
-): Promise<InferMergedSchemaResult<T>>;
+async function resolveAsync<
+  T extends readonly [Resolver, SimpleEnvSchema][],
+>(config: {
+  resolvers: T;
+  options?: Partial<ResolveOptions>;
+  references?: ReferenceOptions;
+}): Promise<InferMergedSchemaResult<T>>;
 // Implementation
-async function resolveAsync(
-  config: ResolveAsyncConfig
-): Promise<unknown> {
-/* eslint-enable no-redeclare */
+async function resolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
+  /* eslint-enable no-redeclare */
   let schema: SimpleEnvSchema;
 
   if (config.schema) {
@@ -294,31 +361,37 @@ async function resolveAsync(
     }
   } else {
     throw new Error(
-      'resolveAsync() config object must have either a "schema" property or "resolvers" array'
+      'resolveAsync() config object must have either a "schema" property or "resolvers" array',
     );
   }
 
-  const resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
+  const resolvers = config.resolvers
+    ? config.resolvers.map(([resolver]) => resolver)
+    : buildDefaultResolvers();
 
-  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const isProduction =
+    (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
   // Default policies: secure by default (block dotenv in production unless explicitly allowed)
-  const defaultPolicies = config.options?.policies ?? {};
+  const normalizedOptions = mergeReferences(config.options, config.references);
+  const defaultPolicies = normalizedOptions?.policies ?? {};
 
   const resolveOptions: ResolveOptions = {
     interpolate: true,
     strict: true,
     enableAudit: isProduction,
     policies: defaultPolicies,
-    ...config.options,
+    ...normalizedOptions,
   };
 
   const normalizedSchema = normalizeSchema(schema);
-  const result = await resolveEnvInternal(normalizedSchema, resolvers, resolveOptions);
+  const result = await resolveEnvInternal(
+    normalizedSchema,
+    resolvers,
+    resolveOptions,
+  );
   return result as unknown;
 }
-
-
 
 /**
  * Safe resolve implementation (doesn't throw, returns result object)
@@ -330,7 +403,7 @@ async function resolveAsync(
  */
 function safeResolve<T extends SimpleEnvSchema>(
   arg1: T | ResolveConfig<T>,
-  arg2?: Partial<ResolveOptions>
+  arg2?: Partial<ResolveOptions>,
 ): SafeResolveResultType<{ [K in keyof T]: InferSimpleValue<T[K]> }> {
   let schema: SimpleEnvSchema;
   let resolvers: SyncResolver[];
@@ -340,7 +413,7 @@ function safeResolve<T extends SimpleEnvSchema>(
     // Check if first arg is a config object
     if (isConfigObject(arg1)) {
       const config = arg1 as ResolveConfig;
-      
+
       if (config.schema) {
         schema = config.schema;
       } else if (config.resolvers && config.resolvers.length > 0) {
@@ -352,12 +425,15 @@ function safeResolve<T extends SimpleEnvSchema>(
       } else {
         return {
           success: false,
-          error: 'safeResolve() config object must have either a "schema" property or "resolvers" array'
+          error:
+            'safeResolve() config object must have either a "schema" property or "resolvers" array',
         };
       }
-      
-      resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
-      options = config.options;
+
+      resolvers = config.resolvers
+        ? config.resolvers.map(([resolver]) => resolver)
+        : buildDefaultResolvers();
+      options = mergeReferences(config.options, config.references);
     } else if (isSimpleSchema(arg1)) {
       // Simple syntax: safeResolve(schema, options?)
       schema = arg1;
@@ -366,7 +442,8 @@ function safeResolve<T extends SimpleEnvSchema>(
     } else {
       return {
         success: false,
-        error: 'safeResolve() expects either a schema object or a config object with "schema" or "resolvers" property'
+        error:
+          'safeResolve() expects either a schema object or a config object with "schema" or "resolvers" property',
       };
     }
 
@@ -473,13 +550,11 @@ function safeResolve<T extends SimpleEnvSchema>(
 /* eslint-disable no-redeclare */
 // Object-based config overload
 async function safeResolveAsync<T extends SimpleEnvSchema>(
-  config: ResolveAsyncConfig<T>
+  config: ResolveAsyncConfig<T>,
 ): Promise<SafeResolveResultType<{ [K in keyof T]: InferSimpleValue<T[K]> }>>;
 // Implementation
-async function safeResolveAsync(
-  config: ResolveAsyncConfig
-): Promise<unknown> {
-/* eslint-enable no-redeclare */
+async function safeResolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
+  /* eslint-enable no-redeclare */
   let schema: SimpleEnvSchema;
 
   if (config.schema) {
@@ -493,37 +568,44 @@ async function safeResolveAsync(
   } else {
     return {
       success: false,
-      error: 'safeResolveAsync() config object must have either a "schema" property or "resolvers" array'
+      error:
+        'safeResolveAsync() config object must have either a "schema" property or "resolvers" array',
     };
   }
 
-  const resolvers = config.resolvers ? config.resolvers.map(([resolver]) => resolver) : buildDefaultResolvers();
+  const resolvers = config.resolvers
+    ? config.resolvers.map(([resolver]) => resolver)
+    : buildDefaultResolvers();
 
-  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const isProduction =
+    (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
   // Default policies: secure by default (block dotenv in production unless explicitly allowed)
-  const defaultPolicies = config.options?.policies ?? {};
+  const normalizedOptions = mergeReferences(config.options, config.references);
+  const defaultPolicies = normalizedOptions?.policies ?? {};
 
   const resolveOptions: ResolveOptions = {
     interpolate: true,
     strict: true,
     enableAudit: isProduction,
     policies: defaultPolicies,
-    ...config.options,
+    ...normalizedOptions,
   };
 
   try {
     const normalizedSchema = normalizeSchema(schema);
-    const result = await resolveEnvInternal(normalizedSchema, resolvers, resolveOptions);
+    const result = await resolveEnvInternal(
+      normalizedSchema,
+      resolvers,
+      resolveOptions,
+    );
     return { success: true, data: result } as unknown;
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     } as unknown;
   }
 }
 
 export { safeResolveAsync, resolveAsync, resolve, safeResolve };
-
-

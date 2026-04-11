@@ -20,9 +20,9 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    "ignoreDeprecations": "6.0",
     
     // Next.js app directory support
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@/components/*": ["./src/components/*"],

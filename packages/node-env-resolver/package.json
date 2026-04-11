@@ -1,12 +1,13 @@
 {
   "name": "node-env-resolver",
-  "version": "6.5.0",
+  "version": "6.3.0",
   "description": "Type-safe environment variable resolver with async resolvers - lightweight, tree-shakeable, no dependencies",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "node-env-resolver": "./dist/cli-main.js"
+    "ner": "./dist/cli/bin.js",
+    "node-env-resolver": "./dist/cli/bin.js"
   },
   "exports": {
     ".": {
@@ -57,18 +58,6 @@
       "require": "./dist/utils.cjs",
       "default": "./dist/utils.js"
     },
-    "./redaction": {
-      "types": "./dist/redaction.d.ts",
-      "import": "./dist/redaction.js",
-      "require": "./dist/redaction.cjs",
-      "default": "./dist/redaction.js"
-    },
-    "./typegen": {
-      "types": "./dist/typegen.d.ts",
-      "import": "./dist/typegen.js",
-      "require": "./dist/typegen.cjs",
-      "default": "./dist/typegen.js"
-    },
     "./cli": {
       "types": "./dist/cli.d.ts",
       "import": "./dist/cli.js",
@@ -92,6 +81,12 @@
       "import": "./dist/types.js",
       "require": "./dist/types.cjs",
       "default": "./dist/types.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js",
+      "require": "./dist/runtime/index.cjs",
+      "default": "./dist/runtime/index.js"
     }
   },
   "typesVersions": {
@@ -104,12 +99,6 @@
       ],
       "utils": [
         "./dist/utils.d.ts"
-      ],
-      "redaction": [
-        "./dist/redaction.d.ts"
-      ],
-      "typegen": [
-        "./dist/typegen.d.ts"
       ],
       "builder": [
         "./dist/builder.d.ts"
@@ -134,6 +123,9 @@
       ],
       "types": [
         "./dist/types.d.ts"
+      ],
+      "runtime": [
+        "./dist/runtime/index.d.ts"
       ]
     }
   },
@@ -183,20 +175,17 @@
   "engines": {
     "node": ">=18"
   },
-  "dependencies": {
-    "ansis": "^4.2.0"
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.5.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.0",
-    "@typescript-eslint/parser": "^8.57.0",
-    "eslint": "^10.0.3",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-zod": "^1.2.1",
-    "prettier": "^3.8.1",
+    "prettier": "^3.8.2",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.0"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   }
 }

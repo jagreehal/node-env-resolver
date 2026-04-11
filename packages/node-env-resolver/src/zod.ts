@@ -4,31 +4,69 @@
  */
 
 import {
-  type Resolver, type PolicyOptions
+  type Resolver,
+  type PolicyOptions,
+  type Provenance,
+  type ReferenceOptions,
 } from './index';
 import { processEnv } from './resolvers';
+import { resolveReferences, resolveReferencesSync } from './references';
 import type { SafeResolveResult, ValidationIssue } from './validation-types';
-async function resolveFromResolvers(resolvers: Resolver[], interpolate: boolean, strict: boolean) {
+
+type ResolveZodOptions = {
+  resolvers?: Resolver[];
+  interpolate?: boolean;
+  strict?: boolean;
+  policies?: PolicyOptions;
+  references?: ReferenceOptions;
+};
+
+async function resolveFromResolvers(
+  resolvers: Resolver[],
+  interpolate: boolean,
+  strict: boolean,
+  references?: ReferenceOptions,
+) {
   let env: Record<string, string> = {};
+  const provenance: Record<string, Provenance> = {};
   for (const resolver of resolvers) {
     try {
       const data = resolver.load ? await resolver.load() : {};
       env = { ...env, ...data };
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          provenance[key] = {
+            source: resolver.name || 'unknown',
+            timestamp: Date.now(),
+          };
+        }
+      }
     } catch (error) {
-      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
+      if (strict)
+        throw new Error(
+          `Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`,
+          { cause: error },
+        );
     }
   }
-  
+
   if (interpolate) {
     for (const [key, value] of Object.entries(env)) {
-      env[key] = value.replace(/\$\{([^}]+)\}/g, (_, varName) => env[varName] || '');
+      env[key] = value.replace(
+        /\$\{([^}]+)\}/g,
+        (_, varName) => env[varName] || '',
+      );
     }
   }
-  
-  return env;
+
+  await resolveReferences(env, provenance, references);
+
+  return { env, provenance };
 }
 
-export type InferZodOutput<T> = T extends { parse: (input: unknown) => infer R } ? R : never;
+export type InferZodOutput<T> = T extends { parse: (input: unknown) => infer R }
+  ? R
+  : never;
 
 /**
  * Convert Zod error to unified ValidationIssue format
@@ -38,16 +76,22 @@ function zodErrorToIssues(zodError: unknown): ValidationIssue[] {
     return [{ path: [], message: 'Validation failed', code: 'unknown_error' }];
   }
 
-  const error = zodError as { issues?: Array<{ path: (string | number)[]; message: string; code?: string }> };
+  const error = zodError as {
+    issues?: Array<{
+      path: (string | number)[];
+      message: string;
+      code?: string;
+    }>;
+  };
 
   if (!error.issues || !Array.isArray(error.issues)) {
     return [{ path: [], message: 'Validation failed', code: 'unknown_error' }];
   }
 
-  return error.issues.map(issue => ({
+  return error.issues.map((issue) => ({
     path: issue.path || [],
     message: issue.message,
-    code: issue.code
+    code: issue.code,
   }));
 }
 
@@ -68,12 +112,24 @@ function zodErrorToIssues(zodError: unknown): ValidationIssue[] {
  * console.log(env.PORT);  // number
  * ```
  */
-export async function resolveZod<TSchema extends { parse: (input: unknown) => unknown }>(
+export async function resolveZod<
+  TSchema extends { parse: (input: unknown) => unknown },
+>(
   zodSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveZodOptions = {},
 ): Promise<InferZodOutput<TSchema>> {
-  const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-  const mergedEnv = await resolveFromResolvers(resolvers, interpolate, strict);
+  const {
+    resolvers = [processEnv()],
+    interpolate = false,
+    strict = true,
+    references,
+  } = options;
+  const { env: mergedEnv } = await resolveFromResolvers(
+    resolvers,
+    interpolate,
+    strict,
+    references,
+  );
   return zodSchema.parse(mergedEnv) as InferZodOutput<TSchema>;
 }
 
@@ -102,13 +158,31 @@ export async function resolveZod<TSchema extends { parse: (input: unknown) => un
  * }
  * ```
  */
-export async function safeResolveZod<TSchema extends { safeParse: (input: unknown) => { success: boolean; data?: unknown; error?: unknown } }>(
+export async function safeResolveZod<
+  TSchema extends {
+    safeParse: (input: unknown) => {
+      success: boolean;
+      data?: unknown;
+      error?: unknown;
+    };
+  },
+>(
   zodSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveZodOptions = {},
 ): Promise<SafeResolveResult<InferZodOutput<TSchema>>> {
   try {
-    const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-    const mergedEnv = await resolveFromResolvers(resolvers, interpolate, strict);
+    const {
+      resolvers = [processEnv()],
+      interpolate = false,
+      strict = true,
+      references,
+    } = options;
+    const { env: mergedEnv } = await resolveFromResolvers(
+      resolvers,
+      interpolate,
+      strict,
+      references,
+    );
     const result = zodSchema.safeParse(mergedEnv);
 
     if (result.success) {
@@ -116,39 +190,71 @@ export async function safeResolveZod<TSchema extends { safeParse: (input: unknow
     }
 
     const issues = zodErrorToIssues(result.error);
-    const errorMessage = issues.map(issue => issue.message).join(', ');
+    const errorMessage = issues.map((issue) => issue.message).join(', ');
     return { success: false, error: errorMessage, issues };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
-      issues: [{ path: [], message: error instanceof Error ? error.message : String(error), code: 'resolver_error' }]
+      issues: [
+        {
+          path: [],
+          message: error instanceof Error ? error.message : String(error),
+          code: 'resolver_error',
+        },
+      ],
     };
   }
 }
 
-function resolveFromResolversSync(resolvers: Resolver[], interpolate: boolean, strict: boolean) {
+function resolveFromResolversSync(
+  resolvers: Resolver[],
+  interpolate: boolean,
+  strict: boolean,
+  references?: ReferenceOptions,
+) {
   let env: Record<string, string> = {};
+  const provenance: Record<string, Provenance> = {};
   for (const resolver of resolvers) {
     try {
       if (!resolver.loadSync) {
-        if (strict) throw new Error(`Resolver ${resolver.name} does not support sync loading`);
+        if (strict)
+          throw new Error(
+            `Resolver ${resolver.name} does not support sync loading`,
+          );
         continue;
       }
       const data = resolver.loadSync();
       env = { ...env, ...data };
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          provenance[key] = {
+            source: resolver.name || 'unknown',
+            timestamp: Date.now(),
+          };
+        }
+      }
     } catch (error) {
-      if (strict) throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
+      if (strict)
+        throw new Error(
+          `Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`,
+          { cause: error },
+        );
     }
   }
 
   if (interpolate) {
     for (const [key, value] of Object.entries(env)) {
-      env[key] = value.replace(/\$\{([^}]+)\}/g, (_, varName) => env[varName] || '');
+      env[key] = value.replace(
+        /\$\{([^}]+)\}/g,
+        (_, varName) => env[varName] || '',
+      );
     }
   }
 
-  return env;
+  resolveReferencesSync(env, provenance, references);
+
+  return { env, provenance };
 }
 
 /**
@@ -167,12 +273,24 @@ function resolveFromResolversSync(resolvers: Resolver[], interpolate: boolean, s
  * console.log(env.PORT);
  * ```
  */
-export function resolveSyncZod<TSchema extends { parse: (input: unknown) => unknown }>(
+export function resolveSyncZod<
+  TSchema extends { parse: (input: unknown) => unknown },
+>(
   zodSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveZodOptions = {},
 ): InferZodOutput<TSchema> {
-  const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-  const mergedEnv = resolveFromResolversSync(resolvers, interpolate, strict);
+  const {
+    resolvers = [processEnv()],
+    interpolate = false,
+    strict = true,
+    references,
+  } = options;
+  const { env: mergedEnv } = resolveFromResolversSync(
+    resolvers,
+    interpolate,
+    strict,
+    references,
+  );
   return zodSchema.parse(mergedEnv) as InferZodOutput<TSchema>;
 }
 
@@ -200,13 +318,31 @@ export function resolveSyncZod<TSchema extends { parse: (input: unknown) => unkn
  * }
  * ```
  */
-export function safeResolveSyncZod<TSchema extends { safeParse: (input: unknown) => { success: boolean; data?: unknown; error?: unknown } }>(
+export function safeResolveSyncZod<
+  TSchema extends {
+    safeParse: (input: unknown) => {
+      success: boolean;
+      data?: unknown;
+      error?: unknown;
+    };
+  },
+>(
   zodSchema: TSchema,
-  options: { resolvers?: Resolver[]; interpolate?: boolean; strict?: boolean; policies?: PolicyOptions } = {}
+  options: ResolveZodOptions = {},
 ): SafeResolveResult<InferZodOutput<TSchema>> {
   try {
-    const { resolvers = [processEnv()], interpolate = false, strict = true } = options;
-    const mergedEnv = resolveFromResolversSync(resolvers, interpolate, strict);
+    const {
+      resolvers = [processEnv()],
+      interpolate = false,
+      strict = true,
+      references,
+    } = options;
+    const { env: mergedEnv } = resolveFromResolversSync(
+      resolvers,
+      interpolate,
+      strict,
+      references,
+    );
     const result = zodSchema.safeParse(mergedEnv);
 
     if (result.success) {
@@ -214,13 +350,19 @@ export function safeResolveSyncZod<TSchema extends { safeParse: (input: unknown)
     }
 
     const issues = zodErrorToIssues(result.error);
-    const errorMessage = issues.map(issue => issue.message).join(', ');
+    const errorMessage = issues.map((issue) => issue.message).join(', ');
     return { success: false, error: errorMessage, issues };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
-      issues: [{ path: [], message: error instanceof Error ? error.message : String(error), code: 'resolver_error' }]
+      issues: [
+        {
+          path: [],
+          message: error instanceof Error ? error.message : String(error),
+          code: 'resolver_error',
+        },
+      ],
     };
   }
 }

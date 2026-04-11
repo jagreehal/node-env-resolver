@@ -1,6 +1,6 @@
 /**
  * Vite plugin for node-env-resolver
- * 
+ *
  * Validates environment variables at config resolution time and
  * optionally injects validated env vars into Vite's define config.
  */
@@ -9,20 +9,21 @@ import type { Plugin } from 'vite';
 import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { dirname } from 'path';
 import { mkdirSync } from 'fs';
-import { resolve, type ViteEnvConfig, type ViteOptions } from './index';
+import { resolve, resolveAsyncFn, type ViteEnvConfig, type ViteOptions } from './index';
 import type { SimpleEnvSchema } from 'node-env-resolver';
 
-export interface PluginOptions<_TServer extends SimpleEnvSchema = SimpleEnvSchema, _TClient extends SimpleEnvSchema = SimpleEnvSchema> extends ViteOptions {
+export interface PluginOptions<
+  _TServer extends SimpleEnvSchema = SimpleEnvSchema,
+  _TClient extends SimpleEnvSchema = SimpleEnvSchema,
+> extends ViteOptions {
   /**
    * Whether to inject client env vars into Vite's define config
-   * This makes them available as import.meta.env.VITE_* in the browser
    * @default true
    */
   injectClientEnv?: boolean;
 
   /**
    * Auto-generate TypeScript definitions for import.meta.env
-   * Provide a file path (e.g., 'src/vite-env.d.ts') to enable
    * @default undefined (disabled)
    */
   generateTypes?: string;
@@ -35,33 +36,69 @@ function inferType(definition: unknown): string {
   // Handle literal values (defaults)
   if (typeof definition === 'number') return 'number';
   if (typeof definition === 'boolean') return 'boolean';
-  
+
   // Handle array oneOf
   if (Array.isArray(definition)) {
-    const values = definition.map(v => `'${v}'`).join(' | ');
+    const values = definition.map((v) => `'${v}'`).join(' | ');
     return values;
   }
 
   // Handle string type definitions
   if (typeof definition === 'string') {
     // Check if it's a literal default value
-    if (!definition.includes(':') && !definition.endsWith('?') && 
-        !['string', 'number', 'boolean', 'url', 'email', 'postgres', 'mysql', 
-          'mongodb', 'redis', 'http', 'https', 'port', 'json', 'date', 'timestamp',
-          'duration', 'file', 'string[]', 'number[]', 'url[]'].includes(definition)) {
+    if (
+      !definition.includes(':') &&
+      !definition.endsWith('?') &&
+      ![
+        'string',
+        'number',
+        'boolean',
+        'url',
+        'email',
+        'postgres',
+        'mysql',
+        'mongodb',
+        'redis',
+        'http',
+        'https',
+        'port',
+        'json',
+        'date',
+        'timestamp',
+        'duration',
+        'file',
+        'string[]',
+        'number[]',
+        'url[]',
+      ].includes(definition)
+    ) {
       return 'string';
     }
-    
+
     const isOptional = definition.endsWith('?');
     const baseType = definition.replace('?', '').split(':')[0];
-    
+
     let tsType: string;
-    if (baseType === 'string' || baseType === 'url' || baseType === 'email' || 
-        baseType === 'postgres' || baseType === 'mysql' || baseType === 'mongodb' || 
-        baseType === 'redis' || baseType === 'http' || baseType === 'https' ||
-        baseType === 'date' || baseType === 'file') {
+    if (
+      baseType === 'string' ||
+      baseType === 'url' ||
+      baseType === 'email' ||
+      baseType === 'postgres' ||
+      baseType === 'mysql' ||
+      baseType === 'mongodb' ||
+      baseType === 'redis' ||
+      baseType === 'http' ||
+      baseType === 'https' ||
+      baseType === 'date' ||
+      baseType === 'file'
+    ) {
       tsType = 'string';
-    } else if (baseType === 'number' || baseType === 'port' || baseType === 'timestamp' || baseType === 'duration') {
+    } else if (
+      baseType === 'number' ||
+      baseType === 'port' ||
+      baseType === 'timestamp' ||
+      baseType === 'duration'
+    ) {
       tsType = 'number';
     } else if (baseType === 'boolean') {
       tsType = 'boolean';
@@ -76,7 +113,7 @@ function inferType(definition: unknown): string {
     } else {
       tsType = 'string';
     }
-    
+
     return isOptional ? `${tsType} | undefined` : tsType;
   }
 
@@ -85,8 +122,22 @@ function inferType(definition: unknown): string {
     const def = definition as { type: string; optional?: boolean };
     const baseType = def.type.replace('?', '');
     let tsType: string;
-    
-    if (['string', 'url', 'email', 'postgres', 'mysql', 'mongodb', 'redis', 'http', 'https', 'date', 'file'].includes(baseType)) {
+
+    if (
+      [
+        'string',
+        'url',
+        'email',
+        'postgres',
+        'mysql',
+        'mongodb',
+        'redis',
+        'http',
+        'https',
+        'date',
+        'file',
+      ].includes(baseType)
+    ) {
       tsType = 'string';
     } else if (['number', 'port', 'timestamp', 'duration'].includes(baseType)) {
       tsType = 'number';
@@ -101,7 +152,7 @@ function inferType(definition: unknown): string {
     } else {
       tsType = 'string';
     }
-    
+
     return def.optional ? `${tsType} | undefined` : tsType;
   }
 
@@ -109,23 +160,27 @@ function inferType(definition: unknown): string {
   if (typeof definition === 'function') {
     const func = definition as unknown as Record<string, unknown>;
     const isOptional = func.optional === true;
-    
+
     // Try to infer type from function name or return type
     const funcStr = definition.toString();
-    
+
     let tsType = 'string'; // Default
-    
+
     // Check if it's a typed validator by checking the function body or attached metadata
-    if (funcStr.includes('parseFloat') || funcStr.includes('parseInt') || funcStr.includes('Number(')) {
+    if (
+      funcStr.includes('parseFloat') ||
+      funcStr.includes('parseInt') ||
+      funcStr.includes('Number(')
+    ) {
       tsType = 'number';
-    } else if (funcStr.includes('Boolean') || funcStr.includes('=== \'true\'')) {
+    } else if (funcStr.includes('Boolean') || funcStr.includes("=== 'true'")) {
       tsType = 'boolean';
     } else if (funcStr.includes('JSON.parse')) {
       tsType = 'unknown';
     } else if (funcStr.includes('Array.isArray')) {
       tsType = 'string[]';
     }
-    
+
     return isOptional ? `${tsType} | undefined` : tsType;
   }
 
@@ -144,7 +199,7 @@ function generateTypeDefinitions(clientSchema: SimpleEnvSchema): string {
     ' * DO NOT EDIT MANUALLY - Changes will be overwritten',
     ' */',
     '',
-    'interface ImportMetaEnv {'
+    'interface ImportMetaEnv {',
   ];
 
   // Generate interface properties
@@ -166,7 +221,7 @@ function generateTypeDefinitions(clientSchema: SimpleEnvSchema): string {
 
 /**
  * Vite plugin for environment variable validation and injection
- * 
+ *
  * @example
  * ```typescript
  * // vite.config.ts
@@ -190,66 +245,67 @@ function generateTypeDefinitions(clientSchema: SimpleEnvSchema): string {
  * });
  * ```
  */
-export function nodeEnvResolverPlugin<TServer extends SimpleEnvSchema, TClient extends SimpleEnvSchema>(
-  config: ViteEnvConfig<TServer, TClient>,
-  options: PluginOptions<TServer, TClient> = {}
-): Plugin {
+export function nodeEnvResolverPlugin<
+  TServer extends SimpleEnvSchema,
+  TClient extends SimpleEnvSchema,
+>(config: ViteEnvConfig<TServer, TClient>, options: PluginOptions<TServer, TClient> = {}): Plugin {
   const {
     injectClientEnv = true,
     generateTypes,
+    async: isAsync = false,
+    referenceHandlers,
     ...resolveOptions
   } = options;
 
-  let env: ReturnType<typeof resolve<TServer, TClient>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let env: any;
 
   return {
     name: 'node-env-resolver-vite',
-    
-    // Validate environment variables early in the config resolution
-    config() {
+
+    async config() {
       try {
-        // Resolve and validate env vars
-        env = resolve(config, resolveOptions);
-        
-        // Log validation success
-        console.log('✅ Environment variables validated successfully');
+        if (isAsync) {
+          env = await resolveAsyncFn(config, {
+            ...resolveOptions,
+            referenceHandlers: referenceHandlers as ViteOptions['referenceHandlers'],
+          });
+        } else {
+          env = resolve(config, resolveOptions as Omit<ViteOptions, 'async' | 'referenceHandlers'>);
+        }
+
+        console.log('Environment variables validated successfully');
       } catch (error) {
-        // Throw to prevent Vite from starting with invalid config
-        console.error('❌ Environment validation failed:');
+        console.error('Environment validation failed:');
         throw error;
       }
 
-      // Inject client env vars into Vite's define if enabled
-      if (injectClientEnv) {
+      if (injectClientEnv && env.client) {
         const define: Record<string, string> = {};
-        
+
         for (const [key, value] of Object.entries(env.client)) {
-          // Convert values to JSON strings for Vite's define
           const jsonValue = JSON.stringify(value);
           define[`import.meta.env.${key}`] = jsonValue;
         }
 
-        return {
-          define
-        };
+        return { define };
       }
     },
 
     configResolved(resolvedConfig) {
-      // Log environment info in dev mode
       if (resolvedConfig.command === 'serve' && resolvedConfig.mode === 'development') {
-        console.log('\n📦 Environment Configuration:');
-        console.log(`  • Mode: ${resolvedConfig.mode}`);
-        console.log(`  • Server vars: ${Object.keys(config.server).length}`);
-        console.log(`  • Client vars: ${Object.keys(config.client).length}`);
-        
+        console.log('\nEnvironment Configuration:');
+        console.log(`  Mode: ${resolvedConfig.mode}`);
+        console.log(`  Server vars: ${Object.keys(config.server).length}`);
+        console.log(`  Client vars: ${Object.keys(config.client).length}`);
+
         // Generate TypeScript definitions if requested
         if (generateTypes) {
           try {
-            const typePath = generateTypes.startsWith('/') 
-              ? generateTypes 
+            const typePath = generateTypes.startsWith('/')
+              ? generateTypes
               : `${resolvedConfig.root}/${generateTypes}`;
-            
+
             // Check if file exists and contains custom content
             let shouldGenerate = true;
             if (existsSync(typePath)) {
@@ -257,30 +313,35 @@ export function nodeEnvResolverPlugin<TServer extends SimpleEnvSchema, TClient e
               // Only regenerate if it's our auto-generated file
               if (!existingContent.includes('Auto-generated by node-env-resolver-vite')) {
                 shouldGenerate = false;
-                console.log(`  ⚠️  Skipping type generation: ${generateTypes} contains custom content`);
+                console.log(
+                  `  ⚠️  Skipping type generation: ${generateTypes} contains custom content`
+                );
               }
             }
-            
+
             if (shouldGenerate) {
               const typeDefinitions = generateTypeDefinitions(config.client);
-              
+
               // Ensure directory exists
               const dir = dirname(typePath);
               if (!existsSync(dir)) {
                 mkdirSync(dir, { recursive: true });
               }
-              
+
               writeFileSync(typePath, typeDefinitions, 'utf-8');
               console.log(`  ✅ Generated TypeScript definitions: ${generateTypes}`);
             }
           } catch (error) {
-            console.error('  ⚠️  Failed to generate types:', error instanceof Error ? error.message : String(error));
+            console.error(
+              '  ⚠️  Failed to generate types:',
+              error instanceof Error ? error.message : String(error)
+            );
           }
         }
-        
+
         console.log('');
       }
-    }
+    },
   };
 }
 
@@ -288,4 +349,3 @@ export function nodeEnvResolverPlugin<TServer extends SimpleEnvSchema, TClient e
  * Type-only export for plugin configuration
  */
 export type { ViteEnvConfig, ViteOptions };
-

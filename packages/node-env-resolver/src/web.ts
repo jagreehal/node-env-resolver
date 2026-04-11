@@ -5,19 +5,29 @@
 
 import { resolveAsync } from './index';
 import { processEnv, dotenv } from './resolvers';
-import type { Resolver, EnvDefinition, EnvSchema, PolicyOptions, SimpleEnvSchema, InferSimpleSchema } from './types';
+import type {
+  Resolver,
+  EnvDefinition,
+  EnvSchema,
+  PolicyOptions,
+  SimpleEnvSchema,
+  InferSimpleSchema,
+  ReferenceOptions,
+} from './types';
 // Runtime detection helper
 // Type for globalThis with window property
 interface GlobalWithWindow {
   window?: Window;
 }
 
-const isBrowser = () => typeof (globalThis as GlobalWithWindow).window !== 'undefined';
+const isBrowser = () =>
+  typeof (globalThis as GlobalWithWindow).window !== 'undefined';
 
 export interface ClientEnvOptions {
   resolvers?: Resolver[];
   clientPrefix?: string;
   strict?: boolean;
+  references?: ReferenceOptions;
 }
 
 export interface EnvSplitOptions {
@@ -26,6 +36,7 @@ export interface EnvSplitOptions {
   strict?: boolean;
   interpolate?: boolean;
   policies?: PolicyOptions;
+  references?: ReferenceOptions;
 }
 
 export interface EnvSplitSchema {
@@ -34,19 +45,30 @@ export interface EnvSplitSchema {
 }
 
 // Type helpers for client/server split
-type InferType<T extends EnvDefinition> =
-  T extends { enum: readonly (infer U)[] } ? U :
-  T extends { type: 'number' } ? number :
-  T extends { type: 'boolean' } ? boolean :
-  T extends { type: 'url' } ? URL :
-  T extends { type: 'port' } ? number :
-  T extends { type: 'timestamp' } ? number :
-  T extends { type: 'date' } ? string :
-  T extends { type: 'json' } ? unknown :
-  string;
+type InferType<T extends EnvDefinition> = T extends {
+  enum: readonly (infer U)[];
+}
+  ? U
+  : T extends { type: 'number' }
+    ? number
+    : T extends { type: 'boolean' }
+      ? boolean
+      : T extends { type: 'url' }
+        ? URL
+        : T extends { type: 'port' }
+          ? number
+          : T extends { type: 'timestamp' }
+            ? number
+            : T extends { type: 'date' }
+              ? string
+              : T extends { type: 'json' }
+                ? unknown
+                : string;
 
 type InferClientSchema<T extends EnvSchema, TPrefix extends string> = {
-  [K in keyof T as K extends `${TPrefix}${string}` ? K : never]: InferType<T[K] extends EnvDefinition ? T[K] : never>;
+  [K in keyof T as K extends `${TPrefix}${string}` ? K : never]: InferType<
+    T[K] extends EnvDefinition ? T[K] : never
+  >;
 };
 
 /**
@@ -57,21 +79,28 @@ type InferClientSchema<T extends EnvSchema, TPrefix extends string> = {
  */
 export async function resolveClientEnv<
   TSchema extends EnvSchema,
-  TPrefix extends string = 'PUBLIC_'
+  TPrefix extends string = 'PUBLIC_',
 >(
   schema: TSchema,
-  options: ClientEnvOptions & { clientPrefix?: TPrefix } = {}
+  options: ClientEnvOptions & { clientPrefix?: TPrefix } = {},
 ): Promise<InferClientSchema<TSchema, TPrefix>> {
-  const { resolvers = [processEnv()], clientPrefix = 'PUBLIC_' as TPrefix, strict = true } = options;
+  const {
+    resolvers = [processEnv()],
+    clientPrefix = 'PUBLIC_' as TPrefix,
+    strict = true,
+    references,
+  } = options;
 
   // Check for server-only keys in schema
-  const serverKeys = Object.keys(schema).filter(key => !key.startsWith(clientPrefix));
+  const serverKeys = Object.keys(schema).filter(
+    (key) => !key.startsWith(clientPrefix),
+  );
 
   // Runtime validation for browser safety
   if (isBrowser() && serverKeys.length > 0) {
     const error = new Error(
       `❌ Server-only environment variables accessed in browser context: ${serverKeys.join(', ')}\n` +
-      `💡 Only variables prefixed with '${clientPrefix}' are allowed in client bundles.`
+        `💡 Only variables prefixed with '${clientPrefix}' are allowed in client bundles.`,
     );
     if (process.env.NODE_ENV === 'development') {
       throw error;
@@ -90,10 +119,17 @@ export async function resolveClientEnv<
   }
 
   // Use resolveAsync() to handle multiple resolvers
-  const tuples = resolvers.map(resolver => [resolver, clientSchema as SimpleEnvSchema] as [Resolver, SimpleEnvSchema]);
+  const tuples = resolvers.map(
+    (resolver) =>
+      [resolver, clientSchema as SimpleEnvSchema] as [
+        Resolver,
+        SimpleEnvSchema,
+      ],
+  );
   const result = await resolveAsync({
     resolvers: tuples,
-    options: { strict }
+    references,
+    options: { strict },
   });
 
   return result as InferClientSchema<TSchema, TPrefix>;
@@ -108,51 +144,68 @@ export async function resolveClientEnv<
 export async function resolveEnvSplit<
   TServerSchema extends SimpleEnvSchema,
   TClientSchema extends SimpleEnvSchema,
-  TPrefix extends string = 'PUBLIC_'
+  TPrefix extends string = 'PUBLIC_',
 >(
   schema: {
     server: TServerSchema;
     client: TClientSchema;
   },
-  options: EnvSplitOptions & { clientPrefix?: TPrefix } = {}
+  options: EnvSplitOptions & { clientPrefix?: TPrefix } = {},
 ): Promise<{
   server: InferSimpleSchema<TServerSchema>;
   client: InferSimpleSchema<TClientSchema>;
 }> {
-  const { resolvers = [dotenv({ expand: true }), processEnv()], clientPrefix = 'PUBLIC_' as TPrefix, policies, interpolate, strict } = options;
+  const {
+    resolvers = [dotenv({ expand: true }), processEnv()],
+    clientPrefix = 'PUBLIC_' as TPrefix,
+    policies,
+    interpolate,
+    strict,
+    references,
+  } = options;
 
   // Validate client keys have correct prefix
   const clientKeys = Object.keys(schema.client);
-  const incorrectClientKeys = clientKeys.filter(key => !key.startsWith(clientPrefix));
+  const incorrectClientKeys = clientKeys.filter(
+    (key) => !key.startsWith(clientPrefix),
+  );
   if (incorrectClientKeys.length > 0) {
     throw new Error(
       `❌ Client environment variables must be prefixed with '${clientPrefix}': ${incorrectClientKeys.join(', ')}\n` +
-      `💡 Rename these variables to start with '${clientPrefix}' (e.g., ${incorrectClientKeys[0]} → ${clientPrefix}${incorrectClientKeys[0]})`
+        `💡 Rename these variables to start with '${clientPrefix}' (e.g., ${incorrectClientKeys[0]} → ${clientPrefix}${incorrectClientKeys[0]})`,
     );
   }
 
   // Validate server keys don't have client prefix
   const serverKeys = Object.keys(schema.server);
-  const incorrectServerKeys = serverKeys.filter(key => key.startsWith(clientPrefix));
+  const incorrectServerKeys = serverKeys.filter((key) =>
+    key.startsWith(clientPrefix),
+  );
   if (incorrectServerKeys.length > 0) {
     throw new Error(
       `❌ Server environment variables should not be prefixed with '${clientPrefix}': ${incorrectServerKeys.join(', ')}\n` +
-      `💡 These variables will be exposed to the client. Move to client schema or remove prefix.`
+        `💡 These variables will be exposed to the client. Move to client schema or remove prefix.`,
     );
   }
 
   // Create server environment (full access) using resolveAsync()
-  const serverTuples = resolvers.map(resolver => [resolver, schema.server] as [Resolver, TServerSchema]);
+  const serverTuples = resolvers.map(
+    (resolver) => [resolver, schema.server] as [Resolver, TServerSchema],
+  );
   const server = await resolveAsync({
     resolvers: serverTuples,
-    options: { policies, interpolate, strict }
+    references,
+    options: { policies, interpolate, strict },
   });
 
   // Create client environment (filtered)
-  const clientTuples = resolvers.map(resolver => [resolver, schema.client] as [Resolver, TClientSchema]);
+  const clientTuples = resolvers.map(
+    (resolver) => [resolver, schema.client] as [Resolver, TClientSchema],
+  );
   const client = await resolveAsync({
     resolvers: clientTuples,
-    options: { strict }
+    references,
+    options: { strict },
   });
 
   return { server, client } as {
@@ -165,7 +218,7 @@ export async function resolveEnvSplit<
 if (isBrowser() && process.env.NODE_ENV === 'development') {
   console.warn(
     `🌐 node-env-resolver/web: Running in browser context\n` +
-    `   Only variables with your configured prefix will be accessible\n` +
-    `   Server-only variables are blocked for security`
+      `   Only variables with your configured prefix will be accessible\n` +
+      `   Server-only variables are blocked for security`,
   );
 }

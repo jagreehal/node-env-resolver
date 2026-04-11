@@ -1,6 +1,6 @@
 {
   "name": "nextjs-env-resolver-example",
-  "version": "0.1.1",
+  "version": "0.0.18",
   "private": true,
   "scripts": {
     "build": "next build --webpack",
@@ -12,18 +12,19 @@
     "env:codegen": "ner codegen"
   },
   "dependencies": {
-    "next": "16.1.6",
+    "next": "16.2.3",
+    "node-env-resolver-nextjs": "workspace:*",
     "react": "^19",
-    "react-dom": "^19",
-    "node-env-resolver-nextjs": "workspace:*"
+    "react-dom": "^19"
   },
   "devDependencies": {
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "9.17.0",
-    "eslint-config-next": "16.1.6",
-    "typescript": "^5"
+    "baseline-browser-mapping": "^2.10.17",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "16.2.3",
+    "typescript": "^6"
   },
   "engines": {
     "node": ">=18"

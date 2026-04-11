@@ -4,7 +4,7 @@ Type-safe environment variable resolution with zero dependencies and ultra-small
 
 [![npm version](https://img.shields.io/npm/v/node-env-resolver)](https://www.npmjs.com/package/node-env-resolver)
 
-**Bundle Size:** ~4.3KB gzipped
+**Bundle Size:** ~6.3KB gzipped (core), code-splits for advanced features
 
 ## Install
 
@@ -19,6 +19,7 @@ This package uses modern [package.json `exports`](https://nodejs.org/api/package
 **What to change:**
 
 If your `tsconfig.json` has:
+
 ```json
 {
   "compilerOptions": {
@@ -29,16 +30,18 @@ If your `tsconfig.json` has:
 ```
 
 **Change it to:**
+
 ```json
 {
   "compilerOptions": {
-    "module": "NodeNext",        // Changed from "CommonJS"
+    "module": "NodeNext", // Changed from "CommonJS"
     "moduleResolution": "NodeNext" // Changed from "node"
   }
 }
 ```
 
 **Alternative options:**
+
 - For bundler projects (Vite, Webpack, etc.): Use `"moduleResolution": "bundler"` (you can keep `"module": "CommonJS"` or use `"ESNext"`)
 - For Node.js projects: Use `"moduleResolution": "node16"` with `"module": "node16"`
 
@@ -52,13 +55,17 @@ If you see module resolution errors, see the [Troubleshooting](#troubleshooting)
 ```ts
 import { resolve } from 'node-env-resolver';
 import { string } from 'node-env-resolver/validators';
+import { protect } from 'node-env-resolver/runtime';
 
 const config = resolve({
   PORT: 3000,
   NODE_ENV: ['development', 'production', 'test'] as const,
   DEBUG: false,
-  API_KEY: string({optional:true})
+  API_KEY: string({ optional: true }),
 });
+
+// Redact secrets from all console output in one call
+const unprotect = protect(config);
 
 // Resulting type (fully inferred):
 // type config = {
@@ -69,10 +76,10 @@ const config = resolve({
 // }
 
 // TypeScript knows the exact types:
-config.PORT;         // number
-config.NODE_ENV;     // 'development' | 'production' | 'test'
-config.DEBUG;        // boolean
-config.API_KEY;      // string | undefined
+config.PORT; // number
+config.NODE_ENV; // 'development' | 'production' | 'test'
+config.DEBUG; // boolean
+config.API_KEY; // string | undefined
 ```
 
 ## Quick start (with custom resolvers)
@@ -86,26 +93,32 @@ import { awsSecrets, gcpSecrets, vaultSecrets } from 'node-env-resolver-aws';
 // Synchronous with custom resolver (object syntax)
 const config = resolve({
   resolvers: [
-    [dotenv(), {
-      PORT: 3000,
-      NODE_ENV: ['development', 'production', 'test'] as const,
-      DEBUG: false,
-      API_KEY: string({optional:true})
-    }]
-  ]
+    [
+      dotenv(),
+      {
+        PORT: 3000,
+        NODE_ENV: ['development', 'production', 'test'] as const,
+        DEBUG: false,
+        API_KEY: string({ optional: true }),
+      },
+    ],
+  ],
 });
 
 // Asynchronous with any resolvers (both sync and async work!)
 const config = await resolveAsync({
   resolvers: [
-    [dotenv(), {
-      PORT: 3000,
-      NODE_ENV: ['development', 'production', 'test'] as const,
-      DEBUG: false,
-      API_KEY: string({optional:true})
-    }],
-    [awsSecrets(), { DATABASE_URL: url() }]
-  ]
+    [
+      dotenv(),
+      {
+        PORT: 3000,
+        NODE_ENV: ['development', 'production', 'test'] as const,
+        DEBUG: false,
+        API_KEY: string({ optional: true }),
+      },
+    ],
+    [awsSecrets(), { DATABASE_URL: url() }],
+  ],
 });
 
 // Resulting type (fully inferred):
@@ -124,9 +137,9 @@ const config = await resolveAsync({
     [dotenv(), { DATABASE_URL: postgres() }],
     [awsSecrets(), { API_KEY: string() }],
     [gcpSecrets(), { JWT_SECRET: string() }],
-    [vaultSecrets(), { REDIS_URL: redis() }]
+    [vaultSecrets(), { REDIS_URL: redis() }],
   ],
-  options: { priority: 'last' }
+  options: { priority: 'last' },
 });
 ```
 
@@ -148,7 +161,6 @@ const config = await resolveAsync({
 - [Safe error handling](#safe-error-handling)
 - [Synchronous resolution](#synchronous-resolution)
 - [Advanced features](#advanced-features)
-- [CLI tool](#cli-tool-node-env-resolver)
 - [API Reference](#api-reference)
 - [Configuration Options](#configuration-options)
 - [Framework examples](#framework-examples)
@@ -168,8 +180,8 @@ import { resolve } from 'node-env-resolver';
 import { postgres, string } from 'node-env-resolver/validators';
 
 const config = resolve({
-  DATABASE_URL: postgres(),  // Required PostgreSQL URL
-  API_KEY: string()          // Required
+  DATABASE_URL: postgres(), // Required PostgreSQL URL
+  API_KEY: string(), // Required
 });
 ```
 
@@ -181,9 +193,9 @@ Provide a default value to use when the environment variable is not set:
 import { resolve } from 'node-env-resolver';
 
 const config = resolve({
-  PORT: 3000,           // Defaults to 3000
-  DEBUG: false,         // Defaults to false
-  LOG_LEVEL: 'info'     // Defaults to 'info'
+  PORT: 3000, // Defaults to 3000
+  DEBUG: false, // Defaults to false
+  LOG_LEVEL: 'info', // Defaults to 'info'
 });
 ```
 
@@ -195,9 +207,9 @@ Use the `{optional: true}` option to make a value optional:
 import { string, url, number } from 'node-env-resolver/validators';
 
 const config = resolve({
-  API_KEY: string({optional: true}),    // string | undefined
-  REDIS_URL: url({optional: true}),     // string | undefined
-  MAX_RETRIES: number({optional: true}) // number | undefined
+  API_KEY: string({ optional: true }), // string | undefined
+  REDIS_URL: url({ optional: true }), // string | undefined
+  MAX_RETRIES: number({ optional: true }), // number | undefined
 });
 ```
 
@@ -210,11 +222,11 @@ import { resolve } from 'node-env-resolver';
 
 const config = resolve({
   NODE_ENV: ['development', 'production', 'test'] as const,
-  LOG_LEVEL: ['debug', 'info', 'warn', 'error'] as const
+  LOG_LEVEL: ['debug', 'info', 'warn', 'error'] as const,
 });
 
 // TypeScript knows the exact types
-config.NODE_ENV;  // 'development' | 'production' | 'test'
+config.NODE_ENV; // 'development' | 'production' | 'test'
 config.LOG_LEVEL; // 'debug' | 'info' | 'warn' | 'error'
 ```
 
@@ -234,7 +246,9 @@ const config = resolve({
   PROTOCOL: optional(['http', 'grpc'] as const),
 
   // Optional enum - Method 2: enumOf() function (explicit)
-  LOG_LEVEL: enumOf(['error', 'warn', 'info', 'debug'] as const, { optional: true }),
+  LOG_LEVEL: enumOf(['error', 'warn', 'info', 'debug'] as const, {
+    optional: true,
+  }),
 
   // Enum with default value
   COMPRESSION: enumOf(['gzip', 'brotli', 'none'] as const, { default: 'gzip' }),
@@ -254,6 +268,7 @@ The library validates environment variable names to prevent shell errors and ens
 ### Supported Name Formats
 
 Variable names can use:
+
 - **Letters** (both uppercase and lowercase): `A-Z`, `a-z`
 - **Numbers** (not as first character): `0-9`
 - **Underscores**: `_`
@@ -265,12 +280,12 @@ import { resolve } from 'node-env-resolver';
 import { string } from 'node-env-resolver/validators';
 
 const config = resolve({
-  PORT: 3000,              // ✅ SCREAMING_SNAKE_CASE (traditional)
-  port: 3000,              // ✅ lowercase
-  myApiKey: string(),      // ✅ camelCase
-  my_api_key: string(),    // ✅ snake_case
-  API_KEY_V2: string(),    // ✅ with numbers (not first char)
-  _PRIVATE: string()       // ✅ starting with underscore
+  PORT: 3000, // ✅ SCREAMING_SNAKE_CASE (traditional)
+  port: 3000, // ✅ lowercase
+  myApiKey: string(), // ✅ camelCase
+  my_api_key: string(), // ✅ snake_case
+  API_KEY_V2: string(), // ✅ with numbers (not first char)
+  _PRIVATE: string(), // ✅ starting with underscore
 });
 ```
 
@@ -281,11 +296,11 @@ import { resolve } from 'node-env-resolver';
 import { string } from 'node-env-resolver/validators';
 
 const config = resolve({
-  '123PORT': 3000,         // ❌ Starts with number
-  'API-KEY': string(),     // ❌ Contains hyphen
-  'API.KEY': string(),     // ❌ Contains dot
-  'API KEY': string(),     // ❌ Contains space
-  'API@KEY': string()      // ❌ Special characters
+  '123PORT': 3000, // ❌ Starts with number
+  'API-KEY': string(), // ❌ Contains hyphen
+  'API.KEY': string(), // ❌ Contains dot
+  'API KEY': string(), // ❌ Contains space
+  'API@KEY': string(), // ❌ Special characters
 });
 ```
 
@@ -307,13 +322,14 @@ const config = await resolveAsync({
   resolvers: [
     [processEnv(), { PORT: 3000 }],
     [dotenv(), { DATABASE_URL: postgres() }],
-    [awsSecrets(), { API_KEY: string() }]
-  ]
+    [awsSecrets(), { API_KEY: string() }],
+  ],
   // Perfect for complex microservice architectures!
 });
 ```
 
 **Benefits:**
+
 - **No artificial limits** - use as many resolvers as needed
 - **Better type inference** - proper schema merging with full TypeScript support
 - **Cleaner code** - single implementation instead of multiple overloads
@@ -323,13 +339,15 @@ const config = await resolveAsync({
 
 The library uses a two-tier validation strategy with lazy-loaded validators:
 
-**Basic types** (~3.6KB core - inline validation):
+**Basic types** (~6.3KB core - inline validation):
+
 - `string`, `number`, `boolean` (with min/max validation)
 - `enum` (array validation)
 - `pattern` (regex validation)
 - `custom` (validator functions)
 
 **Advanced types** (+1KB when used - lazy-loaded):
+
 - Database URLs: `postgres`, `mysql`, `mongodb`, `redis`
 - Web types: `http`, `https`, `url`, `email`
 - Format types: `json`, `date`, `timestamp`, `port`
@@ -346,18 +364,17 @@ const config = resolve({
   PORT: 3000,
   DATABASE_URL: postgres(),
   API_URL: url(),
-  NODE_ENV: ['development', 'production'] as const
+  NODE_ENV: ['development', 'production'] as const,
 });
 
 // Also works with async resolvers
 const config = await resolveAsync({
-  resolvers: [
-    [awsSecrets(), { DATABASE_URL: postgres(), API_URL: url() }]
-  ]
+  resolvers: [[awsSecrets(), { DATABASE_URL: postgres(), API_URL: url() }]],
 });
 ```
 
-### What's in the 3.6KB core?
+### What's in the 6.3KB core?
+
 - Core resolver logic (async/sync resolution)
 - Schema normalization & type coercion
 - Basic validation (string, number, boolean, enum, pattern, custom)
@@ -365,7 +382,9 @@ const config = await resolveAsync({
 - Provenance tracking & error handling
 
 ### Code Splitting Architecture
+
 The library uses intelligent code splitting to keep the core minimal:
+
 - **Advanced validators** (~1KB): Lazy-loaded when using types like `url`, `email`, `postgres`
 - **Audit logging** (~150 bytes): Lazy-loaded when `enableAudit: true`
 - **dotenv parser** (~1.6KB): Separate import from `'node-env-resolver/resolvers'`
@@ -392,7 +411,7 @@ const config = resolve({ PORT: 3000 }, { enableAudit: true });
 Import only what you need for optimal bundle size:
 
 ```ts
-// Core (~3.6KB) - Main API
+// Core (~6.3KB) - Main API
 import { resolve, safeResolve } from 'node-env-resolver';
 
 // Resolvers (separate chunk) - .env file parsing
@@ -410,7 +429,7 @@ import { resolveValibot } from 'node-env-resolver/valibot';
 import { awsSecrets } from 'node-env-resolver-aws';
 ```
 
-**Most apps only need the core (~3.6KB)!**
+**Most apps only need the core (~6.3KB)!**
 
 ## Custom validators
 
@@ -436,7 +455,7 @@ const isValidEmail = (value: string): string => {
 
 const config = resolve({
   CUSTOM_PORT: isValidPort,
-  ADMIN_EMAIL: isValidEmail
+  ADMIN_EMAIL: isValidEmail,
 });
 ```
 
@@ -454,17 +473,17 @@ const validateMarketingUrl = (value: string): string => {
   if (!result.valid) {
     throw new Error(result.error || 'Invalid URL');
   }
-  
+
   // Add custom business logic
   if (!value.includes('marketing.example.com')) {
     throw new Error('Must be a marketing domain URL');
   }
-  
+
   return value;
 };
 
 const config = resolve({
-  MARKETING_URL: validateMarketingUrl
+  MARKETING_URL: validateMarketingUrl,
 });
 ```
 
@@ -473,6 +492,7 @@ Available validation functions: `validatePostgres`, `mysql`, `mongodb`, `redis`,
 ## Multiple sources
 
 Load configuration from multiple sources. By default, later sources override earlier ones:
+
 ```ts
 import { resolve, resolveAsync } from 'node-env-resolver';
 import { processEnv, dotenv, json } from 'node-env-resolver/resolvers';
@@ -482,23 +502,29 @@ import { awsSecrets } from 'node-env-resolver-aws';
 // Async mode - supports both sync and async resolvers
 const config = await resolveAsync({
   resolvers: [
-    [processEnv(), {
-      PORT: 3000,
-      NODE_ENV: ['development', 'production'] as const,
-    }],
-    [dotenv(), {
-      DATABASE_URL: postgres(),
-      API_KEY: string(),
-    }]
-  ]
+    [
+      processEnv(),
+      {
+        PORT: 3000,
+        NODE_ENV: ['development', 'production'] as const,
+      },
+    ],
+    [
+      dotenv(),
+      {
+        DATABASE_URL: postgres(),
+        API_KEY: string(),
+      },
+    ],
+  ],
 });
 
 // Sync mode - supports multiple SYNC resolvers
 const config = resolve({
   resolvers: [
     [dotenv(), { PORT: 3000 }],
-    [json('config.json'), { DATABASE_URL: postgres() }]
-  ]
+    [json('config.json'), { DATABASE_URL: postgres() }],
+  ],
   // Both resolvers must have loadSync() method
 });
 
@@ -507,9 +533,9 @@ const config = await resolveAsync({
   resolvers: [
     [processEnv(), { PORT: 3000 }],
     [dotenv(), { DATABASE_URL: postgres() }],
-    [awsSecrets(), { API_KEY: string() }]
+    [awsSecrets(), { API_KEY: string() }],
   ],
-  options: { priority: 'last' }
+  options: { priority: 'last' },
 });
 ```
 
@@ -527,8 +553,8 @@ import { awsSecrets } from 'node-env-resolver-aws';
 const config = await resolveAsync({
   resolvers: [
     [processEnv(), { DATABASE_URL: postgres() }],
-    [awsSecrets(), { DATABASE_URL: postgres() }]
-  ]
+    [awsSecrets(), { DATABASE_URL: postgres() }],
+  ],
   // AWS wins
 });
 
@@ -536,9 +562,9 @@ const config = await resolveAsync({
 const config = await resolveAsync({
   resolvers: [
     [dotenv(), { DATABASE_URL: postgres() }],
-    [awsSecrets(), { DATABASE_URL: postgres() }]
+    [awsSecrets(), { DATABASE_URL: postgres() }],
   ],
-  options: { priority: 'first' }
+  options: { priority: 'first' },
   // dotenv wins
 });
 
@@ -546,9 +572,9 @@ const config = await resolveAsync({
 const config = resolve({
   resolvers: [
     [dotenv(), { DATABASE_URL: postgres() }],
-    [json('config.json'), { DATABASE_URL: postgres() }]
+    [json('config.json'), { DATABASE_URL: postgres() }],
   ],
-  options: { priority: 'first' }
+  options: { priority: 'first' },
   // dotenv wins
 });
 ```
@@ -572,9 +598,9 @@ import { awsSecrets } from 'node-env-resolver-aws';
 const config = await resolveAsync({
   resolvers: [
     [dotenv(), { DATABASE_URL: postgres(), API_KEY: string(), PORT: 3000 }],
-    [awsSecrets(), { DATABASE_URL: postgres(), API_KEY: string(), PORT: 3000 }]
+    [awsSecrets(), { DATABASE_URL: postgres(), API_KEY: string(), PORT: 3000 }],
   ],
-  options: { priority: 'first' }
+  options: { priority: 'first' },
 });
 // If dotenv() provides all required keys, awsSecrets() is never called!
 ```
@@ -601,9 +627,9 @@ import { awsSecrets, awsSsm } from 'node-env-resolver-aws';
 
 const config = await resolveAsync({
   resolvers: [
-    [awsSecrets(), { DATABASE_URL: postgres() }],      // 100ms
+    [awsSecrets(), { DATABASE_URL: postgres() }], // 100ms
     [awsSsm(), { API_KEY: string() }], // 100ms
-  ]
+  ],
   // Default: priority: 'last'
 });
 // Total time: ~100ms (parallel) instead of ~300ms (sequential)
@@ -628,15 +654,15 @@ import { number, postgres } from 'node-env-resolver/validators';
 // Synchronous safe resolve
 const result = safeResolve({
   PORT: number(),
-  DATABASE_URL: postgres()
+  DATABASE_URL: postgres(),
 });
 
 // Asynchronous safe resolve
 const result = await safeResolveAsync({
   resolvers: [
     [processEnv(), { PORT: number() }],
-    [awsSecrets(), { DATABASE_URL: postgres() }]
-  ]
+    [awsSecrets(), { DATABASE_URL: postgres() }],
+  ],
 });
 
 if (result.success) {
@@ -667,9 +693,9 @@ const config = resolve({
   PORT: 3000,
   NODE_ENV: ['development', 'production'] as const,
   API_KEY: string(),
-  API_URL: url(),        // Advanced types work synchronously!
+  API_URL: url(), // Advanced types work synchronously!
   DATABASE_URL: postgres(),
-  DEBUG: false
+  DEBUG: false,
 });
 ```
 
@@ -684,124 +710,164 @@ import { postgres, url } from 'node-env-resolver/validators';
 const config = await resolveAsync({
   resolvers: [
     [processEnv(), { PORT: 3000 }],
-    [dotenv(), { DATABASE_URL: postgres(), API_URL: url() }]
-  ]
+    [dotenv(), { DATABASE_URL: postgres(), API_URL: url() }],
+  ],
 });
 ```
 
 ## Advanced features
 
-### CLI arguments
+### CLI
 
-Parse command-line arguments as environment variables - perfect for CLI tools:
+The `ner` CLI ships with the package. Install globally or run via `npx ner`.
 
-```ts
-import { resolveAsync } from 'node-env-resolver';
-import { processEnv } from 'node-env-resolver/resolvers';
-import { postgres } from 'node-env-resolver/validators';
-import { cliArgs } from 'node-env-resolver/cli';
+#### `ner scan` — secret scanner
 
-// $ node app.js --port 8080 --database-url postgres://localhost --verbose
+Scans files for hardcoded secrets (Stripe keys, GitHub tokens, JWTs, DB connection strings, AWS keys, private keys, and more):
 
-const config = await resolveAsync({
-  resolvers: [
-    [processEnv(), {
-      PORT: 3000,
-      DATABASE_URL: postgres(),
-      VERBOSE: false
-    }],
-    [cliArgs(), {
-      PORT: 3000,
-      DATABASE_URL: postgres(),
-      VERBOSE: false
-    }]
-  ]
-});
+```bash
+# Scan a directory
+ner scan src/
 
-// config.PORT === 8080 (from CLI)
-// config.DATABASE_URL === 'postgres://localhost' (from CLI)
-// config.VERBOSE === true (from CLI flag)
+# Scan only git-staged files (ideal for pre-commit hooks)
+ner scan --staged
+
+# Show surrounding line context
+ner scan --context src/
+
+# Exclude patterns
+ner scan --ignore "fixtures" --ignore "\.test\." src/
 ```
 
-**Supported formats:**
-- `--key value` → `KEY=value`
-- `--key=value` → `KEY=value`  
-- `--flag` → `FLAG=true` (boolean flags)
-- `--kebab-case` → `KEBAB_CASE` (auto-normalization)
+**Pre-commit hook setup:**
 
-**Bundle size:** ~500 bytes (lazy-loaded)
+```bash
+echo 'ner scan --staged' >> .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
 
-### CLI tool (`node-env-resolver`)
+#### `ner run` — run with resolved env vars
 
-This package also ships a standalone CLI binary for working with an `EnvConfig` file.
+Loads a `.env` file, resolves any reference URIs, then spawns your command. No code changes needed in your app.
 
-#### 1. Create an `env.config` file
+```bash
+# Basic usage
+ner run -- node server.js
 
-Create `env.config.mjs` or `env.config.js` in your project root:
+# Use a different env file
+ner run --env .env.staging -- node deploy.js
+
+# Skip reference resolution (equivalent to node --env-file)
+ner run --no-resolve -- node server.js
+
+# Warn if .env contains hardcoded secrets before running
+ner run --scan -- node server.js
+```
+
+**Reference resolution** — the key differentiator from `node --env-file`:
+
+```bash
+# .env
+DATABASE_URL=aws-sm://prod/database-credentials
+API_KEY=aws-ssm://prod/payments/api-key
+```
+
+```bash
+# ner run resolves these before process start:
+ner run -- node server.js
+# → DATABASE_URL and API_KEY injected as their real values
+```
+
+Requires `node-env-resolver-aws` for `aws-sm://` and `aws-ssm://` support:
+
+```bash
+npm install node-env-resolver-aws
+```
+
+### Runtime Protection
+
+Prevent accidental secret leaks in console output and HTTP responses.
+
+#### One-call setup
 
 ```ts
-// env.config.mjs
-import { processEnv, dotenv } from 'node-env-resolver/resolvers';
-import { string, number, json } from 'node-env-resolver/validators';
+import { protect } from 'node-env-resolver/runtime';
 
-/** @type {import('node-env-resolver').ResolveAsyncConfig<any>} */
-export const config = {
-  schema: {
-    NODE_ENV: ['development', 'production', 'test'] as const,
-    PORT: number({ default: 3000 }),
-    API_KEY: string({ optional: true, sensitive: true }),
-    FEATURE_FLAGS: json(), // parsed JSON → unknown
+const config = resolve({ DATABASE_URL: postgres(), API_KEY: string() });
+
+// Patches all console methods to redact secrets automatically
+const unprotect = protect(config);
+
+console.log('DB:', config.DATABASE_URL); // DB: [REDACTED]
+console.log('Key:', config.API_KEY); // Key: [REDACTED]
+
+// Restore originals when done (e.g. in tests)
+unprotect();
+```
+
+**Options:**
+
+```ts
+protect(config, {
+  console: {
+    methods: ['log', 'error', 'warn'], // which methods to patch (default: all)
+    enabled: true,
   },
-  resolvers: [
-    [processEnv(), {}],
-    [dotenv(), {}],
-  ],
-};
-
-export default config;
+  // console: false  — disable console patching entirely
+});
 ```
 
-The CLI loads this file using native `import()` (no ts-node/jiti) and expects a default export (or `config` / `env`) with a `schema` field.
+#### Response middleware (Express / Connect / Hono)
 
-#### 2. Commands
+Intercepts `res.end()` to scan outgoing responses for secret leaks:
 
-- **`load`** – resolve and print config
-  - Pretty table (default):  
-    ```bash
-    node-env-resolver load
-    node-env-resolver load --config ./env.config.mjs
-    ```
-  - JSON output (honours sensitive redaction):  
-    ```bash
-    node-env-resolver load --format=json
-    node-env-resolver load --format=json --reveal   # show secrets in plaintext
-    ```
-  - `.env`-style output (good for scripting):  
-    ```bash
-    node-env-resolver load --format=env > .env.local
-    ```
+```ts
+import { createResponseMiddleware } from 'node-env-resolver/runtime';
 
-- **`run`** – resolve config and run a child process with injected env:
-  ```bash
-  node-env-resolver run -- npm run migrate
-  node-env-resolver run --config ./env.config.mjs -- npm run start
-  node-env-resolver run --no-redact -- node scripts/print-env.ts
-  ```
+app.use(createResponseMiddleware(config, { mode: 'redact' }));
+// mode: 'redact' — replace secrets in response body
+// mode: 'warn'   — log a warning, pass body through (default in production)
+// mode: 'throw'  — throw on any detected leak (default in development)
+```
 
-  - Merges resolved values on top of `process.env`.
-  - By default, stdout/stderr are **redacted** using the same sensitive key detection as the library.
-  - Use `--no-redact` to disable stream redaction when you need raw logs.
+#### Edge runtime (Cloudflare Workers, Deno Deploy)
 
-- **`typegen`** – generate `EnvSchema` and `process.env` / `import.meta.env` types:
-  ```bash
-  node-env-resolver typegen --output env.d.ts
-  node-env-resolver typegen --config ./env.config.mjs --output ./src/env.d.ts
-  ```
+```ts
+import { wrapFetchResponse } from 'node-env-resolver/runtime';
 
-  This uses the same generator as `node-env-resolver/typegen`, including:
-  - `json()` → `unknown` in `EnvSchema` (parsed JSON)
-  - Correct optional flags based on `{ optional: true }`
-  - String-oriented types for `process.env`/`import.meta.env` augmentation
+export default {
+  async fetch(request: Request) {
+    const response = await handler(request);
+    return wrapFetchResponse(response, config, { mode: 'redact' });
+  },
+};
+```
+
+#### Low-level primitives
+
+```ts
+import {
+  createRedactor,
+  extractSensitiveValues,
+  createConsoleRedactor,
+  scanBodyForSecrets,
+} from 'node-env-resolver/runtime';
+
+// Build a redactor from a config object
+const secrets = extractSensitiveValues(config); // Map of sensitive key→value pairs
+const redactor = createRedactor(secrets);
+redactor.redactString('key is sk_live_abc123'); // 'key is [REDACTED]'
+redactor.maskValue('super-secret'); // 'su****et'
+redactor.createFingerprint('secret'); // 'sha256:a1b2c3d4'
+
+// Scan a response body manually
+const { safe, redacted } = scanBodyForSecrets(body, config);
+
+// Custom sensitive key patterns
+const secrets2 = extractSensitiveValues(config, {
+  sensitiveKeys: ['MY_PREFIX'],
+});
+```
 
 ### Computed fields
 
@@ -815,54 +881,55 @@ const config = resolve({
   HOST: 'localhost',
   PORT: 3000,
   SSL_ENABLED: false,
-  NODE_ENV: ['development', 'production'] as const
+  NODE_ENV: ['development', 'production'] as const,
 });
 
 // Add computed properties
 const appConfig = withComputed(config, {
   // Build URLs from components
   url: (c) => `${c.SSL_ENABLED ? 'https' : 'http'}://${c.HOST}:${c.PORT}`,
-  
+
   // Environment checks
   isProd: (c) => c.NODE_ENV === 'production',
   isDev: (c) => c.NODE_ENV === 'development',
-  
+
   // Complex derived config
   serverOptions: (c) => ({
     host: c.HOST,
     port: c.PORT,
     cors: c.NODE_ENV !== 'production',
-    compression: c.NODE_ENV === 'production'
-  })
+    compression: c.NODE_ENV === 'production',
+  }),
 });
 
-console.log(appConfig.url);           // 'http://localhost:3000'
-console.log(appConfig.isProd);        // false
+console.log(appConfig.url); // 'http://localhost:3000'
+console.log(appConfig.isProd); // false
 console.log(appConfig.serverOptions); // { host: 'localhost', ... }
 ```
 
 **Common patterns:**
+
 ```ts
 // Build database connection URLs
 withComputed(config, {
-  databaseUrl: (c) => 
-    `postgres://${c.DB_USER}:${c.DB_PASSWORD}@${c.DB_HOST}:${c.DB_PORT}/${c.DB_NAME}`
+  databaseUrl: (c) =>
+    `postgres://${c.DB_USER}:${c.DB_PASSWORD}@${c.DB_HOST}:${c.DB_PORT}/${c.DB_NAME}`,
 });
 
 // Derive API endpoints
 withComputed(config, {
   endpoints: (c) => ({
     users: `${c.API_BASE_URL}/${c.API_VERSION}/users`,
-    posts: `${c.API_BASE_URL}/${c.API_VERSION}/posts`
-  })
+    posts: `${c.API_BASE_URL}/${c.API_VERSION}/posts`,
+  }),
 });
 
 // Feature flags based on environment
 withComputed(config, {
   features: (c) => ({
     analytics: c.ENABLE_ANALYTICS && c.NODE_ENV === 'production',
-    debug: c.NODE_ENV === 'development'
-  })
+    debug: c.NODE_ENV === 'development',
+  }),
 });
 ```
 
@@ -874,7 +941,7 @@ Use Zod schemas for powerful validation:
 
 ```ts
 import { resolveZod } from 'node-env-resolver/zod';
-import * as z from 'zod';  // ✅ Recommended import pattern (better tree-shaking)
+import * as z from 'zod'; // ✅ Recommended import pattern (better tree-shaking)
 
 const schema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -895,7 +962,7 @@ import * as z from 'zod';
 
 const schema = z.object({
   PORT: z.coerce.number(),
-  DATABASE_URL: z.string().url()
+  DATABASE_URL: z.string().url(),
 });
 
 const result = await safeResolveZod(schema);
@@ -903,8 +970,8 @@ const result = await safeResolveZod(schema);
 if (result.success) {
   console.log(result.data.PORT);
 } else {
-  console.error(result.error);  // Summary message
-  result.issues.forEach(issue => {
+  console.error(result.error); // Summary message
+  result.issues.forEach((issue) => {
     // Field-level details: path, message, code
     console.log(`${issue.path.join('.')}: ${issue.message}`);
   });
@@ -924,7 +991,7 @@ Use Valibot for lightweight, modular validation:
 
 ```ts
 import { resolveValibot } from 'node-env-resolver/valibot';
-import * as v from 'valibot';  // User imports valibot separately
+import * as v from 'valibot'; // User imports valibot separately
 
 const schema = v.object({
   PORT: v.pipe(v.string(), v.transform(Number)),
@@ -944,7 +1011,7 @@ import * as v from 'valibot';
 
 const schema = v.object({
   PORT: v.pipe(v.string(), v.transform(Number)),
-  DATABASE_URL: v.pipe(v.string(), v.url())
+  DATABASE_URL: v.pipe(v.string(), v.url()),
 });
 
 const result = await safeResolveValibot(schema);
@@ -952,8 +1019,8 @@ const result = await safeResolveValibot(schema);
 if (result.success) {
   console.log(result.data.PORT);
 } else {
-  console.error(result.error);  // Summary message
-  result.issues.forEach(issue => {
+  console.error(result.error); // Summary message
+  result.issues.forEach((issue) => {
     // Same format as Zod - consistent across validators!
     console.log(`${issue.path.join('.')}: ${issue.message}`);
   });
@@ -982,19 +1049,19 @@ const databaseResolver: Resolver = {
   name: 'database',
   async load() {
     const rows = await db.query('SELECT key, value FROM config');
-    return Object.fromEntries(rows.map(r => [r.key, r.value]));
-  }
+    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  },
 };
 
 const config = await resolveAsync({
   resolvers: [
     [processEnv(), { PORT: 3000 }],
-    [databaseResolver, { API_KEY: string() }]
-  ]
+    [databaseResolver, { API_KEY: string() }],
+  ],
 });
 ```
 
-### AWS Secrets Manager
+### AWS Secrets Manager & SSM
 
 Install the AWS package:
 
@@ -1002,21 +1069,60 @@ Install the AWS package:
 npm install node-env-resolver-aws
 ```
 
-Single source:
+#### Reference URIs (recommended)
+
+Store references in your `.env` and resolve at startup — no AWS SDK imports needed in app code:
+
+```bash
+# .env
+DATABASE_URL=aws-sm://prod/database-credentials
+DB_PASSWORD=aws-sm://prod/database#password   # extract a JSON key
+API_KEY=aws-ssm://prod/payments/api-key
+```
 
 ```ts
-import { resolveSecrets } from 'node-env-resolver-aws';
+import { resolveAsync } from 'node-env-resolver';
+import { dotenv } from 'node-env-resolver/resolvers';
 import { postgres, string } from 'node-env-resolver/validators';
+import {
+  createAwsSecretHandler,
+  createAwsSsmHandler,
+} from 'node-env-resolver-aws';
 
-const config = await resolveSecrets({
-  secretId: 'myapp/secrets'
-}, {
-  DATABASE_URL: postgres(),
-  API_KEY: string()
+const config = await resolveAsync({
+  resolvers: [
+    [
+      dotenv(),
+      { DATABASE_URL: postgres(), DB_PASSWORD: string(), API_KEY: string() },
+    ],
+  ],
+  references: {
+    handlers: {
+      'aws-sm': createAwsSecretHandler({ region: 'us-east-1' }),
+      'aws-ssm': createAwsSsmHandler({ region: 'us-east-1' }),
+    },
+  },
 });
 ```
 
-Multiple sources:
+Or use the pre-configured singletons (picks up `AWS_REGION` from environment):
+
+```ts
+import { awsSecretHandler, awsSsmHandler } from 'node-env-resolver-aws';
+
+const config = await resolveAsync({
+  resolvers: [[dotenv(), schema]],
+  references: {
+    handlers: { 'aws-sm': awsSecretHandler, 'aws-ssm': awsSsmHandler },
+  },
+});
+```
+
+Each `createAwsSecretHandler()` / `createAwsSsmHandler()` call creates its own SDK client, so multi-region setups work correctly without interference.
+
+#### Resolver pattern (bulk load)
+
+Loads all keys from a secret or parameter path as a resolver:
 
 ```ts
 import { resolveAsync } from 'node-env-resolver';
@@ -1028,12 +1134,12 @@ const config = await resolveAsync({
   resolvers: [
     [processEnv(), { PORT: 3000 }],
     [awsSecrets({ secretId: 'app/secrets' }), { DATABASE_URL: postgres() }],
-    [awsSsm({ path: '/app/config' }), { API_KEY: string() }]
-  ]
+    [awsSsm({ path: '/app/config' }), { API_KEY: string() }],
+  ],
 });
 ```
 
-See the [AWS package documentation](../node-env-resolver-aws/README.md) for details on credentials, caching, and best practices.
+See the [AWS package documentation](../node-env-resolver-aws/README.md) for credentials, caching, and best practices.
 
 ### TTL caching
 
@@ -1048,14 +1154,14 @@ import { awsSecrets } from 'node-env-resolver-aws';
 export const getConfig = async () => {
   return await resolveAsync({
     resolvers: [
-      [cached(
-        awsSecrets({ secretId: 'app/secrets' }),
-        { ttl: TTL.minutes5 }
-      ), {
-        DATABASE_URL: postgres(),
-        API_KEY: string(),
-      }]
-    ]
+      [
+        cached(awsSecrets({ secretId: 'app/secrets' }), { ttl: TTL.minutes5 }),
+        {
+          DATABASE_URL: postgres(),
+          API_KEY: string(),
+        },
+      ],
+    ],
   });
 };
 
@@ -1080,15 +1186,15 @@ import { cached, TTL } from 'node-env-resolver/utils';
 
 // Stale-while-revalidate: serve stale data while refreshing in background
 const resolver = cached(awsSecrets(), {
-  ttl: TTL.minutes5,           // Fresh for 5 minutes
-  maxAge: TTL.hour,            // Force refresh after 1 hour
-  staleWhileRevalidate: true   // Serve stale data during refresh
+  ttl: TTL.minutes5, // Fresh for 5 minutes
+  maxAge: TTL.hour, // Force refresh after 1 hour
+  staleWhileRevalidate: true, // Serve stale data during refresh
 });
 
 // Custom cache key for debugging
 const resolver = cached(awsSecrets(), {
   ttl: TTL.minutes15,
-  key: 'prod-secrets-v2'
+  key: 'prod-secrets-v2',
 });
 ```
 
@@ -1096,12 +1202,12 @@ const resolver = cached(awsSecrets(), {
 
 ### Function variants
 
-| Function | Behaviour | Use case |
-|----------|-----------|----------|
-| `resolve()` | Sync, throws on error | Most applications (reading from process.env) |
-| `safeResolve()` | Sync, returns result object | Graceful error handling |
-| `resolveAsync()` | Async, throws on error | Multiple sources (dotenv, AWS, etc.) |
-| `safeResolveAsync()` | Async, returns result object | Multiple sources with error handling |
+| Function             | Behaviour                    | Use case                                     |
+| -------------------- | ---------------------------- | -------------------------------------------- |
+| `resolve()`          | Sync, throws on error        | Most applications (reading from process.env) |
+| `safeResolve()`      | Sync, returns result object  | Graceful error handling                      |
+| `resolveAsync()`     | Async, throws on error       | Multiple sources (dotenv, AWS, etc.)         |
+| `safeResolveAsync()` | Async, returns result object | Multiple sources with error handling         |
 
 ### Resolver API Reference
 
@@ -1109,44 +1215,58 @@ Import resolver functions from `'node-env-resolver/resolvers'`:
 
 ```ts
 import {
-  string, number, boolean, url, email, port, json,
-  postgres, mysql, mongodb, redis,
-  http, https, date, timestamp, duration, file
+  string,
+  number,
+  boolean,
+  url,
+  email,
+  port,
+  json,
+  postgres,
+  mysql,
+  mongodb,
+  redis,
+  http,
+  https,
+  date,
+  timestamp,
+  duration,
+  file,
 } from 'node-env-resolver/validators';
 ```
 
-| Syntax | Type | Description |
-|--------|------|-------------|
-| `string()` | `string` | Required string (empty strings rejected by default) |
-| `string({optional: true})` | `string \| undefined` | Optional string |
-| `number()` | `number` | Required number (coerced from string) |
-| `number({optional: true})` | `number \| undefined` | Optional number |
-| `boolean()` | `boolean` | Required boolean (coerced from string) |
-| `boolean({optional: true})` | `boolean \| undefined` | Optional boolean |
-| `url()` | `string` | Validated URL (returns string) |
-| `url({optional: true})` | `string \| undefined` | Optional URL |
-| `email()` | `string` | Validated email address |
-| `port()` | `number` | Validated port number (1-65535) |
-| `json()` | `unknown` | Parsed JSON (returns object/array) |
-| `postgres()` or `postgresql()` | `string` | Validated PostgreSQL URL |
-| `mysql()` | `string` | Validated MySQL connection string |
-| `mongodb()` | `string` | Validated MongoDB connection string |
-| `redis()` | `string` | Validated Redis connection string |
-| `http()` | `string` | HTTP or HTTPS URL |
-| `https()` | `string` | HTTPS-only URL |
-| `date()` | `string` | Validated ISO 8601 date |
-| `timestamp()` | `number` | Validated Unix timestamp |
-| `duration()` | `number` | Time duration (`5s`, `2m`, `1h` → milliseconds) |
-| `file()` | `string` | Read content from file path |
-| `3000` | `number` | Number with default value |
-| `false` | `boolean` | Boolean with default value |
-| `'defaultValue'` | `string` | String with default value |
-| `['a', 'b'] as const` | `'a' \| 'b'` | Required enum (requires `as const`) |
-| `optional(['a', 'b'] as const)` | `'a' \| 'b' \| undefined` | Optional enum (clean syntax) |
-| `enumOf(['a', 'b'] as const)` | `'a' \| 'b'` | Required enum (explicit function) |
-| `enumOf(['a', 'b'] as const, {optional: true})` | `'a' \| 'b' \| undefined` | Optional enum (explicit function) |
-| `enumOf(['a', 'b'] as const, {default: 'a'})` | `'a' \| 'b'` | Enum with default value |
-| `oneOf(['a', 'b'] as const)` | `'a' \| 'b'` | Alias for enumOf (backward compatible) |
+| Syntax                                          | Type                      | Description                                         |
+| ----------------------------------------------- | ------------------------- | --------------------------------------------------- |
+| `string()`                                      | `string`                  | Required string (empty strings rejected by default) |
+| `string({optional: true})`                      | `string \| undefined`     | Optional string                                     |
+| `number()`                                      | `number`                  | Required number (coerced from string)               |
+| `number({optional: true})`                      | `number \| undefined`     | Optional number                                     |
+| `boolean()`                                     | `boolean`                 | Required boolean (coerced from string)              |
+| `boolean({optional: true})`                     | `boolean \| undefined`    | Optional boolean                                    |
+| `url()`                                         | `string`                  | Validated URL (returns string)                      |
+| `url({optional: true})`                         | `string \| undefined`     | Optional URL                                        |
+| `email()`                                       | `string`                  | Validated email address                             |
+| `port()`                                        | `number`                  | Validated port number (1-65535)                     |
+| `json()`                                        | `unknown`                 | Parsed JSON (returns object/array)                  |
+| `postgres()` or `postgresql()`                  | `string`                  | Validated PostgreSQL URL                            |
+| `mysql()`                                       | `string`                  | Validated MySQL connection string                   |
+| `mongodb()`                                     | `string`                  | Validated MongoDB connection string                 |
+| `redis()`                                       | `string`                  | Validated Redis connection string                   |
+| `http()`                                        | `string`                  | HTTP or HTTPS URL                                   |
+| `https()`                                       | `string`                  | HTTPS-only URL                                      |
+| `date()`                                        | `string`                  | Validated ISO 8601 date                             |
+| `timestamp()`                                   | `number`                  | Validated Unix timestamp                            |
+| `duration()`                                    | `number`                  | Time duration (`5s`, `2m`, `1h` → milliseconds)     |
+| `file()`                                        | `string`                  | Read content from file path                         |
+| `3000`                                          | `number`                  | Number with default value                           |
+| `false`                                         | `boolean`                 | Boolean with default value                          |
+| `'defaultValue'`                                | `string`                  | String with default value                           |
+| `['a', 'b'] as const`                           | `'a' \| 'b'`              | Required enum (requires `as const`)                 |
+| `optional(['a', 'b'] as const)`                 | `'a' \| 'b' \| undefined` | Optional enum (clean syntax)                        |
+| `enumOf(['a', 'b'] as const)`                   | `'a' \| 'b'`              | Required enum (explicit function)                   |
+| `enumOf(['a', 'b'] as const, {optional: true})` | `'a' \| 'b' \| undefined` | Optional enum (explicit function)                   |
+| `enumOf(['a', 'b'] as const, {default: 'a'})`   | `'a' \| 'b'`              | Enum with default value                             |
+| `oneOf(['a', 'b'] as const)`                    | `'a' \| 'b'`              | Alias for enumOf (backward compatible)              |
 
 ## Configuration Options
 
@@ -1197,12 +1317,15 @@ import { url } from 'node-env-resolver/validators';
 process.env.BASE_URL = 'https://api.example.com';
 process.env.API_ENDPOINT = '${BASE_URL}/v1';
 
-const config = resolve({
-  BASE_URL: url(),
-  API_ENDPOINT: url()
-}, {
-  interpolate: true
-});
+const config = resolve(
+  {
+    BASE_URL: url(),
+    API_ENDPOINT: url(),
+  },
+  {
+    interpolate: true,
+  },
+);
 
 // config.API_ENDPOINT === 'https://api.example.com/v1'
 ```
@@ -1228,25 +1351,25 @@ const flakyResolver = {
   name: 'external-api',
   async load() {
     throw new Error('Service unavailable');
-  }
+  },
 };
 
 // ❌ Throws immediately
 await resolveAsync({
   resolvers: [
     [flakyResolver, schema],
-    [processEnv(), schema]
+    [processEnv(), schema],
   ],
-  options: { strict: true }  // default
+  options: { strict: true }, // default
 });
 
 // ✅ Continues with processEnv()
 await resolveAsync({
   resolvers: [
     [flakyResolver, schema],
-    [processEnv(), schema]
+    [processEnv(), schema],
   ],
-  options: { strict: false }  // graceful degradation
+  options: { strict: false }, // graceful degradation
 });
 ```
 
@@ -1275,8 +1398,8 @@ import { awsSecrets } from 'node-env-resolver-aws';
 await resolveAsync({
   resolvers: [
     [processEnv(), { DATABASE_URL: postgres() }],
-    [awsSecrets(), { DATABASE_URL: postgres() }]
-  ]
+    [awsSecrets(), { DATABASE_URL: postgres() }],
+  ],
   // priority: 'last' (default) - AWS wins
 });
 
@@ -1284,9 +1407,9 @@ await resolveAsync({
 await resolveAsync({
   resolvers: [
     [dotenv(), { DATABASE_URL: postgres() }],
-    [awsSecrets(), { DATABASE_URL: postgres() }]
+    [awsSecrets(), { DATABASE_URL: postgres() }],
   ],
-  options: { priority: 'first' }  // dotenv wins
+  options: { priority: 'first' }, // dotenv wins
 });
 ```
 
@@ -1306,7 +1429,7 @@ await resolveAsync({
 await resolveAsync({
   resolvers: [
     [processEnv(), schema],
-    [awsSecrets(), schema]
+    [awsSecrets(), schema],
   ],
   options: {
     policies: {
@@ -1316,10 +1439,10 @@ await resolveAsync({
       // Force secrets to come from AWS
       enforceAllowedSources: {
         DATABASE_PASSWORD: ['aws-secrets'],
-        API_KEY: ['aws-secrets']
-      }
-    }
-  }
+        API_KEY: ['aws-secrets'],
+      },
+    },
+  },
 });
 ```
 
@@ -1343,9 +1466,9 @@ await resolveAsync({
 await resolveAsync({
   resolvers: [
     [processEnv(), schema],
-    [awsSecrets(), schema]
+    [awsSecrets(), schema],
   ],
-  options: { enableAudit: true }  // Explicitly enable in development
+  options: { enableAudit: true }, // Explicitly enable in development
 });
 
 const logs = getAuditLog();
@@ -1361,17 +1484,17 @@ const logs = getAuditLog();
 
 ```ts
 interface ResolveOptions {
-  interpolate?: boolean;               // Variable interpolation (default: true in .async())
-  strict?: boolean;                    // Fail-fast behaviour (default: true)
-  priority?: 'first' | 'last';         // Merge strategy (default: 'last')
-  policies?: PolicyOptions;            // Security policies (default: undefined)
-  enableAudit?: boolean;               // Audit logging (default: auto in production)
-  secretsDir?: string;                 // Base directory for file secrets (Docker/K8s)
+  interpolate?: boolean; // Variable interpolation (default: true in .async())
+  strict?: boolean; // Fail-fast behaviour (default: true)
+  priority?: 'first' | 'last'; // Merge strategy (default: 'last')
+  policies?: PolicyOptions; // Security policies (default: undefined)
+  enableAudit?: boolean; // Audit logging (default: auto in production)
+  secretsDir?: string; // Base directory for file secrets (Docker/K8s)
 }
 
 interface PolicyOptions {
-  allowDotenvInProduction?: boolean | string[];  // .env in production control
-  enforceAllowedSources?: Record<string, string[]>;  // Source restrictions
+  allowDotenvInProduction?: boolean | string[]; // .env in production control
+  enforceAllowedSources?: Record<string, string[]>; // Source restrictions
 }
 ```
 
@@ -1387,7 +1510,7 @@ import { postgres, string } from 'node-env-resolver/validators';
 const config = resolve({
   PORT: 3000,
   DATABASE_URL: postgres(),
-  SESSION_SECRET: string()
+  SESSION_SECRET: string(),
 });
 
 const app = express();
@@ -1408,7 +1531,7 @@ export const env = resolve({
   },
   client: {
     NEXT_PUBLIC_APP_URL: url(),
-  }
+  },
 });
 ```
 
@@ -1423,13 +1546,15 @@ import { awsSecrets } from 'node-env-resolver-aws';
 const getConfig = async () => {
   return await resolveAsync({
     resolvers: [
-      [cached(
-        awsSecrets({ secretId: 'lambda/config' }),
-        { ttl: TTL.minutes5 }
-      ), {
-        DATABASE_URL: postgres(),
-      }]
-    ]
+      [
+        cached(awsSecrets({ secretId: 'lambda/config' }), {
+          ttl: TTL.minutes5,
+        }),
+        {
+          DATABASE_URL: postgres(),
+        },
+      ],
+    ],
   });
 };
 
@@ -1457,10 +1582,13 @@ import { postgres } from 'node-env-resolver/validators';
 // In production (NODE_ENV=production)
 const config = await resolveAsync({
   resolvers: [
-    [dotenv(), {
-      DATABASE_URL: postgres(),
-    }]
-  ]
+    [
+      dotenv(),
+      {
+        DATABASE_URL: postgres(),
+      },
+    ],
+  ],
 });
 // ❌ Throws: "DATABASE_URL cannot be sourced from .env files in production"
 ```
@@ -1474,15 +1602,18 @@ import { postgres } from 'node-env-resolver/validators';
 
 const config = await resolveAsync({
   resolvers: [
-    [dotenv(), {
-      DATABASE_URL: postgres(),
-    }]
+    [
+      dotenv(),
+      {
+        DATABASE_URL: postgres(),
+      },
+    ],
   ],
   options: {
     policies: {
-      allowDotenvInProduction: true  // Allow all (risky!)
-    }
-  }
+      allowDotenvInProduction: true, // Allow all (risky!)
+    },
+  },
 });
 ```
 
@@ -1495,17 +1626,20 @@ import { postgres } from 'node-env-resolver/validators';
 
 const config = await resolveAsync({
   resolvers: [
-    [dotenv(), {
-      PORT: 3000,
-      DATABASE_URL: postgres(),
-    }]
+    [
+      dotenv(),
+      {
+        PORT: 3000,
+        DATABASE_URL: postgres(),
+      },
+    ],
   ],
   options: {
     policies: {
-      allowDotenvInProduction: ['PORT']  // Only PORT allowed from .env
+      allowDotenvInProduction: ['PORT'], // Only PORT allowed from .env
       // DATABASE_URL must come from process.env or cloud resolvers
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -1521,23 +1655,29 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolveAsync({
   resolvers: [
-    [processEnv(), {
-      PORT: 3000,
-    }],
-    [awsSecrets({ secretId: 'prod/secrets' }), {
-      DATABASE_PASSWORD: string(),
-      API_KEY: string(),
-    }]
+    [
+      processEnv(),
+      {
+        PORT: 3000,
+      },
+    ],
+    [
+      awsSecrets({ secretId: 'prod/secrets' }),
+      {
+        DATABASE_PASSWORD: string(),
+        API_KEY: string(),
+      },
+    ],
   ],
   options: {
     policies: {
       enforceAllowedSources: {
-        DATABASE_PASSWORD: ['aws-secrets'],  // Must come from AWS
-        API_KEY: ['aws-secrets']             // Must come from AWS
+        DATABASE_PASSWORD: ['aws-secrets'], // Must come from AWS
+        API_KEY: ['aws-secrets'], // Must come from AWS
         // PORT not restricted - can come from any resolver
-      }
-    }
-  }
+      },
+    },
+  },
 });
 ```
 
@@ -1552,19 +1692,22 @@ import { awsSecrets } from 'node-env-resolver-aws';
 const config = await resolveAsync({
   resolvers: [
     [processEnv(), {}],
-    [awsSecrets({ secretId: 'prod/db' }), {
-      DATABASE_PASSWORD: string(),
-      STRIPE_SECRET: string(),
-    }]
+    [
+      awsSecrets({ secretId: 'prod/db' }),
+      {
+        DATABASE_PASSWORD: string(),
+        STRIPE_SECRET: string(),
+      },
+    ],
   ],
   options: {
     policies: {
       enforceAllowedSources: {
         DATABASE_PASSWORD: ['aws-secrets'],
-        STRIPE_SECRET: ['aws-secrets']
-      }
-    }
-  }
+        STRIPE_SECRET: ['aws-secrets'],
+      },
+    },
+  },
 });
 
 // ✅ If secrets come from AWS → Success
@@ -1583,10 +1726,10 @@ interface PolicyOptions {
    * - string[]: Allow only specific vars from .env in production
    */
   allowDotenvInProduction?: boolean | string[];
-  
+
   /**
    * Restrict variables to specific resolvers.
-   * 
+   *
    * Example: { DATABASE_PASSWORD: ['aws-secrets'] }
    */
   enforceAllowedSources?: Record<string, string[]>;
@@ -1608,12 +1751,15 @@ import { resolve, getAuditLog, clearAuditLog } from 'node-env-resolver';
 import { postgres, string } from 'node-env-resolver/validators';
 
 // Option 1: Explicitly enable (works in any environment)
-const config = resolve({
-  DATABASE_URL: postgres(),
-  API_KEY: string(),
-}, {
-  enableAudit: true  // ← Enable audit logging
-});
+const config = resolve(
+  {
+    DATABASE_URL: postgres(),
+    API_KEY: string(),
+  },
+  {
+    enableAudit: true, // ← Enable audit logging
+  },
+);
 
 console.log(getAuditLog());
 // [
@@ -1649,22 +1795,28 @@ When you have multiple `resolve()` calls, you can now get audit logs **specific 
 import { resolve, getAuditLog } from 'node-env-resolver';
 import { string, postgres } from 'node-env-resolver/validators';
 
-const appConfig = resolve({
-  PORT: 3000,
-  API_KEY: string()
-}, { enableAudit: true });
+const appConfig = resolve(
+  {
+    PORT: 3000,
+    API_KEY: string(),
+  },
+  { enableAudit: true },
+);
 
-const dbConfig = resolve({
-  DATABASE_URL: postgres(),
-  DB_POOL_SIZE: 10
-}, { enableAudit: true });
+const dbConfig = resolve(
+  {
+    DATABASE_URL: postgres(),
+    DB_POOL_SIZE: 10,
+  },
+  { enableAudit: true },
+);
 
 // Get audit logs for specific config (NEW!)
-const appAudit = getAuditLog(appConfig);   // Only PORT and API_KEY events
-const dbAudit = getAuditLog(dbConfig);     // Only DATABASE_URL and DB_POOL_SIZE events
+const appAudit = getAuditLog(appConfig); // Only PORT and API_KEY events
+const dbAudit = getAuditLog(dbConfig); // Only DATABASE_URL and DB_POOL_SIZE events
 
 // Still works: get ALL audit events (backward compatible)
-const allAudit = getAuditLog();            // All events from both configs
+const allAudit = getAuditLog(); // All events from both configs
 
 console.log('App config audit:', appAudit);
 // [
@@ -1682,6 +1834,7 @@ console.log('DB config audit:', dbAudit);
 ```
 
 **Use cases:**
+
 - Multi-tenant applications with separate configs per tenant
 - Microservices with different config sources
 - Testing/debugging specific configuration loads
@@ -1689,13 +1842,13 @@ console.log('DB config audit:', dbAudit);
 
 ### Audit Event Types
 
-| Event Type | When It Occurs |
-|------------|----------------|
-| `env_loaded` | Environment variable successfully loaded from a resolver |
-| `validation_success` | All variables validated successfully |
-| `validation_failure` | Variable validation failed |
-| `policy_violation` | Security policy check failed |
-| `resolver_error` | Resolver failed to load data |
+| Event Type           | When It Occurs                                           |
+| -------------------- | -------------------------------------------------------- |
+| `env_loaded`         | Environment variable successfully loaded from a resolver |
+| `validation_success` | All variables validated successfully                     |
+| `validation_failure` | Variable validation failed                               |
+| `policy_violation`   | Security policy check failed                             |
+| `resolver_error`     | Resolver failed to load data                             |
 
 ### Monitoring Cache Performance
 
@@ -1709,18 +1862,23 @@ import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolveAsync({
   resolvers: [
-    [cached(awsSecrets({ secretId: 'prod/db' }), { ttl: TTL.minutes5 }), {
-      DATABASE_URL: postgres(),
-    }]
+    [
+      cached(awsSecrets({ secretId: 'prod/db' }), { ttl: TTL.minutes5 }),
+      {
+        DATABASE_URL: postgres(),
+      },
+    ],
   ],
-  options: { enableAudit: true }
+  options: { enableAudit: true },
 });
 
 const logs = getAuditLog();
-logs.forEach(log => {
+logs.forEach((log) => {
   if (log.type === 'env_loaded') {
-    console.log(`${log.key} from ${log.source}`,
-                log.metadata?.cached ? '[CACHED]' : '[FRESH]');
+    console.log(
+      `${log.key} from ${log.source}`,
+      log.metadata?.cached ? '[CACHED]' : '[FRESH]',
+    );
   }
 });
 // Output:
@@ -1742,25 +1900,28 @@ import { awsSecrets } from 'node-env-resolver-aws';
 const config = await resolveAsync({
   resolvers: [
     [processEnv(), {}],
-    [awsSecrets(), {
-      DATABASE_PASSWORD: string(),
-      API_KEY: string(),
-    }]
+    [
+      awsSecrets(),
+      {
+        DATABASE_PASSWORD: string(),
+        API_KEY: string(),
+      },
+    ],
   ],
   options: {
     policies: {
       enforceAllowedSources: {
         DATABASE_PASSWORD: ['aws-secrets'],
-        API_KEY: ['aws-secrets']
-      }
-    }
+        API_KEY: ['aws-secrets'],
+      },
+    },
     // enableAudit: true automatically in production
-  }
+  },
 });
 
 // Send audit logs to your monitoring system
 const logs = getAuditLog();
-const policyViolations = logs.filter(l => l.type === 'policy_violation');
+const policyViolations = logs.filter((l) => l.type === 'policy_violation');
 
 if (policyViolations.length > 0) {
   // Alert: Secrets loaded from unauthorized source!
@@ -1775,9 +1936,10 @@ if (policyViolations.length > 0) {
 This package uses modern [package.json `exports`](https://nodejs.org/api/packages.html#exports) for subpath exports (like `node-env-resolver/resolvers`). TypeScript requires a modern module resolution strategy to understand these exports.
 
 **If you see this error:**
+
 ```
 Cannot find module 'node-env-resolver/resolvers' or its corresponding type declarations.
-There are types at '.../node_modules/node-env-resolver/dist/resolvers.d.ts', 
+There are types at '.../node_modules/node-env-resolver/dist/resolvers.d.ts',
 but this result could not be resolved under your current 'moduleResolution' setting.
 Consider updating to 'node16', 'nodenext', or 'bundler'.
 ```
@@ -1785,6 +1947,7 @@ Consider updating to 'node16', 'nodenext', or 'bundler'.
 **Solution:** Update your `tsconfig.json` to use a modern module resolution strategy.
 
 **Example - if your config currently has:**
+
 ```json
 {
   "compilerOptions": {
@@ -1797,36 +1960,40 @@ Consider updating to 'node16', 'nodenext', or 'bundler'.
 **Change to one of these options:**
 
 1. **`moduleResolution: "NodeNext"`** (recommended for most Node.js projects):
+
 ```json
 {
   "compilerOptions": {
-    "module": "NodeNext",        // Changed from "CommonJS"
+    "module": "NodeNext", // Changed from "CommonJS"
     "moduleResolution": "NodeNext" // Changed from "node"
   }
 }
 ```
 
 2. **`moduleResolution: "bundler"`** (for bundler-based projects like Vite, Webpack, etc.):
+
 ```json
 {
   "compilerOptions": {
-    "module": "CommonJS",         // Can keep this or use "ESNext"
+    "module": "CommonJS", // Can keep this or use "ESNext"
     "moduleResolution": "bundler" // Changed from "node"
   }
 }
 ```
 
 3. **`moduleResolution: "node16"`** (alternative to NodeNext):
+
 ```json
 {
   "compilerOptions": {
-    "module": "node16",           // Changed from "CommonJS"
-    "moduleResolution": "node16"  // Changed from "node"
+    "module": "node16", // Changed from "CommonJS"
+    "moduleResolution": "node16" // Changed from "node"
   }
 }
 ```
 
 **Why this is required:**
+
 - The legacy `moduleResolution: "node"` strategy doesn't understand package.json `exports` field
 - Modern resolution strategies (`node16`, `nodenext`, `bundler`) properly support subpath exports
 - This is a TypeScript configuration requirement, not a runtime issue - your code will run correctly regardless
@@ -1852,9 +2019,11 @@ const schema = {
 };
 
 // Accept resolvers as parameter with sensible defaults
-export async function getConfig(resolvers: Resolver[] = [processEnv(), awsSecrets({ secretId: 'my-app' })]) {
+export async function getConfig(
+  resolvers: Resolver[] = [processEnv(), awsSecrets({ secretId: 'my-app' })],
+) {
   return resolveAsync({
-    resolvers: resolvers.map(r => [r, schema])
+    resolvers: resolvers.map((r) => [r, schema]),
   });
 }
 ```
@@ -1925,7 +2094,7 @@ const createMock = (env: Record<string, string>) => ({
 
 // Usage
 const config = await resolveAsync({
-  resolvers: [[createMock({ API_KEY: 'test-key' }), { API_KEY: string() }]]
+  resolvers: [[createMock({ API_KEY: 'test-key' }), { API_KEY: string() }]],
 });
 ```
 
@@ -1944,6 +2113,7 @@ const config = await getConfig([mockResolver]);
 ```
 
 Benefits of dependency injection:
+
 - Tests are simpler and more readable
 - No need to understand internal module structure
 - Refactoring production code doesn't break tests

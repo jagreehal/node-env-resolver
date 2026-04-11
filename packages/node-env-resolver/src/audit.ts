@@ -46,7 +46,8 @@ const configToSessionId = new WeakMap<object, string>();
  */
 export function attachAuditSession(config: object): string {
   // Generate a unique session ID (timestamp + random)
-  const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+  const sessionId =
+    Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
   configToSessionId.set(config, sessionId);
   return sessionId;
 }
@@ -67,7 +68,7 @@ export function logAuditEvent(event: AuditEvent): void {
 
 /**
  * Get audit log, optionally filtered by config object
- * 
+ *
  * @param config - Optional config object to filter audit events for
  * @returns Audit events (all events if no config provided, or filtered by config's session)
  */
@@ -76,16 +77,16 @@ export function getAuditLog(config?: object): readonly AuditEvent[] {
     // No config provided - return all events (backward compatible)
     return [...auditLog];
   }
-  
+
   // Get session ID for this config
   const sessionId = configToSessionId.get(config);
   if (!sessionId) {
     // Config has no session - return empty array
     return [];
   }
-  
+
   // Filter events by session ID
-  return auditLog.filter(event => event.sessionId === sessionId);
+  return auditLog.filter((event) => event.sessionId === sessionId);
 }
 
 /**

@@ -9,32 +9,104 @@ This example demonstrates both the **"Vite Way"** and the **"Enhanced Way"** for
 ## Features Demonstrated
 
 ### The "Vite Way" (import.meta.env)
+
 - ✅ Simple and direct access to environment variables
 - ✅ Uses Vite's built-in environment variable handling
 - ✅ Works in both Node.js and browser contexts
 - ✅ Zero configuration required
 
 ### The "Enhanced Way" (node-env-resolver-vite)
+
 - ✅ **Build-time validation** of all environment variables
 - ✅ Type-safe environment with proper TypeScript types
 - ✅ Automatic `VITE_` prefix validation
 - ✅ Advanced validators (URL, email, postgres, etc.)
 - ✅ Centralized configuration in `env.ts` and `vite.config.ts`
 - ✅ Runtime protection for server vars (in Node.js context)
+- ✅ **Async resolution** for secret manager integration
+- ✅ **Reference handlers** for `aws-sm://` and `aws-ssm://` URIs
+
+## Async Resolution Example
+
+For advanced use cases with AWS Secrets or SSM:
+
+```typescript
+// env.ts
+import { resolveAsyncFn } from 'node-env-resolver-vite';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { postgres, url } from 'node-env-resolver/validators';
+
+// Async resolution with reference handlers
+export const asyncEnv = await resolveAsyncFn(
+  {
+    server: {
+      DATABASE_URL: postgres({ optional: true }),
+    },
+    client: {
+      VITE_API_URL: url({ optional: true }),
+    },
+  },
+  {
+    async: true,
+    referenceHandlers: {
+      'aws-sm': createAwsSecretHandler({ region: 'us-east-1' }),
+      'aws-ssm': createAwsSsmHandler({ region: 'us-east-1' }),
+    },
+  }
+);
+```
+
+Use in `.env`:
+
+```bash
+DATABASE_URL=aws-sm://prod/database/url
+VITE_API_URL=aws-ssm:///prod/api/url
+```
+
+## Runtime Protection
+
+The Vite resolver automatically protects server variables from client access:
+
+```typescript
+import { env } from './env';
+
+// In browser - this throws!
+console.log(env.server.DATABASE_URL); // Error: Cannot access server env var
+
+// In Node.js (vite.config.ts, SSR) - this works
+console.log(env.server.DATABASE_URL); // ✅ Works
+```
+
+You can disable protection if needed:
+
+```typescript
+export const env = resolve(
+  {
+    server: { DATABASE_URL: postgres() },
+    client: { VITE_API_URL: url() },
+  },
+  {
+    runtimeProtection: false,
+  }
+);
+```
 
 ## Getting Started
 
 1. **Install dependencies:**
+
    ```bash
    pnpm install
    ```
 
 2. **Create `.env.local` file:**
+
    ```bash
    cp .env.example .env.local
    ```
 
 3. **Start dev server:**
+
    ```bash
    pnpm dev
    ```
@@ -69,10 +141,10 @@ Use the `env` object in Node.js context:
 ```typescript
 // ✅ In vite.config.ts, SSR, build scripts
 import { env } from './env';
-env.server.DATABASE_URL  // postgres://...
-env.server.API_SECRET    // secret key
-env.server.PORT          // 5173
-env.server.NODE_ENV      // 'development' | 'production' | 'test'
+env.server.DATABASE_URL; // postgres://...
+env.server.API_SECRET; // secret key
+env.server.PORT; // 5173
+env.server.NODE_ENV; // 'development' | 'production' | 'test'
 ```
 
 ### Client Variables (Browser - main.ts, components)
@@ -81,10 +153,10 @@ In browser code, **use Vite's standard API**:
 
 ```typescript
 // ✅ In browser code (main.ts, components)
-import.meta.env.VITE_API_URL            // https://api.example.com
-import.meta.env.VITE_APP_NAME           // 'My Vite App'
-import.meta.env.VITE_ENABLE_ANALYTICS   // false
-import.meta.env.VITE_VERSION            // '1.0.0'
+import.meta.env.VITE_API_URL; // https://api.example.com
+import.meta.env.VITE_APP_NAME; // 'My Vite App'
+import.meta.env.VITE_ENABLE_ANALYTICS; // false
+import.meta.env.VITE_VERSION; // '1.0.0'
 
 // ❌ DON'T do this in browser code - will break build!
 // import { env } from './env';
@@ -102,16 +174,16 @@ The app demonstrates how to access client environment variables in the browser:
 
 ## Comparison
 
-| Feature | Vite Way | Enhanced Way |
-|---------|----------|--------------|
-| **Browser Syntax** | `import.meta.env.VITE_*` | `import.meta.env.VITE_*` |
-| **Node.js Syntax** | `import.meta.env.*` or `process.env.*` | `env.server.*` / `env.client.*` |
-| **Type Safety** | Basic (all strings) | ✅ Advanced (proper types) |
-| **Validation** | None | ✅ URL, email, postgres, etc. |
-| **Build-time Validation** | None | ✅ Catches errors at build time |
-| **Defaults** | Manual fallbacks | ✅ Built-in defaults |
-| **Optional Fields** | Manual checks | ✅ Explicit optional/required |
-| **Runtime Protection** | None | ✅ In Node.js (env object has Proxy) |
+| Feature                   | Vite Way                               | Enhanced Way                         |
+| ------------------------- | -------------------------------------- | ------------------------------------ |
+| **Browser Syntax**        | `import.meta.env.VITE_*`               | `import.meta.env.VITE_*`             |
+| **Node.js Syntax**        | `import.meta.env.*` or `process.env.*` | `env.server.*` / `env.client.*`      |
+| **Type Safety**           | Basic (all strings)                    | ✅ Advanced (proper types)           |
+| **Validation**            | None                                   | ✅ URL, email, postgres, etc.        |
+| **Build-time Validation** | None                                   | ✅ Catches errors at build time      |
+| **Defaults**              | Manual fallbacks                       | ✅ Built-in defaults                 |
+| **Optional Fields**       | Manual checks                          | ✅ Explicit optional/required        |
+| **Runtime Protection**    | None                                   | ✅ In Node.js (env object has Proxy) |
 
 ## Type Safety
 
@@ -121,9 +193,9 @@ The environment configuration in `src/env.ts` provides full type safety in Node.
 // ✅ In vite.config.ts or SSR code
 import { env } from './env';
 
-env.server.PORT;         // number
+env.server.PORT; // number
 env.client.VITE_API_URL; // string | undefined
-env.server.INVALID;      // ❌ TypeScript error: Property 'INVALID' does not exist
+env.server.INVALID; // ❌ TypeScript error: Property 'INVALID' does not exist
 
 // ✅ In browser code (main.ts)
 // Use import.meta.env with type definitions from vite-env.d.ts
@@ -142,4 +214,3 @@ The built files will be in the `dist/` directory.
 
 - [node-env-resolver-vite documentation](../../packages/vite-resolver/README.md)
 - [Vite documentation](https://vitejs.dev/)
-

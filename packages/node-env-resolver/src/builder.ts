@@ -42,7 +42,7 @@ export class EnvBuilder<TAccumulated extends Record<string, unknown>> {
 
   constructor(
     private localSchema: SimpleEnvSchema,
-    private options: Partial<ResolveOptions> = {}
+    private options: Partial<ResolveOptions> = {},
   ) {}
 
   /**
@@ -51,7 +51,7 @@ export class EnvBuilder<TAccumulated extends Record<string, unknown>> {
    */
   from<TNew extends SimpleEnvSchema>(
     resolver: Resolver,
-    schema: TNew
+    schema: TNew,
   ): EnvBuilder<MergeSchemas<TAccumulated, InferSimpleSchema<TNew>>> {
     this.layers.push({ resolver, schema });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,13 +73,18 @@ export class EnvBuilder<TAccumulated extends Record<string, unknown>> {
 
     // Build resolver list: local defaults + custom resolvers
     const defaultResolvers: Resolver[] = this.buildDefaultResolvers();
-    const customResolvers = this.layers.map(l => l.resolver);
+    const customResolvers = this.layers.map((l) => l.resolver);
 
     // Add extend resolvers if specified in options
-    const extendResolvers = (this.options as { extend?: Resolver[] }).extend || [];
+    const extendResolvers =
+      (this.options as { extend?: Resolver[] }).extend || [];
 
     // Build from defaults + custom + extend
-    const allResolvers = [...defaultResolvers, ...customResolvers, ...extendResolvers];
+    const allResolvers = [
+      ...defaultResolvers,
+      ...customResolvers,
+      ...extendResolvers,
+    ];
 
     // Default policies: secure by default (block dotenv in production unless explicitly allowed)
     const policies = this.options.policies ?? {};
@@ -124,7 +129,7 @@ export class EnvBuilderSync<TAccumulated extends Record<string, unknown>> {
 
   constructor(
     private localSchema: SimpleEnvSchema,
-    private options: Partial<ResolveOptions> = {}
+    private options: Partial<ResolveOptions> = {},
   ) {}
 
   /**
@@ -132,7 +137,7 @@ export class EnvBuilderSync<TAccumulated extends Record<string, unknown>> {
    */
   from<TNew extends SimpleEnvSchema>(
     resolver: Resolver,
-    schema: TNew
+    schema: TNew,
   ): EnvBuilderSync<MergeSchemas<TAccumulated, InferSimpleSchema<TNew>>> {
     this.layers.push({ resolver, schema });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,13 +158,18 @@ export class EnvBuilderSync<TAccumulated extends Record<string, unknown>> {
 
     // Build provider list
     const defaultResolvers: Resolver[] = this.buildDefaultResolvers();
-    const customResolvers = this.layers.map(l => l.resolver);
+    const customResolvers = this.layers.map((l) => l.resolver);
 
     // Add extend resolvers if specified in options
-    const extendResolvers = (this.options as { extend?: Resolver[] }).extend || [];
+    const extendResolvers =
+      (this.options as { extend?: Resolver[] }).extend || [];
 
     // Build from defaults + custom + extend
-    const allResolvers = [...defaultResolvers, ...customResolvers, ...extendResolvers];
+    const allResolvers = [
+      ...defaultResolvers,
+      ...customResolvers,
+      ...extendResolvers,
+    ];
 
     // Default policies: secure by default (block dotenv in production unless explicitly allowed)
     const policies = this.options.policies ?? {};
@@ -208,7 +218,7 @@ export class EnvBuilderSync<TAccumulated extends Record<string, unknown>> {
  */
 export function env<T extends SimpleEnvSchema>(
   localSchema: T,
-  options?: Partial<ResolveOptions>
+  options?: Partial<ResolveOptions>,
 ): EnvBuilder<InferSimpleSchema<T>> {
   return new EnvBuilder<InferSimpleSchema<T>>(localSchema, options);
 }
@@ -226,7 +236,7 @@ export function env<T extends SimpleEnvSchema>(
  */
 export function envSync<T extends SimpleEnvSchema>(
   localSchema: T,
-  options?: Partial<ResolveOptions>
+  options?: Partial<ResolveOptions>,
 ): EnvBuilderSync<InferSimpleSchema<T>> {
   return new EnvBuilderSync<InferSimpleSchema<T>>(localSchema, options);
 }
@@ -236,13 +246,15 @@ export function envSync<T extends SimpleEnvSchema>(
  * Simple usage: await resolve({...})
  * Composition: await resolve({...}).from(...).compose()
  */
-export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> implements PromiseLike<TAccumulated> {
+export class ResolvableBuilder<
+  TAccumulated extends Record<string, unknown>,
+> implements PromiseLike<TAccumulated> {
   private builder: EnvBuilder<TAccumulated>;
   private simpleResolve: Promise<TAccumulated> | null = null;
 
   constructor(
     localSchema: SimpleEnvSchema,
-    options: Partial<ResolveOptions> = {}
+    options: Partial<ResolveOptions> = {},
   ) {
     this.builder = new EnvBuilder<TAccumulated>(localSchema, options);
   }
@@ -252,7 +264,7 @@ export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> imp
    */
   from<TNew extends SimpleEnvSchema>(
     resolver: Resolver,
-    schema: TNew
+    schema: TNew,
   ): ResolvableBuilder<MergeSchemas<TAccumulated, InferSimpleSchema<TNew>>> {
     this.builder.from(resolver, schema);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -272,8 +284,10 @@ export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> imp
    * Allows: const config = await resolve({...})
    */
   then<TResult1 = TAccumulated, TResult2 = never>(
-    onfulfilled?: ((value: TAccumulated) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    onfulfilled?:
+      | ((value: TAccumulated) => TResult1 | PromiseLike<TResult1>)
+      | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): PromiseLike<TResult1 | TResult2> {
     if (!this.simpleResolve) {
       // Wrap synchronous result in a Promise
@@ -286,7 +300,7 @@ export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> imp
    * Catch errors (Promise-like interface)
    */
   catch<TResult = never>(
-    onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
+    onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null,
   ): Promise<TAccumulated | TResult> {
     if (!this.simpleResolve) {
       // Wrap synchronous result in a Promise
@@ -313,26 +327,28 @@ export class ResolvableBuilder<TAccumulated extends Record<string, unknown>> imp
  *
  * The returned object has all properties from TAccumulated plus builder methods
  */
-export class ResolvableBuilderSync<TAccumulated extends Record<string, unknown>> {
+export class ResolvableBuilderSync<
+  TAccumulated extends Record<string, unknown>,
+> {
   private builder!: EnvBuilderSync<TAccumulated>; // Assigned via Object.defineProperty
   private _resolved: TAccumulated | null = null;
   private _hasComposition: boolean = false;
 
   constructor(
     localSchema: SimpleEnvSchema,
-    options: Partial<ResolveOptions> = {}
+    options: Partial<ResolveOptions> = {},
   ) {
     // Make internal properties non-enumerable so they don't show up in spread/JSON
     Object.defineProperty(this, 'builder', {
       value: new EnvBuilderSync<TAccumulated>(localSchema, options),
       enumerable: false,
-      writable: true
+      writable: true,
     });
 
     Object.defineProperty(this, '_hasComposition', {
       value: false,
       enumerable: false,
-      writable: true
+      writable: true,
     });
 
     // Auto-resolve for simple usage and copy properties to this object
@@ -342,7 +358,7 @@ export class ResolvableBuilderSync<TAccumulated extends Record<string, unknown>>
     Object.defineProperty(this, '_resolved', {
       value: resolved,
       enumerable: false,
-      writable: true
+      writable: true,
     });
 
     // Copy all properties from resolved value to this object (these ARE enumerable)
@@ -354,12 +370,14 @@ export class ResolvableBuilderSync<TAccumulated extends Record<string, unknown>>
    */
   from<TNew extends SimpleEnvSchema>(
     resolver: Resolver,
-    schema: TNew
-  ): ResolvableBuilderSync<MergeSchemas<TAccumulated, InferSimpleSchema<TNew>>> {
+    schema: TNew,
+  ): ResolvableBuilderSync<
+    MergeSchemas<TAccumulated, InferSimpleSchema<TNew>>
+  > {
     Object.defineProperty(this, '_hasComposition', {
       value: true,
       enumerable: false,
-      writable: true
+      writable: true,
     });
     this.builder.from(resolver, schema);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

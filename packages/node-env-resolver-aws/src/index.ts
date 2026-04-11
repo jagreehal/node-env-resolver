@@ -5,12 +5,28 @@
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParametersByPathCommand, GetParameterCommand } from '@aws-sdk/client-ssm';
-import type { Resolver, SimpleEnvSchema, InferSimpleSchema, ResolveOptions, SafeResolveResultType } from 'node-env-resolver';
+import type {
+  Resolver,
+  SimpleEnvSchema,
+  InferSimpleSchema,
+  ResolveOptions,
+  SafeResolveResultType,
+} from 'node-env-resolver';
 import { resolveAsync, safeResolveAsync } from 'node-env-resolver';
 
 // Re-export main functions for convenience (same as nextjs package pattern)
 export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
+
+export {
+  createAwsSecretHandler,
+  createAwsSsmHandler,
+  awsSecretHandler,
+  awsSsmHandler,
+  type AwsHandlerOptions,
+  type AwsSecretHandlerOptions,
+  type AwsSsmHandlerOptions,
+} from './handlers';
 // AWS Secrets Manager
 export interface AwsSecretsOptions {
   secretId: string;
@@ -28,29 +44,34 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
     async load() {
       try {
         const client = new SecretsManagerClient({
-          ...(options.region || process.env.AWS_REGION ? {
-            region: options.region ?? process.env.AWS_REGION,
-          } : {}),
+          ...(options.region || process.env.AWS_REGION
+            ? {
+                region: options.region ?? process.env.AWS_REGION,
+              }
+            : {}),
           // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
           // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
           // 2. IAM roles (EC2, Lambda, ECS)
           // 3. AWS credentials file (~/.aws/credentials)
-          credentials: options.accessKeyId && options.secretAccessKey ? {
-            accessKeyId: options.accessKeyId,
-            secretAccessKey: options.secretAccessKey,
-          } : undefined,
+          credentials:
+            options.accessKeyId && options.secretAccessKey
+              ? {
+                  accessKeyId: options.accessKeyId,
+                  secretAccessKey: options.secretAccessKey,
+                }
+              : undefined,
         });
-        
+
         const command = new GetSecretValueCommand({
           SecretId: options.secretId,
         });
-        
+
         const response = await client.send(command);
-        
+
         if (!response.SecretString) {
           throw new Error('Secret not found or empty');
         }
-        
+
         if (options.parseJson !== false) {
           try {
             return JSON.parse(response.SecretString);
@@ -59,10 +80,12 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
             return { [options.secretId]: response.SecretString };
           }
         }
-        
+
         return { [options.secretId]: response.SecretString };
       } catch (error) {
-        throw new Error(`AWS Secrets Manager: ${error instanceof Error ? error.message : error}`, { cause: error });
+        throw new Error(`AWS Secrets Manager: ${error instanceof Error ? error.message : error}`, {
+          cause: error,
+        });
       }
     },
   };
@@ -85,25 +108,30 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
     async load() {
       try {
         const client = new SSMClient({
-          ...(options.region || process.env.AWS_REGION ? {
-            region: options.region ?? process.env.AWS_REGION,
-          } : {}),
+          ...(options.region || process.env.AWS_REGION
+            ? {
+                region: options.region ?? process.env.AWS_REGION,
+              }
+            : {}),
           // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
           // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
           // 2. IAM roles (EC2, Lambda, ECS)
           // 3. AWS credentials file (~/.aws/credentials)
-          credentials: options.accessKeyId && options.secretAccessKey ? {
-            accessKeyId: options.accessKeyId,
-            secretAccessKey: options.secretAccessKey,
-          } : undefined,
+          credentials:
+            options.accessKeyId && options.secretAccessKey
+              ? {
+                  accessKeyId: options.accessKeyId,
+                  secretAccessKey: options.secretAccessKey,
+                }
+              : undefined,
         });
-        
+
         const env: Record<string, string> = {};
-        
+
         if (options.recursive) {
           // Get all parameters under path
           let nextToken: string | undefined;
-          
+
           do {
             const command = new GetParametersByPathCommand({
               Path: options.path,
@@ -111,9 +139,9 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
               WithDecryption: true,
               NextToken: nextToken,
             });
-            
+
             const response = await client.send(command);
-            
+
             if (response.Parameters) {
               for (const param of response.Parameters) {
                 if (param.Name && param.Value) {
@@ -123,7 +151,7 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
                 }
               }
             }
-            
+
             nextToken = response.NextToken;
           } while (nextToken);
         } else {
@@ -132,18 +160,20 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
             Name: options.path,
             WithDecryption: true,
           });
-          
+
           const response = await client.send(command);
-          
+
           if (response.Parameter?.Value) {
             const key = options.path.split('/').pop()!;
             env[key] = response.Parameter.Value;
           }
         }
-        
+
         return env;
       } catch (error) {
-        throw new Error(`AWS SSM: ${error instanceof Error ? error.message : error}`, { cause: error });
+        throw new Error(`AWS SSM: ${error instanceof Error ? error.message : error}`, {
+          cause: error,
+        });
       }
     },
   };
@@ -169,12 +199,10 @@ export async function resolveSsm<T extends SimpleEnvSchema>(
   schema: T,
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<InferSimpleSchema<T>> {
-  return await resolveAsync({
-    resolvers: [
-      [awsSsm(ssmOptions), schema]
-    ],
-    ...(resolveOptions ? { options: resolveOptions } : {})
-  }) as InferSimpleSchema<T>;
+  return (await resolveAsync({
+    resolvers: [[awsSsm(ssmOptions), schema]],
+    ...(resolveOptions ? { options: resolveOptions } : {}),
+  })) as InferSimpleSchema<T>;
 }
 
 /**
@@ -202,10 +230,8 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
     const result = await safeResolveAsync({
-      resolvers: [
-        [awsSsm(ssmOptions), schema]
-      ],
-      ...(resolveOptions ? { options: resolveOptions } : {})
+      resolvers: [[awsSsm(ssmOptions), schema]],
+      ...(resolveOptions ? { options: resolveOptions } : {}),
     });
 
     if (result.success) {
@@ -215,7 +241,7 @@ export async function safeResolveSsm<T extends SimpleEnvSchema>(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
@@ -238,12 +264,10 @@ export async function resolveSecrets<T extends SimpleEnvSchema>(
   schema: T,
   resolveOptions?: Partial<ResolveOptions>
 ): Promise<InferSimpleSchema<T>> {
-  return await resolveAsync({
-    resolvers: [
-      [awsSecrets(secretsOptions), schema]
-    ],
-    ...(resolveOptions ? { options: resolveOptions } : {})
-  }) as InferSimpleSchema<T>;
+  return (await resolveAsync({
+    resolvers: [[awsSecrets(secretsOptions), schema]],
+    ...(resolveOptions ? { options: resolveOptions } : {}),
+  })) as InferSimpleSchema<T>;
 }
 
 /**
@@ -271,10 +295,8 @@ export async function safeResolveSecrets<T extends SimpleEnvSchema>(
 ): Promise<SafeResolveResultType<InferSimpleSchema<T>>> {
   try {
     const result = await safeResolveAsync({
-      resolvers: [
-        [awsSecrets(secretsOptions), schema]
-      ],
-      ...(resolveOptions ? { options: resolveOptions } : {})
+      resolvers: [[awsSecrets(secretsOptions), schema]],
+      ...(resolveOptions ? { options: resolveOptions } : {}),
     });
 
     if (result.success) {
@@ -284,7 +306,7 @@ export async function safeResolveSecrets<T extends SimpleEnvSchema>(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

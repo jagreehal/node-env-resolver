@@ -17,7 +17,7 @@ function createCustomResolver(values: Record<string, string>): Resolver {
     },
     loadSync() {
       return values;
-    }
+    },
   };
 }
 
@@ -72,16 +72,16 @@ describe('Resolver Composition - Type Safety', () => {
   it('should merge types correctly with overlapping keys (last-wins)', () => {
     const customResolver = createCustomResolver({
       FOO: 'overridden',
-      QUZ: 'quux'
+      QUZ: 'quux',
     });
 
     const config = env({
-      FOO: string(),  // will be overridden
+      FOO: string(), // will be overridden
       BAR: 3000,
     })
       .from(customResolver, {
-        FOO: string(),  // overrides local.FOO
-        QUZ: string(),  // new variable
+        FOO: string(), // overrides local.FOO
+        QUZ: string(), // new variable
       })
       .resolve();
 
@@ -125,7 +125,7 @@ describe('Resolver Composition - Type Safety', () => {
 
   it('should work with optional types', () => {
     const config = env({
-      OPTIONAL_KEY: string({optional:true}),
+      OPTIONAL_KEY: string({ optional: true }),
     }).resolve();
 
     // Runtime test - type test has inference issues
@@ -157,7 +157,7 @@ describe('Resolver Composition - Runtime Behavior', () => {
     process.env.FOO = 'local-value';
 
     const customResolver = createCustomResolver({
-      QUZ: 'custom-value'
+      QUZ: 'custom-value',
     });
 
     const config = env({
@@ -179,7 +179,7 @@ describe('Resolver Composition - Runtime Behavior', () => {
 
     const customResolver = createCustomResolver({
       FOO: 'custom-value',
-      QUZ: 'quux'
+      QUZ: 'quux',
     });
 
     const config = env({
@@ -203,12 +203,12 @@ describe('Resolver Composition - Runtime Behavior', () => {
   it('should handle multiple custom resolvers in order', () => {
     const resolver1 = createCustomResolver({
       FOO: 'from-resolver1',
-      QUZ: 'from-resolver1'
+      QUZ: 'from-resolver1',
     });
 
     const resolver2 = createCustomResolver({
       QUZ: 'from-resolver2',
-      BAZ: 'from-resolver2'
+      BAZ: 'from-resolver2',
     });
 
     const config = env({
@@ -273,7 +273,7 @@ describe('Resolver Composition - Sync API', () => {
     process.env.FOO = 'bar';
 
     const customResolver = createCustomResolver({
-      QUZ: 'quux'
+      QUZ: 'quux',
     });
 
     const config = env({
@@ -294,7 +294,7 @@ describe('Resolver Composition - Sync API', () => {
     process.env.FOO = 'local-value';
 
     const customResolver = createCustomResolver({
-      FOO: 'custom-value'
+      FOO: 'custom-value',
     });
 
     const config = env({
@@ -343,7 +343,7 @@ describe('Resolver Composition - Edge Cases', () => {
 
   it('should handle provider that returns undefined for a key', () => {
     const customResolver = createCustomResolver({
-      QUZ: 'has-value'
+      QUZ: 'has-value',
     });
 
     process.env.MISSING_VAR = 'from-local';

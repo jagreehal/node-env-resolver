@@ -1,11 +1,11 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['src/index.ts', 'src/handlers.ts'],
   outDir: './dist/',
   clean: false,
   format: ['esm', 'cjs'],
-  splitting: true, // Enable code splitting for dynamic imports
+  splitting: true,
   sourcemap: process.env.NODE_ENV !== 'production',
   bundle: true,
   watch: false,

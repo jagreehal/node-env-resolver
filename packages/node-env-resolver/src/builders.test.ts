@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { resolve, resolveAsync } from './index';
 import {
   http,
-  json, string,
+  json,
+  string,
   number,
   boolean,
   postgres,
@@ -30,7 +31,7 @@ describe('Builder Functions', () => {
           DB_TYPE: 'postgres',
           PROTOCOL: 'https://api.example.com',
           JSON_TYPE: '{"key": "value"}',
-          LOG_LEVEL: 'info'
+          LOG_LEVEL: 'info',
         };
       },
       loadSync() {
@@ -42,25 +43,28 @@ describe('Builder Functions', () => {
           DB_TYPE: 'postgres',
           PROTOCOL: 'https://api.example.com',
           JSON_TYPE: '{"key": "value"}',
-          LOG_LEVEL: 'info'
+          LOG_LEVEL: 'info',
         };
-      }
+      },
     };
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          // These use builder functions for type validation
-          LOG_LEVEL: string({ default: 'info' }),
-          FORMAT: postgres(),
-          DB_TYPE: string(),
-          PROTOCOL: http(),
-          JSON_TYPE: json(),
-          NAME: string(),
-          USERNAME: string({ min: 3, max: 20 }),
-          DATABASE_URL: postgres(),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            // These use builder functions for type validation
+            LOG_LEVEL: string({ default: 'info' }),
+            FORMAT: postgres(),
+            DB_TYPE: string(),
+            PROTOCOL: http(),
+            JSON_TYPE: json(),
+            NAME: string(),
+            USERNAME: string({ min: 3, max: 20 }),
+            DATABASE_URL: postgres(),
+          },
+        ],
+      ],
     });
 
     // Literal values work as defaults
@@ -79,18 +83,23 @@ describe('Builder Functions', () => {
       name: 'mock',
       async load() {
         return {
-          USERNAME: 'ab',  // Too short
+          USERNAME: 'ab', // Too short
         };
       },
     };
 
-    await expect(resolveAsync({
-      resolvers: [
-        [mockProvider, {
-          USERNAME: string({ min: 3, max: 20 }),
-        }]
-      ]
-    })).rejects.toThrow(/String too short/);
+    await expect(
+      resolveAsync({
+        resolvers: [
+          [
+            mockProvider,
+            {
+              USERNAME: string({ min: 3, max: 20 }),
+            },
+          ],
+        ],
+      }),
+    ).rejects.toThrow(/String too short/);
   });
 
   it('should validate number types with constraints', async () => {
@@ -98,18 +107,23 @@ describe('Builder Functions', () => {
       name: 'mock',
       async load() {
         return {
-          PORT: '99999',  // Out of range
+          PORT: '99999', // Out of range
         };
       },
     };
 
-    await expect(resolveAsync({
-      resolvers: [
-        [mockProvider, {
-          PORT: port(),
-        }]
-      ]
-    })).rejects.toThrow(/Invalid port/);
+    await expect(
+      resolveAsync({
+        resolvers: [
+          [
+            mockProvider,
+            {
+              PORT: port(),
+            },
+          ],
+        ],
+      }),
+    ).rejects.toThrow(/Invalid port/);
   });
 
   it('should handle optional fields', async () => {
@@ -118,19 +132,22 @@ describe('Builder Functions', () => {
       async load() {
         return {
           DEBUG: 'false',
-          PORT: '3000'
+          PORT: '3000',
         };
       },
     };
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          API_KEY: string({ optional: true }),
-          DEBUG: boolean({ default: false }),
-          PORT: number({ default: 3000 }),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            API_KEY: string({ optional: true }),
+            DEBUG: boolean({ default: false }),
+            PORT: number({ default: 3000 }),
+          },
+        ],
+      ],
     });
 
     expect(config.API_KEY).toBeUndefined();
@@ -165,14 +182,16 @@ describe('Builder Functions', () => {
       return value.toLowerCase();
     });
 
-
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          CUSTOM_PORT: portValidator,
-          CUSTOM_EMAIL: emailValidator,
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            CUSTOM_PORT: portValidator,
+            CUSTOM_EMAIL: emailValidator,
+          },
+        ],
+      ],
     });
 
     expect(config.CUSTOM_PORT).toBe(8080);
@@ -191,10 +210,13 @@ describe('Builder Functions', () => {
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          NODE_ENV: oneOf(['development', 'production', 'test'] as const),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            NODE_ENV: oneOf(['development', 'production', 'test'] as const),
+          },
+        ],
+      ],
     });
 
     expect(config.NODE_ENV).toBe('production');
@@ -212,11 +234,14 @@ describe('Builder Functions', () => {
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          // Arrays still work for oneOf (backward compatible)
-          NODE_ENV: oneOf(['development', 'production', 'test']),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            // Arrays still work for oneOf (backward compatible)
+            NODE_ENV: oneOf(['development', 'production', 'test']),
+          },
+        ],
+      ],
     });
 
     expect(config.NODE_ENV).toBe('production');
@@ -234,11 +259,14 @@ describe('Builder Functions', () => {
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          NODE_ENV: enumOf(['development', 'production', 'test'] as const),
-          PROTOCOL: enumOf(['http', 'grpc'] as const, { optional: true }),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            NODE_ENV: enumOf(['development', 'production', 'test'] as const),
+            PROTOCOL: enumOf(['http', 'grpc'] as const, { optional: true }),
+          },
+        ],
+      ],
     });
 
     expect(config.NODE_ENV).toBe('production');
@@ -255,10 +283,13 @@ describe('Builder Functions', () => {
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          PROTOCOL: enumOf(['http', 'grpc'] as const, { default: 'http' }),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            PROTOCOL: enumOf(['http', 'grpc'] as const, { default: 'http' }),
+          },
+        ],
+      ],
     });
 
     expect(config.PROTOCOL).toBe('http');
@@ -276,11 +307,14 @@ describe('Builder Functions', () => {
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          LOG_LEVEL: optional(['error', 'warn', 'info', 'debug'] as const),
-          PROTOCOL: optional(['http', 'grpc'] as const),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            LOG_LEVEL: optional(['error', 'warn', 'info', 'debug'] as const),
+            PROTOCOL: optional(['http', 'grpc'] as const),
+          },
+        ],
+      ],
     });
 
     expect(config.LOG_LEVEL).toBe('info');
@@ -297,13 +331,18 @@ describe('Builder Functions', () => {
       },
     };
 
-    await expect(resolveAsync({
-      resolvers: [
-        [mockProvider, {
-          PROTOCOL: optional(['http', 'grpc'] as const),
-        }]
-      ]
-    })).rejects.toThrow('PROTOCOL must be one of: http, grpc');
+    await expect(
+      resolveAsync({
+        resolvers: [
+          [
+            mockProvider,
+            {
+              PROTOCOL: optional(['http', 'grpc'] as const),
+            },
+          ],
+        ],
+      }),
+    ).rejects.toThrow('PROTOCOL must be one of: http, grpc');
   });
 
   it('should handle array type builders', async () => {
@@ -319,11 +358,14 @@ describe('Builder Functions', () => {
 
     const config = await resolveAsync({
       resolvers: [
-        [mockProvider, {
-          TAGS: stringArray(),
-          PORTS: numberArray(),
-        }]
-      ]
+        [
+          mockProvider,
+          {
+            TAGS: stringArray(),
+            PORTS: numberArray(),
+          },
+        ],
+      ],
     });
 
     expect(config.TAGS).toEqual(['frontend', 'backend', 'mobile']);

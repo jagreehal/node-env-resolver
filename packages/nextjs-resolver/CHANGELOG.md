@@ -1,25 +1,5 @@
 # Changelog
 
-## 7.4.1
-
-### Patch Changes
-
-- Updated dependencies [a215191]
-  - node-env-resolver@6.5.0
-
-## 7.4.0
-
-### Minor Changes
-
-- 364feb9: - **node-env-resolver**: `dotenv()` now returns `SyncResolver` so it type-checks with sync `resolve()`. All rethrown errors include `cause` for better diagnostics and ESLint `preserve-caught-error` compliance.
-  - **node-env-resolver-aws**: Rethrown errors now attach the original as `cause`.
-  - **node-env-resolver-nextjs**: Lint fixed for ESLint 10: dropped `eslint-config-next` and use a flat config only.
-
-### Patch Changes
-
-- Updated dependencies [364feb9]
-  - node-env-resolver@6.4.0
-
 ## 7.3.0
 
 ### Minor Changes

@@ -11,14 +11,18 @@ import type {
   PolicyOptions,
   Provenance,
 } from './types';
-import { PROVENANCE_SYMBOL, SENSITIVE_KEYS_SYMBOL } from './types';
+import { createDebugEntry } from './debug';
+import { resolveReferences, resolveReferencesSync } from './references';
 import { join, resolve } from 'path';
 import { readFileSync } from 'fs';
 
 /**
  * Inline file validator to avoid importing the entire validators module
  */
-function file(value: string, key?: string): { valid: boolean; value?: string; error?: string } {
+function file(
+  value: string,
+  key?: string,
+): { valid: boolean; value?: string; error?: string } {
   try {
     const resolvedPath = resolve(process.cwd(), value);
     const content = readFileSync(resolvedPath, 'utf8').trim();
@@ -27,7 +31,7 @@ function file(value: string, key?: string): { valid: boolean; value?: string; er
     const keyInfo = key ? ` for ${key}` : '';
     return {
       valid: false,
-      error: `Failed to read file${keyInfo}: ${error instanceof Error ? error.message : String(error)}`
+      error: `Failed to read file${keyInfo}: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -45,8 +49,6 @@ const logAuditEvent = auditLogEvent;
 const logAuditEventSync = auditLogEvent;
 const attachAuditSession = auditAttachSession;
 
-
-
 /**
  * Convert simplified schema to standard EnvSchema
  */
@@ -58,15 +60,16 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
       // Custom validator function - check if it has attached options
       const validator = value as unknown as Record<string, unknown>;
       const isFileValidator = validator.__isFileValidator === true;
-      const meta = validator.__meta as { sensitive?: boolean; description?: string } | undefined;
       normalized[key] = {
         type: isFileValidator ? 'file' : 'custom',
         validator: value,
         ...(validator.default !== undefined && { default: validator.default }),
-        ...(validator.optional !== undefined && { optional: validator.optional }),
-        ...(validator.secretsDir !== undefined && { secretsDir: validator.secretsDir }),
-        ...(meta?.sensitive !== undefined && { sensitive: meta.sensitive }),
-        ...(meta?.description !== undefined && { description: meta.description }),
+        ...(validator.optional !== undefined && {
+          optional: validator.optional,
+        }),
+        ...(validator.secretsDir !== undefined && {
+          secretsDir: validator.secretsDir,
+        }),
       };
     } else if (typeof value === 'string') {
       // String shorthand - treat as default value
@@ -75,17 +78,17 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
         type: 'string',
         default: value,
         validator: (val: string) => {
-          const def = normalized[key] as EnvDefinition & { allowEmpty?: boolean };
-          if (val === '' && !def.allowEmpty) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (val === '' && !(normalized[key] as any).allowEmpty) {
             throw new Error('String cannot be empty');
           }
           return val;
-        }
+        },
       };
     } else if (typeof value === 'number') {
       // Number shorthand - use as default value
-      normalized[key] = { 
-        type: 'number', 
+      normalized[key] = {
+        type: 'number',
         default: value,
         validator: (val: string) => {
           const num = Number(val);
@@ -93,12 +96,12 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
             throw new Error(`Invalid number: "${val}"`);
           }
           return num;
-        }
+        },
       };
     } else if (typeof value === 'boolean') {
       // Boolean shorthand - use as default value
-      normalized[key] = { 
-        type: 'boolean', 
+      normalized[key] = {
+        type: 'boolean',
         default: value,
         validator: (val: string) => {
           const lowerValue = val.toLowerCase();
@@ -109,13 +112,14 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
             return false;
           }
           throw new Error(`Invalid boolean: "${val}"`);
-        }
+        },
       };
     } else if (Array.isArray(value)) {
       // Array shorthand - use as enum with validation
       const enumValues = value.map(String);
       // Check if the array has been marked as optional using the optional() wrapper
-      const isOptional = (value as { __optional?: boolean }).__optional === true;
+      const isOptional =
+        (value as { __optional?: boolean }).__optional === true;
 
       normalized[key] = {
         type: 'string',
@@ -124,10 +128,12 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
         validator: (val: string, envKey?: string) => {
           if (!enumValues.includes(val)) {
             const keyName = envKey || key;
-            throw new Error(`${keyName} must be one of: ${enumValues.join(', ')}`);
+            throw new Error(
+              `${keyName} must be one of: ${enumValues.join(', ')}`,
+            );
           }
           return val;
-        }
+        },
       };
     } else {
       // Already an EnvDefinition
@@ -141,7 +147,10 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
 /**
  * Simple interpolation
  */
-function interpolateValue(value: string, allEnv: Record<string, string>): string {
+function interpolateValue(
+  value: string,
+  allEnv: Record<string, string>,
+): string {
   return value.replace(/\$\{([^}]+)\}/g, (match, varName) => {
     return allEnv[varName] || match;
   });
@@ -158,7 +167,6 @@ interface ValidationResult {
   error?: string;
 }
 
-
 /**
  * Resolve from resolvers (async)
  */
@@ -167,17 +175,23 @@ async function resolveFromResolvers(
   interpolate: boolean,
   strict: boolean,
   priority: 'first' | 'last' = 'last',
-  allSchemaKeys?: Set<string>
-): Promise<{ mergedEnv: Record<string, string>; provenance: Record<string, Provenance> }> {
+  allSchemaKeys?: Set<string>,
+): Promise<{
+  mergedEnv: Record<string, string>;
+  provenance: Record<string, Provenance>;
+}> {
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
 
+  // Optimization: parallel execution for priority: 'last'
+  // When priority is 'last', resolver order doesn't affect which values win
+  // (last write wins), so we can call all resolvers in parallel for better performance
   if (priority === 'last') {
     const results = await Promise.allSettled(
       resolvers.map(async (resolver) => ({
         resolver,
-        env: resolver.load ? await resolver.load() : {}
-      }))
+        env: resolver.load ? await resolver.load() : {},
+      })),
     );
 
     for (const result of results) {
@@ -187,11 +201,13 @@ async function resolveFromResolvers(
           type: 'resolver_error',
           timestamp: Date.now(),
           source: 'unknown',
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
 
         if (strict) {
-          throw new Error(`Resolver failed: ${error instanceof Error ? error.message : error}`);
+          throw new Error(
+            `Resolver failed: ${error instanceof Error ? error.message : error}`,
+          );
         }
         continue;
       }
@@ -203,7 +219,9 @@ async function resolveFromResolvers(
           provenance[key] = {
             source: resolver.name || 'unknown',
             timestamp: Date.now(),
-            ...(resolver.metadata?.cached !== undefined && { cached: Boolean(resolver.metadata.cached) })
+            ...(resolver.metadata?.cached !== undefined && {
+              cached: Boolean(resolver.metadata.cached),
+            }),
           };
         }
       }
@@ -227,13 +245,19 @@ async function resolveFromResolvers(
             provenance[key] = {
               source: resolver.name || 'unknown',
               timestamp: Date.now(),
-              ...(resolver.metadata?.cached !== undefined && { cached: Boolean(resolver.metadata.cached) })
+              ...(resolver.metadata?.cached !== undefined && {
+                cached: Boolean(resolver.metadata.cached),
+              }),
             };
           }
         }
 
+        // Optimization: early termination
+        // If we have ALL schema keys (including optional and defaults), skip remaining resolvers
         if (allSchemaKeys && allSchemaKeys.size > 0) {
-          const hasAllKeys = Array.from(allSchemaKeys).every(key => mergedEnv[key] !== undefined);
+          const hasAllKeys = Array.from(allSchemaKeys).every(
+            (key) => mergedEnv[key] !== undefined,
+          );
           if (hasAllKeys) {
             break;
           }
@@ -243,11 +267,14 @@ async function resolveFromResolvers(
           type: 'resolver_error',
           timestamp: Date.now(),
           source: resolver.name,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
 
         if (strict) {
-          throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
+          throw new Error(
+            `Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`,
+            { cause: error },
+          );
         }
       }
     }
@@ -270,11 +297,15 @@ function resolveFromResolversSync(
   interpolate: boolean,
   strict: boolean,
   priority: 'first' | 'last' = 'last',
-  allSchemaKeys?: Set<string>
-): { mergedEnv: Record<string, string>; provenance: Record<string, Provenance> } {
+  allSchemaKeys?: Set<string>,
+): {
+  mergedEnv: Record<string, string>;
+  provenance: Record<string, Provenance>;
+} {
   const mergedEnv: Record<string, string> = {};
   const provenance: Record<string, Provenance> = {};
 
+  // Note: sync resolvers cannot be parallelized, always sequential
   for (const resolver of resolvers) {
     try {
       if (!resolver.loadSync) {
@@ -298,13 +329,19 @@ function resolveFromResolversSync(
           provenance[key] = {
             source: resolver.name || 'unknown',
             timestamp: Date.now(),
-            ...(resolver.metadata?.cached !== undefined && { cached: Boolean(resolver.metadata.cached) })
+            ...(resolver.metadata?.cached !== undefined && {
+              cached: Boolean(resolver.metadata.cached),
+            }),
           };
         }
       }
 
+      // Optimization: early termination for priority: 'first'
+      // If we have ALL schema keys (including optional and defaults), skip remaining resolvers
       if (priority === 'first' && allSchemaKeys && allSchemaKeys.size > 0) {
-        const hasAllKeys = Array.from(allSchemaKeys).every(key => mergedEnv[key] !== undefined);
+        const hasAllKeys = Array.from(allSchemaKeys).every(
+          (key) => mergedEnv[key] !== undefined,
+        );
         if (hasAllKeys) {
           break;
         }
@@ -314,11 +351,14 @@ function resolveFromResolversSync(
         type: 'resolver_error',
         timestamp: Date.now(),
         source: resolver.name,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
 
       if (strict) {
-        throw new Error(`Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`, { cause: error });
+        throw new Error(
+          `Resolver ${resolver.name} failed: ${error instanceof Error ? error.message : error}`,
+          { cause: error },
+        );
       }
     }
   }
@@ -339,11 +379,12 @@ function applyPolicies(
   key: string,
   def: EnvDefinition,
   provenanceForKey: Provenance | undefined,
-  policies: PolicyOptions | undefined
+  policies: PolicyOptions | undefined,
 ): string | null {
   if (!policies) return null;
 
-  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const isProduction =
+    (process.env.NODE_ENV || '').toLowerCase() === 'production';
 
   // In production, .env files are forbidden by default (secure by default)
   // process.env is ALWAYS allowed (Vercel, AWS, Docker, etc. use process.env, NOT .env files)
@@ -371,9 +412,13 @@ function applyPolicies(
     return `${key} cannot be sourced from .env files in production (secure default). Production platforms (Vercel, AWS, etc.) use process.env. To allow .env in production: policies.allowDotenvInProduction: true`;
   }
 
-  const allowed = policies.enforceAllowedSources?.[key];
-  if (allowed && provenanceForKey && !allowed.includes(provenanceForKey.source)) {
-    return `${key} must be sourced from one of: ${allowed.join(', ')} (actual: ${provenanceForKey.source})`;
+  const enforceAllowedSources = policies.enforceAllowedSources;
+
+  if (enforceAllowedSources && enforceAllowedSources[key] && provenanceForKey) {
+    const allowed = enforceAllowedSources[key];
+    if (!allowed.includes(provenanceForKey.source)) {
+      return `${key} must be sourced from one of: ${allowed.join(', ')} (actual: ${provenanceForKey.source})`;
+    }
   }
 
   return null;
@@ -388,7 +433,9 @@ function validateEnvVarNames(schema: EnvSchema): string[] {
 
   for (const key of Object.keys(schema)) {
     if (!envVarRegex.test(key)) {
-      errors.push(`Invalid environment variable name: "${key}". Environment variable names must contain only letters, numbers, and underscores, and cannot start with a number.`);
+      errors.push(
+        `Invalid environment variable name: "${key}". Environment variable names must contain only letters, numbers, and underscores, and cannot start with a number.`,
+      );
     }
   }
 
@@ -401,7 +448,7 @@ function validateEnvVarNames(schema: EnvSchema): string[] {
  */
 function applyNestedDelimiter(
   flat: Record<string, unknown>,
-  delimiter: string
+  delimiter: string,
 ): Record<string, unknown> {
   const nested: Record<string, unknown> = {};
 
@@ -430,15 +477,7 @@ function applyNestedDelimiter(
     current[lastPart] = value;
   }
 
-  // Mutate the original object in place so that any metadata attached via
-  // symbols or WeakMaps (e.g. redaction provenance, audit sessions) remains
-  // associated with the same object reference.
-  for (const key of Object.keys(flat)) {
-    delete flat[key];
-  }
-  Object.assign(flat, nested);
-
-  return flat;
+  return nested;
 }
 
 /**
@@ -447,22 +486,29 @@ function applyNestedDelimiter(
 export async function resolveEnvInternal<T extends EnvSchema>(
   schema: T,
   resolvers: Resolver[],
-  options: ResolveOptions
+  options: ResolveOptions,
 ): Promise<Record<string, unknown>> {
-  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const isProduction =
+    (process.env.NODE_ENV || '').toLowerCase() === 'production';
   const {
     interpolate = false,
     strict = true,
     policies,
     enableAudit = isProduction,
     priority = 'last',
-    secretsDir: globalSecretsDir
+    secretsDir: globalSecretsDir,
+    debug: debugOptions,
+    references,
   } = options;
+
+  const debugOpts = debugOptions ?? {};
+  const isDebugEnabled = debugOpts.enabled === true;
+  const onDebugEntry = debugOpts.onDebugEntry;
 
   // Create result object early and attach audit session if needed
   const result: Record<string, unknown> = {};
   let sessionId: string | undefined;
-  
+
   if (enableAudit) {
     sessionId = attachAuditSession(result);
   }
@@ -475,10 +521,12 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         type: 'validation_failure',
         timestamp: Date.now(),
         error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`,
-        sessionId
+        sessionId,
       });
     }
-    throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
+    throw new Error(
+      `Environment validation failed:\n${nameValidationErrors.map((e) => `  - ${e}`).join('\n')}`,
+    );
   }
 
   // Collect all schema keys for early termination optimization
@@ -490,8 +538,22 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     interpolate,
     strict,
     priority,
-    allSchemaKeys
+    allSchemaKeys,
   );
+
+  try {
+    await resolveReferences(mergedEnv, provenance, references);
+  } catch (error) {
+    if (enableAudit) {
+      logAuditEvent({
+        type: 'provider_error',
+        timestamp: Date.now(),
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+      });
+    }
+    throw error;
+  }
 
   const errors: string[] = [];
 
@@ -500,7 +562,12 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     const rawValue = mergedEnv[key];
 
     // Policy checks
-    const policyViolation = applyPolicies(key, defTyped, provenance[key], policies);
+    const policyViolation = applyPolicies(
+      key,
+      defTyped,
+      provenance[key],
+      policies,
+    );
     if (policyViolation) {
       errors.push(policyViolation);
       if (enableAudit) {
@@ -510,7 +577,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
           key,
           source: provenance[key]?.source ?? 'unknown',
           error: policyViolation,
-          sessionId
+          sessionId,
         });
       }
       continue;
@@ -533,17 +600,23 @@ export async function resolveEnvInternal<T extends EnvSchema>(
             validationResult = { success: true, value: fileResult.value };
             provenance[key] = {
               source: `secretsDir(${effectiveSecretsDir})`,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             };
           } else {
-            validationResult = { success: false, error: fileResult.error ?? `Failed to read secret for ${key}` };
+            validationResult = {
+              success: false,
+              error: fileResult.error ?? `Failed to read secret for ${key}`,
+            };
           }
         } else if (defTyped.default !== undefined) {
           validationResult = { success: true, value: defTyped.default };
         } else if (defTyped.optional) {
           validationResult = { success: true, value: undefined };
         } else {
-          validationResult = { success: false, error: `Missing required environment variable: ${key}` };
+          validationResult = {
+            success: false,
+            error: `Missing required environment variable: ${key}`,
+          };
         }
       } else {
         // All validation is handled by the EnvDefinition's validator function
@@ -552,9 +625,12 @@ export async function resolveEnvInternal<T extends EnvSchema>(
             const result = defTyped.validator(rawValue, key);
             validationResult = { success: true, value: result };
           } catch (error) {
-            validationResult = { 
-              success: false, 
-              error: error instanceof Error ? error.message : `Validation failed for ${key}` 
+            validationResult = {
+              success: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : `Validation failed for ${key}`,
             };
           }
         } else {
@@ -571,7 +647,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
             timestamp: Date.now(),
             key,
             error: validationResult.error!,
-            sessionId
+            sessionId,
           });
         }
       } else {
@@ -583,9 +659,24 @@ export async function resolveEnvInternal<T extends EnvSchema>(
             timestamp: Date.now(),
             key,
             source: provenance[key]?.source ?? 'unknown',
-            metadata: { cached: provenance[key]?.cached },
-            sessionId
+            metadata: {
+              cached: provenance[key]?.cached,
+              reference: provenance[key]?.reference,
+              resolvedVia: provenance[key]?.resolvedVia,
+            },
+            sessionId,
           });
+        }
+        // Generate debug entry if debug is enabled
+        if (isDebugEnabled && onDebugEntry) {
+          const rawValue = mergedEnv[key];
+          const entry = createDebugEntry(
+            key,
+            rawValue,
+            provenance[key],
+            debugOpts,
+          );
+          onDebugEntry(entry);
         }
       }
     } catch (error) {
@@ -597,7 +688,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
           timestamp: Date.now(),
           key,
           error: message,
-          sessionId
+          sessionId,
         });
       }
     }
@@ -610,10 +701,12 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         timestamp: Date.now(),
         error: `${errors.length} validation error(s)`,
         metadata: { errorCount: errors.length },
-        sessionId
+        sessionId,
       });
     }
-    throw new Error(`Environment validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+    throw new Error(
+      `Environment validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`,
+    );
   }
 
   if (enableAudit) {
@@ -621,58 +714,16 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       type: 'validation_success',
       timestamp: Date.now(),
       metadata: {
-        variableCount: Object.keys(schema).length
+        variableCount: Object.keys(schema).length,
       },
-      sessionId
+      sessionId,
     });
   }
 
-  // Compute sensitive keys and capture their resolved string values before any
-  // nested transformation so redaction metadata can be preserved.
-  const sensitiveKeys = new Set<string>();
-  const sensitiveValues = new Map<string, string>();
-  for (const [key, def] of Object.entries(schema)) {
-    if ((def as EnvDefinition).sensitive) {
-      sensitiveKeys.add(key);
-      const val = result[key];
-      if (typeof val === 'string' && val.length > 0) {
-        sensitiveValues.set(key, val);
-      }
-    }
-  }
-
-  // Apply nested delimiter transformation if specified – this mutates `result`
-  // in place so attached metadata (symbols, audit session) stays associated
-  // with the same config object.
+  // Apply nested delimiter transformation if specified
   if (options.nestedDelimiter) {
-    applyNestedDelimiter(result, options.nestedDelimiter);
-
-    // Re-attach flat, non-enumerable shadow properties for sensitive keys so
-    // redaction can still look them up by their original env key names.
-    for (const [key, value] of sensitiveValues.entries()) {
-      if (!(key in result)) {
-        Object.defineProperty(result, key, {
-          value,
-          enumerable: false,
-          configurable: false,
-        });
-      }
-    }
+    return applyNestedDelimiter(result, options.nestedDelimiter);
   }
-
-  // Attach sensitive keys metadata to the result
-  Object.defineProperty(result, SENSITIVE_KEYS_SYMBOL, {
-    value: sensitiveKeys,
-    enumerable: false,
-    configurable: false,
-  });
-
-  // Attach provenance metadata to the result (non-enumerable)
-  Object.defineProperty(result, PROVENANCE_SYMBOL, {
-    value: provenance,
-    enumerable: false,
-    configurable: false,
-  });
 
   return result;
 }
@@ -683,22 +734,29 @@ export async function resolveEnvInternal<T extends EnvSchema>(
 export function resolveEnvInternalSync<T extends EnvSchema>(
   schema: T,
   resolvers: Resolver[],
-  options: ResolveOptions
+  options: ResolveOptions,
 ): Record<string, unknown> {
-  const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const isProduction =
+    (process.env.NODE_ENV || '').toLowerCase() === 'production';
   const {
     interpolate = false,
     strict = true,
     policies,
     enableAudit = isProduction,
     priority = 'last',
-    secretsDir: globalSecretsDir
+    secretsDir: globalSecretsDir,
+    debug: debugOptions,
+    references,
   } = options;
+
+  const debugOpts = debugOptions ?? {};
+  const isDebugEnabled = debugOpts.enabled === true;
+  const onDebugEntry = debugOpts.onDebugEntry;
 
   // Create result object early and attach audit session if needed
   const result: Record<string, unknown> = {};
   let sessionId: string | undefined;
-  
+
   if (enableAudit) {
     sessionId = attachAuditSession(result);
   }
@@ -711,10 +769,12 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
         type: 'validation_failure',
         timestamp: Date.now(),
         error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`,
-        sessionId
+        sessionId,
       });
     }
-    throw new Error(`Environment validation failed:\n${nameValidationErrors.map(e => `  - ${e}`).join('\n')}`);
+    throw new Error(
+      `Environment validation failed:\n${nameValidationErrors.map((e) => `  - ${e}`).join('\n')}`,
+    );
   }
 
   // Collect all schema keys for early termination optimization
@@ -726,8 +786,22 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     interpolate,
     strict,
     priority,
-    allSchemaKeys
+    allSchemaKeys,
   );
+
+  try {
+    resolveReferencesSync(mergedEnv, provenance, references);
+  } catch (error) {
+    if (enableAudit) {
+      logAuditEventSync({
+        type: 'provider_error',
+        timestamp: Date.now(),
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+      });
+    }
+    throw error;
+  }
 
   const errors: string[] = [];
 
@@ -735,7 +809,12 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     const defTyped = def as EnvDefinition;
     const rawValue = mergedEnv[key];
 
-    const policyViolation = applyPolicies(key, defTyped, provenance[key], policies);
+    const policyViolation = applyPolicies(
+      key,
+      defTyped,
+      provenance[key],
+      policies,
+    );
     if (policyViolation) {
       errors.push(policyViolation);
       if (enableAudit) {
@@ -745,7 +824,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
           key,
           source: provenance[key]?.source ?? 'unknown',
           error: policyViolation,
-          sessionId
+          sessionId,
         });
       }
       continue;
@@ -768,17 +847,23 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
             validationResult = { success: true, value: fileResult.value };
             provenance[key] = {
               source: `secretsDir(${effectiveSecretsDir})`,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             };
           } else {
-            validationResult = { success: false, error: fileResult.error ?? `Failed to read secret for ${key}` };
+            validationResult = {
+              success: false,
+              error: fileResult.error ?? `Failed to read secret for ${key}`,
+            };
           }
         } else if (defTyped.default !== undefined) {
           validationResult = { success: true, value: defTyped.default };
         } else if (defTyped.optional) {
           validationResult = { success: true, value: undefined };
         } else {
-          validationResult = { success: false, error: `Missing required environment variable: ${key}` };
+          validationResult = {
+            success: false,
+            error: `Missing required environment variable: ${key}`,
+          };
         }
       } else {
         // All validation is handled by the EnvDefinition's validator function
@@ -787,9 +872,12 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
             const result = defTyped.validator(rawValue, key);
             validationResult = { success: true, value: result };
           } catch (error) {
-            validationResult = { 
-              success: false, 
-              error: error instanceof Error ? error.message : `Validation failed for ${key}` 
+            validationResult = {
+              success: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : `Validation failed for ${key}`,
             };
           }
         } else {
@@ -806,7 +894,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
             timestamp: Date.now(),
             key,
             error: validationResult.error!,
-            sessionId
+            sessionId,
           });
         }
       } else {
@@ -818,9 +906,24 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
             timestamp: Date.now(),
             key,
             source: provenance[key]?.source ?? 'unknown',
-            metadata: { cached: provenance[key]?.cached },
-            sessionId
+            metadata: {
+              cached: provenance[key]?.cached,
+              reference: provenance[key]?.reference,
+              resolvedVia: provenance[key]?.resolvedVia,
+            },
+            sessionId,
           });
+        }
+        // Generate debug entry if debug is enabled
+        if (isDebugEnabled && onDebugEntry) {
+          const rawValue = mergedEnv[key];
+          const entry = createDebugEntry(
+            key,
+            rawValue,
+            provenance[key],
+            debugOpts,
+          );
+          onDebugEntry(entry);
         }
       }
     } catch (error) {
@@ -832,7 +935,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
           timestamp: Date.now(),
           key,
           error: message,
-          sessionId
+          sessionId,
         });
       }
     }
@@ -845,10 +948,12 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
         timestamp: Date.now(),
         error: `${errors.length} validation error(s)`,
         metadata: { errorCount: errors.length },
-        sessionId
+        sessionId,
       });
     }
-    throw new Error(`Environment validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+    throw new Error(
+      `Environment validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`,
+    );
   }
 
   if (enableAudit) {
@@ -856,58 +961,16 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       type: 'validation_success',
       timestamp: Date.now(),
       metadata: {
-        variableCount: Object.keys(schema).length
+        variableCount: Object.keys(schema).length,
       },
-      sessionId
+      sessionId,
     });
   }
 
-  // Compute sensitive keys and capture their resolved string values before any
-  // nested transformation so redaction metadata can be preserved.
-  const sensitiveKeysSync = new Set<string>();
-  const sensitiveValuesSync = new Map<string, string>();
-  for (const [key, def] of Object.entries(schema)) {
-    if ((def as EnvDefinition).sensitive) {
-      sensitiveKeysSync.add(key);
-      const val = result[key];
-      if (typeof val === 'string' && val.length > 0) {
-        sensitiveValuesSync.set(key, val);
-      }
-    }
-  }
-
-  // Apply nested delimiter transformation if specified – this mutates `result`
-  // in place so attached metadata (symbols, audit session) stays associated
-  // with the same config object.
+  // Apply nested delimiter transformation if specified
   if (options.nestedDelimiter) {
-    applyNestedDelimiter(result, options.nestedDelimiter);
-
-    // Re-attach flat, non-enumerable shadow properties for sensitive keys so
-    // redaction can still look them up by their original env key names.
-    for (const [key, value] of sensitiveValuesSync.entries()) {
-      if (!(key in result)) {
-        Object.defineProperty(result, key, {
-          value,
-          enumerable: false,
-          configurable: false,
-        });
-      }
-    }
+    return applyNestedDelimiter(result, options.nestedDelimiter);
   }
-
-  // Attach sensitive keys metadata to the result
-  Object.defineProperty(result, SENSITIVE_KEYS_SYMBOL, {
-    value: sensitiveKeysSync,
-    enumerable: false,
-    configurable: false,
-  });
-
-  // Attach provenance metadata to the result (non-enumerable)
-  Object.defineProperty(result, PROVENANCE_SYMBOL, {
-    value: provenance,
-    enumerable: false,
-    configurable: false,
-  });
 
   return result;
 }

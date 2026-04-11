@@ -13,7 +13,7 @@ describe('resolvers', () => {
       };
 
       const cachedProvider = cached(mockProvider, { ttl: 1000 });
-      
+
       // First call
       const result1 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result1).toEqual({ TEST: 'value' });
@@ -28,23 +28,24 @@ describe('resolvers', () => {
     });
 
     it('should refresh cache after TTL expires', async () => {
-      const mockLoad = vi.fn()
+      const mockLoad = vi
+        .fn()
         .mockResolvedValueOnce({ TEST: 'value1' })
         .mockResolvedValueOnce({ TEST: 'value2' });
-      
+
       const mockProvider = {
         name: 'test-provider',
         load: mockLoad,
       };
 
       const cachedProvider = cached(mockProvider, { ttl: 10 }); // 10ms TTL
-      
+
       const result1 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result1).toEqual({ TEST: 'value1' });
-      
+
       // Wait for TTL to expire
-      await new Promise(resolve => setTimeout(resolve, 20));
-      
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       const result2 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result2).toEqual({ TEST: 'value2' });
       expect(mockLoad).toHaveBeenCalledTimes(2);
@@ -61,22 +62,23 @@ describe('resolvers', () => {
         ttl: 100,
         maxAge: 1000,
         staleWhileRevalidate: true,
-        key: 'custom-key'
+        key: 'custom-key',
       });
-      
+
       expect(cachedProvider.name).toBe('cached(test-provider)');
-      
+
       if (cachedProvider.load) await cachedProvider.load();
       if (cachedProvider.load) await cachedProvider.load();
-      
+
       expect(mockLoad).toHaveBeenCalledTimes(1);
     });
 
     it('should enforce maxAge even if TTL is longer', async () => {
-      const mockLoad = vi.fn()
+      const mockLoad = vi
+        .fn()
         .mockResolvedValueOnce({ TEST: 'value1' })
         .mockResolvedValueOnce({ TEST: 'value2' });
-      
+
       const mockProvider = {
         name: 'test-provider',
         load: mockLoad,
@@ -84,63 +86,64 @@ describe('resolvers', () => {
 
       const cachedProvider = cached(mockProvider, {
         ttl: 1000, // 1 second TTL
-        maxAge: 50  // 50ms max age
+        maxAge: 50, // 50ms max age
       });
-      
+
       if (cachedProvider.load) await cachedProvider.load();
       expect(mockLoad).toHaveBeenCalledTimes(1);
-      
+
       // Wait for maxAge to expire (but not TTL)
-      await new Promise(resolve => setTimeout(resolve, 60));
-      
+      await new Promise((resolve) => setTimeout(resolve, 60));
+
       if (cachedProvider.load) await cachedProvider.load();
       expect(mockLoad).toHaveBeenCalledTimes(2);
     });
 
     it('should support stale-while-revalidate: serve stale data while refreshing in background', async () => {
-      const mockLoad = vi.fn()
+      const mockLoad = vi
+        .fn()
         .mockResolvedValueOnce({ TEST: 'value1' })
         .mockResolvedValueOnce({ TEST: 'value2' });
-      
+
       const mockProvider = {
         name: 'test-provider',
         load: mockLoad,
       };
 
       const cachedProvider = cached(mockProvider, {
-        ttl: 50,    // 50ms TTL
+        ttl: 50, // 50ms TTL
         maxAge: 500, // 500ms max age
         staleWhileRevalidate: true,
-        key: 'test-cache'
+        key: 'test-cache',
       });
-      
+
       // First call - cache miss, load fresh data
       const result1 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result1).toEqual({ TEST: 'value1' });
       expect(mockLoad).toHaveBeenCalledTimes(1);
       expect(cachedProvider.metadata).toEqual({ cached: false });
-      
+
       // Second call within TTL - return cached data
       const result2 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result2).toEqual({ TEST: 'value1' });
       expect(mockLoad).toHaveBeenCalledTimes(1);
       expect(cachedProvider.metadata).toEqual({ cached: true });
-      
+
       // Wait for TTL to expire (but not maxAge)
-      await new Promise(resolve => setTimeout(resolve, 60));
-      
+      await new Promise((resolve) => setTimeout(resolve, 60));
+
       // Third call after TTL - should return stale data immediately and trigger background refresh
       const result3 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result3).toEqual({ TEST: 'value1' }); // Still returns stale data
       expect(cachedProvider.metadata).toEqual({ cached: true, stale: true });
-      
+
       // Background refresh should have been triggered (but might not complete yet)
       // Wait a bit for background refresh to complete
-      await new Promise(resolve => setTimeout(resolve, 20));
-      
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       // Eventually mockLoad should be called for the background refresh
       expect(mockLoad).toHaveBeenCalledTimes(2);
-      
+
       // Fourth call - should now return the refreshed data
       const result4 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result4).toEqual({ TEST: 'value2' }); // Fresh data from background refresh
@@ -148,10 +151,11 @@ describe('resolvers', () => {
     });
 
     it('should NOT trigger stale-while-revalidate if disabled', async () => {
-      const mockLoad = vi.fn()
+      const mockLoad = vi
+        .fn()
         .mockResolvedValueOnce({ TEST: 'value1' })
         .mockResolvedValueOnce({ TEST: 'value2' });
-      
+
       const mockProvider = {
         name: 'test-provider',
         load: mockLoad,
@@ -162,14 +166,14 @@ describe('resolvers', () => {
         maxAge: 500,
         staleWhileRevalidate: false, // Disabled
       });
-      
+
       // First call
       if (cachedProvider.load) await cachedProvider.load();
       expect(mockLoad).toHaveBeenCalledTimes(1);
-      
+
       // Wait for TTL to expire
-      await new Promise(resolve => setTimeout(resolve, 60));
-      
+      await new Promise((resolve) => setTimeout(resolve, 60));
+
       // Second call after TTL - should force refresh (blocking)
       const result = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result).toEqual({ TEST: 'value2' }); // New data
@@ -178,12 +182,13 @@ describe('resolvers', () => {
     });
 
     it('should handle background refresh errors gracefully and keep serving stale data', async () => {
-      const mockLoad = vi.fn()
+      const mockLoad = vi
+        .fn()
         .mockResolvedValueOnce({ TEST: 'value1' })
         .mockRejectedValueOnce(new Error('AWS is down'))
         .mockRejectedValueOnce(new Error('Still down'))
         .mockResolvedValueOnce({ TEST: 'value2' }); // Eventually succeeds
-      
+
       const mockProvider = {
         name: 'test-provider',
         load: mockLoad,
@@ -194,38 +199,38 @@ describe('resolvers', () => {
         maxAge: 1000,
         staleWhileRevalidate: true,
       });
-      
+
       // First call - cache miss
       const result1 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result1).toEqual({ TEST: 'value1' });
       expect(mockLoad).toHaveBeenCalledTimes(1);
-      
+
       // Wait for TTL to expire
-      await new Promise(resolve => setTimeout(resolve, 60));
-      
+      await new Promise((resolve) => setTimeout(resolve, 60));
+
       // Second call - returns stale data, triggers background refresh that fails
       const result2 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result2).toEqual({ TEST: 'value1' }); // Still returns stale data
       expect(cachedProvider.metadata).toEqual({ cached: true, stale: true });
-      
+
       // Wait for background refresh to complete (and fail)
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 20));
       expect(mockLoad).toHaveBeenCalledTimes(2); // Background refresh was attempted
-      
+
       // Third call - returns stale data again, triggers another refresh that also fails
       const result3 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result3).toEqual({ TEST: 'value1' }); // Still stale data (refresh failed)
-      
-      await new Promise(resolve => setTimeout(resolve, 20));
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
       expect(mockLoad).toHaveBeenCalledTimes(3);
-      
+
       // Fourth call - returns stale data, triggers refresh that succeeds
       const result4 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result4).toEqual({ TEST: 'value1' }); // Still stale initially
-      
-      await new Promise(resolve => setTimeout(resolve, 20));
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
       expect(mockLoad).toHaveBeenCalledTimes(4);
-      
+
       // Fifth call - now returns fresh data from successful refresh
       const result5 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result5).toEqual({ TEST: 'value2' }); // Fresh data!
@@ -248,7 +253,7 @@ describe('resolvers', () => {
   describe('awsCache', () => {
     it('should return default AWS cache configuration', () => {
       const config = awsCache();
-      
+
       expect(config.ttl).toBe(TTL.minutes5);
       expect(config.maxAge).toBe(TTL.hour);
       expect(config.staleWhileRevalidate).toBe(true);
@@ -259,9 +264,9 @@ describe('resolvers', () => {
       const config = awsCache({
         ttl: TTL.minute,
         maxAge: TTL.day,
-        staleWhileRevalidate: false
+        staleWhileRevalidate: false,
       });
-      
+
       expect(config.ttl).toBe(TTL.minute);
       expect(config.maxAge).toBe(TTL.day);
       expect(config.staleWhileRevalidate).toBe(false);
@@ -271,7 +276,8 @@ describe('resolvers', () => {
 
   describe('retry', () => {
     it('should retry failed provider calls', async () => {
-      const mockLoad = vi.fn()
+      const mockLoad = vi
+        .fn()
         .mockRejectedValueOnce(new Error('Failed 1'))
         .mockRejectedValueOnce(new Error('Failed 2'))
         .mockResolvedValueOnce({ TEST: 'success' });
@@ -282,7 +288,7 @@ describe('resolvers', () => {
       };
 
       const retryProvider = retry(mockProvider, 3, 10);
-      
+
       const result = retryProvider.load ? await retryProvider.load() : {};
       expect(result).toEqual({ TEST: 'success' });
       expect(mockLoad).toHaveBeenCalledTimes(3);
@@ -297,8 +303,10 @@ describe('resolvers', () => {
       };
 
       const retryProvider = retry(mockProvider, 2, 1);
-      
-      await expect(retryProvider.load ? retryProvider.load() : Promise.resolve({})).rejects.toThrow('Always fails');
+
+      await expect(
+        retryProvider.load ? retryProvider.load() : Promise.resolve({}),
+      ).rejects.toThrow('Always fails');
       expect(mockLoad).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
     });
 
@@ -326,7 +334,7 @@ describe('resolvers', () => {
             APP_PORT: '3000',
             APP_DATABASE_URL: '//localhost',
             APP_DEBUG: 'true',
-            OTHER_VAR: 'value'
+            OTHER_VAR: 'value',
           };
         },
         loadSync() {
@@ -334,9 +342,9 @@ describe('resolvers', () => {
             APP_PORT: '3000',
             APP_DATABASE_URL: '//localhost',
             APP_DEBUG: 'true',
-            OTHER_VAR: 'value'
+            OTHER_VAR: 'value',
           };
-        }
+        },
       };
 
       const prefixedResolver = withPrefix(mockResolver, 'APP_');
@@ -356,7 +364,7 @@ describe('resolvers', () => {
         },
         loadSync() {
           return { MYAPP_PORT: '8080' };
-        }
+        },
       };
 
       const prefixedResolver = withPrefix(mockResolver, 'MYAPP_');
@@ -372,9 +380,9 @@ describe('resolvers', () => {
           return {
             app_port: '3000',
             APP_HOST: 'localhost',
-            ApP_Debug: 'true'
+            ApP_Debug: 'true',
           };
-        }
+        },
       };
 
       const prefixedResolver = withPrefix(mockResolver, 'app_');
@@ -390,11 +398,13 @@ describe('resolvers', () => {
         name: 'async-only',
         async load() {
           return { APP_PORT: '3000' };
-        }
+        },
       };
 
       const prefixedResolver = withPrefix(mockResolver, 'APP_');
-      expect(() => prefixedResolver.loadSync!()).toThrow('does not support sync loading');
+      expect(() => prefixedResolver.loadSync!()).toThrow(
+        'does not support sync loading',
+      );
     });
 
     it('should set correct resolver name', async () => {
@@ -402,7 +412,7 @@ describe('resolvers', () => {
         name: 'test-resolver',
         async load() {
           return {};
-        }
+        },
       };
 
       const prefixedResolver = withPrefix(mockResolver, 'PREFIX_');
@@ -418,22 +428,22 @@ describe('resolvers', () => {
           return {
             HTTP_PORT: '3000',
             DB_URL: '//localhost',
-            JWT_SECRET: 'secret123'
+            JWT_SECRET: 'secret123',
           };
         },
         loadSync() {
           return {
             HTTP_PORT: '3000',
             DB_URL: '//localhost',
-            JWT_SECRET: 'secret123'
+            JWT_SECRET: 'secret123',
           };
-        }
+        },
       };
 
       const aliasedResolver = withAliases(mockResolver, {
         PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT'],
         DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL'],
-        API_SECRET: ['API_SECRET', 'JWT_SECRET', 'TOKEN_SECRET']
+        API_SECRET: ['API_SECRET', 'JWT_SECRET', 'TOKEN_SECRET'],
       });
 
       const env = aliasedResolver.load ? await aliasedResolver.load() : {};
@@ -450,13 +460,13 @@ describe('resolvers', () => {
           return {
             PORT: '3000',
             HTTP_PORT: '8080',
-            SERVER_PORT: '9000'
+            SERVER_PORT: '9000',
           };
-        }
+        },
       };
 
       const aliasedResolver = withAliases(mockResolver, {
-        PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT']
+        PORT: ['PORT', 'HTTP_PORT', 'SERVER_PORT'],
       });
 
       const env = aliasedResolver.load ? await aliasedResolver.load() : {};
@@ -470,13 +480,13 @@ describe('resolvers', () => {
           return {
             HTTP_PORT: '3000',
             DEBUG: 'true',
-            NODE_ENV: 'development'
+            NODE_ENV: 'development',
           };
-        }
+        },
       };
 
       const aliasedResolver = withAliases(mockResolver, {
-        PORT: ['PORT', 'HTTP_PORT']
+        PORT: ['PORT', 'HTTP_PORT'],
       });
 
       const env = aliasedResolver.load ? await aliasedResolver.load() : {};
@@ -494,11 +504,11 @@ describe('resolvers', () => {
         },
         loadSync() {
           return { DB_URL: '//localhost' };
-        }
+        },
       };
 
       const aliasedResolver = withAliases(mockResolver, {
-        DATABASE_URL: ['DATABASE_URL', 'DB_URL']
+        DATABASE_URL: ['DATABASE_URL', 'DB_URL'],
       });
 
       const env = aliasedResolver.loadSync!();
@@ -510,13 +520,13 @@ describe('resolvers', () => {
         name: 'test-resolver',
         async load() {
           return {
-            PORT: '3000'
+            PORT: '3000',
           };
-        }
+        },
       };
 
       const aliasedResolver = withAliases(mockResolver, {
-        DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL']
+        DATABASE_URL: ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL'],
       });
 
       const env = aliasedResolver.load ? await aliasedResolver.load() : {};
@@ -529,14 +539,16 @@ describe('resolvers', () => {
         name: 'async-only',
         async load() {
           return { PORT: '3000' };
-        }
+        },
       };
 
       const aliasedResolver = withAliases(mockResolver, {
-        PORT: ['PORT']
+        PORT: ['PORT'],
       });
 
-      expect(() => aliasedResolver.loadSync!()).toThrow('does not support sync loading');
+      expect(() => aliasedResolver.loadSync!()).toThrow(
+        'does not support sync loading',
+      );
     });
 
     it('should set correct resolver name', async () => {
@@ -544,7 +556,7 @@ describe('resolvers', () => {
         name: 'test-resolver',
         async load() {
           return {};
-        }
+        },
       };
 
       const aliasedResolver = withAliases(mockResolver, {});
