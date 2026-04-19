@@ -161,6 +161,8 @@ const config = await resolveAsync({
 - [Safe error handling](#safe-error-handling)
 - [Synchronous resolution](#synchronous-resolution)
 - [Advanced features](#advanced-features)
+  - [TTL caching](#ttl-caching)
+  - [Polling remote config](#polling-remote-config)
 - [API Reference](#api-reference)
 - [Configuration Options](#configuration-options)
 - [Framework examples](#framework-examples)
@@ -1061,6 +1063,37 @@ const config = await resolveAsync({
 });
 ```
 
+### Built-in process-env references
+
+Use `process-env://...` when one config value should resolve from another environment variable.
+This keeps reference-style config consistent across backends such as `process-env://`, `aws-sm://`, or `vault://`, without requiring a custom handler.
+`process-env` is built in, so no `references` object is required.
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { string } from 'node-env-resolver/validators';
+
+process.env.API_KEY = 'real-secret-value';
+process.env.OPENAI_API_KEY = 'process-env://API_KEY';
+
+const config = resolve(
+  {
+    OPENAI_API_KEY: string(),
+  },
+);
+
+console.log(config.OPENAI_API_KEY); // real-secret-value
+```
+
+This keeps `OPENAI_API_KEY` from containing the raw secret directly, but it does not protect secrets from code that can already read `process.env`.
+For stronger secret isolation, prefer an external secret backend such as AWS Secrets Manager or Vault.
+
+```env
+OPENAI_API_KEY=process-env://API_KEY
+```
+
+This is useful when you want `OPENAI_API_KEY` to point at `API_KEY` without duplicating the raw value in the config entry.
+
 ### AWS Secrets Manager & SSM
 
 Install the AWS package:
@@ -1178,6 +1211,60 @@ Performance:
 - After 5min: ~200ms (refresh from AWS)
 
 **Important:** Call `resolve()` every time. The `cached()` wrapper handles the caching.
+
+### Polling remote config
+
+Use `poll()` when you need to observe changes over time, such as re-reading AWS Secrets Manager on a schedule.
+It is polling, not push-based events, so it fits cases where you want periodic refresh and change detection.
+
+```ts
+import { resolveAsync } from 'node-env-resolver';
+import { cached, poll } from 'node-env-resolver/utils';
+import { postgres, string } from 'node-env-resolver/validators';
+import { awsSecrets } from 'node-env-resolver-aws';
+
+export const getConfig = async () => {
+  return resolveAsync({
+    resolvers: [
+      [
+        cached(awsSecrets({ secretId: 'app/secrets' }), { ttl: 10_000 }),
+        {
+          DATABASE_URL: postgres(),
+          API_KEY: string(),
+        },
+      ],
+    ],
+  });
+};
+
+const watcher = poll(getConfig, {
+  intervalMs: 10_000,
+  onChange: (next, previous) => {
+    console.log('Config updated', { previous, next });
+  },
+  onError: (error) => {
+    console.error('Polling failed', error);
+  },
+});
+
+// Read the last loaded value whenever you need it.
+console.log(watcher.getCurrent());
+
+// Stop polling during shutdown.
+process.on('SIGINT', () => watcher.stop());
+```
+
+**When to use this:**
+
+- You need to detect config changes without restarting the process
+- You want a small, explicit polling loop instead of an event system
+- You are reading from a remote source that changes on a schedule
+
+**When not to use this:**
+
+- You only need startup-time validation
+- You want push notifications from a backend that already supports events
+- You are on the Next.js config path, which must stay synchronous
 
 **Advanced caching options:**
 

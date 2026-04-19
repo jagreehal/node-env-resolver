@@ -21,6 +21,19 @@ function mockResolver(env: Record<string, string>, name = 'mock') {
 }
 
 describe('reference handlers', () => {
+  it('resolves process-env references without custom handlers', () => {
+    process.env.API_KEY = 'from-process-env';
+    process.env.OPENAI_API_KEY = 'process-env://API_KEY';
+
+    const config = resolve(
+      {
+        OPENAI_API_KEY: string(),
+      },
+    );
+
+    expect(config.OPENAI_API_KEY).toBe('from-process-env');
+  });
+
   it('dereferences process.env values via resolve(schema, options)', () => {
     process.env.JWT_SECRET = 'aws-sm://prod/app/jwt_secret';
 

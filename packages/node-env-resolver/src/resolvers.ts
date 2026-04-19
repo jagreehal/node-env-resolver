@@ -105,9 +105,22 @@ export function dotenv(options?: string | DotenvOptions): SyncResolver {
     typeof options === 'string'
       ? { path: options, expand: false }
       : { path: options?.path ?? '.env', expand: options?.expand ?? false };
+  const env = process.env.NODE_ENV || 'development';
+  const watchPaths = opts.expand
+    ? [
+        `${opts.path}.defaults`,
+        opts.path!,
+        `${opts.path}.local`,
+        `${opts.path}.${env}`,
+        `${opts.path}.${env}.local`,
+      ]
+    : [opts.path!];
 
   return {
     name: opts.expand ? `dotenv-expand(${opts.path})` : `dotenv(${opts.path})`,
+    metadata: {
+      watchPaths,
+    },
     async load() {
       if (!opts.expand) {
         const p = resolvePath(process.cwd(), opts.path!);
@@ -115,7 +128,6 @@ export function dotenv(options?: string | DotenvOptions): SyncResolver {
       }
 
       const base = opts.path!;
-      const env = process.env.NODE_ENV || 'development';
       const files = [
         `${base}.defaults`,
         base,

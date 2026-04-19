@@ -53,6 +53,7 @@ export type {
   InferResolveResult,
   Validator,
 } from './types';
+export { processEnvReferenceHandler } from './references';
 
 // Re-export type guards
 export { isSyncResolver, isAsyncOnlyResolver, AsyncResolver } from './types';
