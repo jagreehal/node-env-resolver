@@ -219,6 +219,158 @@ export function retry(
   };
 }
 
+export interface PollOptions<T> {
+  /** Interval between checks in milliseconds (default: 10 seconds) */
+  intervalMs?: number;
+  /** Run immediately on start instead of waiting for the first interval */
+  immediate?: boolean;
+  /** Called when the value changes after the initial load */
+  onChange?: (next: T, previous: T | undefined) => void | Promise<void>;
+  /** Called when polling fails */
+  onError?: (error: unknown) => void;
+  /** Custom equality check for change detection */
+  equals?: (a: T, b: T) => boolean;
+}
+
+export interface PollHandle<T> {
+  /** Latest successfully loaded value, if any */
+  getCurrent: () => T | undefined;
+  /** Manually trigger a refresh */
+  refresh: () => Promise<T | undefined>;
+  /** Stop polling */
+  stop: () => void;
+}
+
+function defaultPollEquals<T>(a: T, b: T): boolean {
+  if (Object.is(a, b)) {
+    return true;
+  }
+
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Poll an async value source and notify when it changes.
+ * Useful for periodically re-reading remote config such as AWS Secrets Manager.
+ *
+ * @param getValue Async function that returns the latest value
+ * @param options Polling configuration
+ * @returns Handle for reading the current value and stopping the poller
+ *
+ * @example
+ * ```ts
+ * import { poll, cached, TTL } from 'node-env-resolver/utils';
+ * import { awsSecrets } from 'node-env-resolver-aws';
+ * import { resolveAsync } from 'node-env-resolver';
+ *
+ * const getConfig = () => resolveAsync({
+ *   resolvers: [
+ *     [
+ *       cached(awsSecrets({ secretId: 'app/secrets' }), { ttl: TTL.minutes5 }),
+ *       { DATABASE_URL: postgres(), API_KEY: string() }
+ *     ]
+ *   ]
+ * });
+ *
+ * const watcher = poll(getConfig, {
+ *   intervalMs: 10_000,
+ *   onChange: (next, previous) => {
+ *     console.log('Config changed', { previous, next });
+ *   }
+ * });
+ *
+ * process.on('SIGINT', () => watcher.stop());
+ * ```
+ */
+export function poll<T>(
+  getValue: () => Promise<T>,
+  options: PollOptions<T> = {},
+): PollHandle<T> {
+  const {
+    intervalMs = 10_000,
+    immediate = true,
+    onChange,
+    onError,
+    equals = defaultPollEquals,
+  } = options;
+
+  let current: T | undefined;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
+  let running = false;
+  let hasLoaded = false;
+
+  const scheduleNext = () => {
+    if (stopped) {
+      return;
+    }
+
+    timer = setTimeout(() => {
+      timer = null;
+      void run();
+    }, intervalMs);
+  };
+
+  const run = async (): Promise<T | undefined> => {
+    if (stopped || running) {
+      return current;
+    }
+
+    running = true;
+
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+
+    try {
+      const next = await getValue();
+      const previous = current;
+
+      current = next;
+
+      if (hasLoaded && !equals(next, previous as T)) {
+        await onChange?.(next, previous);
+      }
+
+      hasLoaded = true;
+      return next;
+    } catch (error) {
+      onError?.(error);
+      return current;
+    } finally {
+      running = false;
+
+      if (!stopped) {
+        scheduleNext();
+      }
+    }
+  };
+
+  if (immediate) {
+    void run();
+  } else {
+    scheduleNext();
+  }
+
+  return {
+    getCurrent: () => current,
+    refresh: () => run(),
+    stop: () => {
+      stopped = true;
+
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    },
+  };
+}
+
 /**
  * Wrap a resolver to strip a prefix from environment variable names
  * Useful for scoping environment variables (e.g., APP_PORT → PORT)

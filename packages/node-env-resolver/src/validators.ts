@@ -374,6 +374,7 @@ export function http<
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
+  (validator as Record<string, unknown>).__sensitive = true;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;

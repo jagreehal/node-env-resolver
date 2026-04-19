@@ -1,0 +1,94 @@
+{
+  "name": "node-env-resolver-dotenvx",
+  "version": "1.0.0",
+  "description": "Dotenvx and OS Keychain resolvers for node-env-resolver (encrypted .env files, keychain:// secret references)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./handlers": {
+      "types": "./dist/handlers.d.ts",
+      "import": "./dist/handlers.js",
+      "require": "./dist/handlers.cjs",
+      "default": "./dist/handlers.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/index.d.ts"
+      ],
+      "handlers": [
+        "./dist/handlers.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "NODE_ENV=production tsup",
+    "build:dev": "tsup",
+    "build:dts": "tsc --emitDeclarationOnly",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "prepublishOnly": "pnpm build && pnpm type-check"
+  },
+  "keywords": [
+    "dotenvx",
+    "dotenv",
+    "encrypted",
+    "keychain",
+    "secrets",
+    "environment",
+    "env",
+    "config",
+    "node-env-resolver"
+  ],
+  "author": {
+    "name": "Jagvinder Singh Reehal",
+    "email": "jag@jagreehal.com",
+    "url": "https://jagreehal.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jagreehal/node-env-resolver.git",
+    "directory": "packages/node-env-resolver-dotenvx"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.61.1"
+  },
+  "peerDependencies": {
+    "node-env-resolver": "^6.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "node-env-resolver": "workspace:*",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.2",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

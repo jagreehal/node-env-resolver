@@ -1,4 +1,5 @@
 import type {
+  ReferenceHandler,
   Provenance,
   ReferenceContext,
   ReferenceOptions,
@@ -6,6 +7,8 @@ import type {
 } from './types.js';
 
 const REFERENCE_PATTERN = /^([a-z][a-z0-9+.-]*):\/\/(.+)$/i;
+const PROCESS_ENV_SCHEME = 'process-env';
+const PROCESS_ENV_PREFIX = `${PROCESS_ENV_SCHEME}://`;
 
 type ParsedReference = {
   reference: string;
@@ -17,6 +20,52 @@ type NormalizeReferenceResult = {
   resolvedVia: string;
   metadata?: Record<string, unknown>;
 };
+
+function createProcessEnvReferenceHandler(): ReferenceHandler {
+  return {
+    name: 'processEnv',
+    resolve(reference) {
+      const key = reference.slice(PROCESS_ENV_PREFIX.length);
+
+      if (!key) {
+        throw new Error(
+          `process-env reference ${reference} must include an environment variable name`,
+        );
+      }
+
+      const value = process.env[key];
+
+      if (value === undefined) {
+        throw new Error(
+          `process-env reference ${reference} could not find process.env.${key}`,
+        );
+      }
+
+      return value;
+    },
+    resolveSync(reference) {
+      const key = reference.slice(PROCESS_ENV_PREFIX.length);
+
+      if (!key) {
+        throw new Error(
+          `process-env reference ${reference} must include an environment variable name`,
+        );
+      }
+
+      const value = process.env[key];
+
+      if (value === undefined) {
+        throw new Error(
+          `process-env reference ${reference} could not find process.env.${key}`,
+        );
+      }
+
+      return value;
+    },
+  };
+}
+
+export const processEnvReferenceHandler = createProcessEnvReferenceHandler();
 
 function parseReference(value: string): ParsedReference | null {
   const match = REFERENCE_PATTERN.exec(value);
@@ -67,6 +116,15 @@ function shouldIgnoreUnresolved(
   return options?.onUnresolved === 'ignore';
 }
 
+function mergeHandlers(
+  handlers: Record<string, ReferenceHandler>,
+): Record<string, ReferenceHandler> {
+  return {
+    [PROCESS_ENV_SCHEME]: processEnvReferenceHandler,
+    ...handlers,
+  };
+}
+
 function buildInvalidResolutionMessage(
   key: string,
   reference: string,
@@ -101,11 +159,7 @@ export function resolveReferencesSync(
   provenance: Record<string, Provenance>,
   options: ReferenceOptions | undefined,
 ): void {
-  if (!options) {
-    return;
-  }
-
-  const handlers = options.handlers;
+  const handlers = mergeHandlers(options?.handlers ?? {});
 
   for (const [key, value] of Object.entries(values)) {
     const parsed = parseReference(value);
@@ -169,11 +223,7 @@ export async function resolveReferences(
   provenance: Record<string, Provenance>,
   options: ReferenceOptions | undefined,
 ): Promise<void> {
-  if (!options) {
-    return;
-  }
-
-  const handlers = options.handlers;
+  const handlers = mergeHandlers(options?.handlers ?? {});
 
   for (const [key, value] of Object.entries(values)) {
     const parsed = parseReference(value);

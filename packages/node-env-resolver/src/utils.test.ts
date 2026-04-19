@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cached, retry, TTL, awsCache, withPrefix, withAliases } from './utils';
+import { cached, retry, TTL, awsCache, withPrefix, withAliases, poll } from './utils';
 import type { Resolver } from './types';
 describe('resolvers', () => {
   // Removed tests for deprecated dotenvExpand
@@ -235,6 +235,74 @@ describe('resolvers', () => {
       const result5 = cachedProvider.load ? await cachedProvider.load() : {};
       expect(result5).toEqual({ TEST: 'value2' }); // Fresh data!
       expect(cachedProvider.metadata).toEqual({ cached: true });
+    });
+  });
+
+  describe('poll', () => {
+    it('should poll an async value and report changes', async () => {
+      vi.useFakeTimers();
+      try {
+        const values = [{ DB: 'one' }, { DB: 'two' }, { DB: 'two' }];
+        const getValue = vi.fn(async () => values.shift() ?? { DB: 'two' });
+        const onChange = vi.fn();
+
+        const handle = poll(getValue, {
+          intervalMs: 1000,
+          onChange,
+        });
+
+        await vi.advanceTimersByTimeAsync(0);
+        expect(handle.getCurrent()).toEqual({ DB: 'one' });
+        expect(getValue).toHaveBeenCalledTimes(1);
+        expect(onChange).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(handle.getCurrent()).toEqual({ DB: 'two' });
+        expect(getValue).toHaveBeenCalledTimes(2);
+        expect(onChange).toHaveBeenCalledTimes(1);
+        expect(onChange).toHaveBeenCalledWith({ DB: 'two' }, { DB: 'one' });
+
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(handle.getCurrent()).toEqual({ DB: 'two' });
+        expect(getValue).toHaveBeenCalledTimes(3);
+        expect(onChange).toHaveBeenCalledTimes(1);
+
+        handle.stop();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should support manual refresh and error handling', async () => {
+      vi.useFakeTimers();
+      try {
+        const getValue = vi
+          .fn()
+          .mockResolvedValueOnce({ DB: 'one' })
+          .mockRejectedValueOnce(new Error('boom'))
+          .mockResolvedValueOnce({ DB: 'two' });
+
+        const onError = vi.fn();
+        const handle = poll(getValue, {
+          intervalMs: 1000,
+          onError,
+        });
+
+        await vi.advanceTimersByTimeAsync(0);
+        expect(handle.getCurrent()).toEqual({ DB: 'one' });
+
+        await handle.refresh();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(handle.getCurrent()).toEqual({ DB: 'one' });
+
+        await handle.refresh();
+        expect(handle.getCurrent()).toEqual({ DB: 'two' });
+        expect(getValue).toHaveBeenCalledTimes(3);
+
+        handle.stop();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
