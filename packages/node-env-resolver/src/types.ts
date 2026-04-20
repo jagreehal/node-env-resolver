@@ -116,6 +116,13 @@ export interface ResolveOptions {
   strict?: boolean;
   policies?: Record<string, unknown>;
   enableAudit?: boolean;
+  /**
+   * Prevent writing resolved values back into process.env.
+   * Default: true (secure-by-default)
+   *
+   * Set to false only if you explicitly need legacy write-back behavior.
+   */
+  preventProcessEnvWrite?: boolean;
   /** Debug view options for safe inspection */
   debug?: import('./debug.js').DebugOptions;
   /** Optional secret/reference dereferencing */

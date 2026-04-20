@@ -1577,6 +1577,7 @@ interface ResolveOptions {
   policies?: PolicyOptions; // Security policies (default: undefined)
   enableAudit?: boolean; // Audit logging (default: auto in production)
   secretsDir?: string; // Base directory for file secrets (Docker/K8s)
+  preventProcessEnvWrite?: boolean; // Keep resolved values out of process.env (default: true)
 }
 
 interface PolicyOptions {
@@ -1822,6 +1823,56 @@ interface PolicyOptions {
   enforceAllowedSources?: Record<string, string[]>;
 }
 ```
+
+### Reference-first hardening preset
+
+For incident response hardening, keep secret *values* out of Vercel env vars.
+Store references such as `aws-sm://prod/stripe-key` and resolve the value at
+runtime via reference handlers.
+
+```ts
+import { resolveAsync, strictReferenceResolveOptions } from 'node-env-resolver';
+import { processEnv } from 'node-env-resolver/resolvers';
+import { string } from 'node-env-resolver/validators';
+import { createAwsSecretHandler } from 'node-env-resolver-aws';
+
+const config = await resolveAsync({
+  resolvers: [[processEnv(), { STRIPE_KEY: string() }]],
+  references: {
+    handlers: {
+      'aws-sm': createAwsSecretHandler({ region: 'us-east-1' }),
+    },
+  },
+  options: strictReferenceResolveOptions({
+    sensitiveKeys: ['STRIPE_KEY'],
+    secretSources: ['aws-secrets'],
+  }),
+});
+```
+
+What this enforces:
+
+- `allowDotenvInProduction: false` (secure default)
+- `enforceAllowedSources` for sensitive keys (prevents accidental fallback)
+- `enableAudit: true` for source reconstruction via `getAuditLog()`
+
+If you only want policies (not full resolve options), use:
+
+```ts
+import { strictReferencePolicies } from 'node-env-resolver';
+
+const policies = strictReferencePolicies({
+  sensitiveKeys: ['STRIPE_KEY', 'DATABASE_URL'],
+  secretSources: ['aws-secrets'],
+});
+```
+
+Note on `process.env` mutation:
+
+- `resolve()` / `resolveAsync()` keep resolved values out of `process.env` by default (`preventProcessEnvWrite: true`).
+- Resolved values live in the returned typed config object unless your app
+  explicitly re-exports or assigns them.
+- If you explicitly set `preventProcessEnvWrite: false`, primitive resolved values are written to `process.env`.
 
 ## Audit Logging
 

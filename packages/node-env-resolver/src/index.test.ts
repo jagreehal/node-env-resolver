@@ -297,6 +297,57 @@ describe('Simplified resolve() API', () => {
   });
 });
 
+describe('preventProcessEnvWrite option', () => {
+  it('does not write resolved values to process.env by default', async () => {
+    delete process.env.NER_WRITE_TEST;
+
+    const config = await resolveAsync({
+      resolvers: [[mockProvider({ NER_WRITE_TEST: 'resolved-value' }), { NER_WRITE_TEST: string() }]],
+    });
+
+    expect(config.NER_WRITE_TEST).toBe('resolved-value');
+    expect(process.env.NER_WRITE_TEST).toBeUndefined();
+  });
+
+  it('writes resolved primitive values to process.env when explicitly disabled', async () => {
+    delete process.env.NER_WRITE_TEST;
+    delete process.env.NER_WRITE_NUM;
+    delete process.env.NER_WRITE_BOOL;
+
+    const config = await resolveAsync({
+      resolvers: [
+        [
+          mockProvider({
+            NER_WRITE_TEST: 'resolved-value',
+            NER_WRITE_NUM: '8080',
+            NER_WRITE_BOOL: 'true',
+          }),
+          {
+            NER_WRITE_TEST: string(),
+            NER_WRITE_NUM: number(),
+            NER_WRITE_BOOL: boolean(),
+          },
+        ],
+      ],
+      options: {
+        preventProcessEnvWrite: false,
+      },
+    });
+
+    expect(config.NER_WRITE_TEST).toBe('resolved-value');
+    expect(config.NER_WRITE_NUM).toBe(8080);
+    expect(config.NER_WRITE_BOOL).toBe(true);
+
+    expect(process.env.NER_WRITE_TEST).toBe('resolved-value');
+    expect(process.env.NER_WRITE_NUM).toBe('8080');
+    expect(process.env.NER_WRITE_BOOL).toBe('true');
+
+    delete process.env.NER_WRITE_TEST;
+    delete process.env.NER_WRITE_NUM;
+    delete process.env.NER_WRITE_BOOL;
+  });
+});
+
 describe('Zod and Standard Schema helpers', () => {
   it('works with Zod-like schema', async () => {
     const schema = {

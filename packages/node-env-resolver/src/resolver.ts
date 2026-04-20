@@ -416,8 +416,30 @@ function applyPolicies(
 
   if (enforceAllowedSources && enforceAllowedSources[key] && provenanceForKey) {
     const allowed = enforceAllowedSources[key];
-    if (!allowed.includes(provenanceForKey.source)) {
-      return `${key} must be sourced from one of: ${allowed.join(', ')} (actual: ${provenanceForKey.source})`;
+    const sourceCandidates = new Set<string>();
+
+    const addSourceCandidate = (source: string | undefined) => {
+      if (!source) return;
+      sourceCandidates.add(source);
+
+      // Allow generic source aliases (e.g. "aws-secrets" to match
+      // resolver names like "aws-secrets(prod/app)").
+      const paren = source.indexOf('(');
+      if (paren > 0) {
+        sourceCandidates.add(source.slice(0, paren));
+      }
+    };
+
+    addSourceCandidate(provenanceForKey.source);
+    addSourceCandidate(provenanceForKey.resolvedVia);
+
+    const isAllowed = allowed.some((entry) => sourceCandidates.has(entry));
+
+    if (!isAllowed) {
+      const actual = provenanceForKey.resolvedVia
+        ? `${provenanceForKey.source} via ${provenanceForKey.resolvedVia}`
+        : provenanceForKey.source;
+      return `${key} must be sourced from one of: ${allowed.join(', ')} (actual: ${actual})`;
     }
   }
 

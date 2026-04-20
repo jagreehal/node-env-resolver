@@ -92,6 +92,12 @@ import {
   resolveEnvInternalSync,
 } from './resolver';
 import { processEnv } from './process-env';
+export {
+  strictReferencePolicies,
+  strictReferenceResolveOptions,
+  type StrictReferencePoliciesOptions,
+  type StrictReferenceResolveOptions,
+} from './security';
 
 /**
  * Helper to build default resolvers (just processEnv)
@@ -169,6 +175,27 @@ function mergeReferences(
     ...options,
     references,
   };
+}
+
+function writeResolvedToProcessEnv(
+  resolved: Record<string, unknown>,
+): void {
+  for (const [key, value] of Object.entries(resolved)) {
+    if (value === undefined || value === null) continue;
+
+    if (typeof value === 'string') {
+      process.env[key] = value;
+      continue;
+    }
+
+    if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint'
+    ) {
+      process.env[key] = String(value);
+    }
+  }
 }
 
 // Function overloads for resolve
@@ -272,6 +299,7 @@ function resolve(arg1: unknown, arg2?: unknown): unknown {
     interpolate: true,
     strict: true,
     enableAudit: isProduction,
+    preventProcessEnvWrite: true,
     policies: defaultPolicies,
     ...options,
   };
@@ -282,6 +310,10 @@ function resolve(arg1: unknown, arg2?: unknown): unknown {
     resolvers,
     resolveOptions,
   );
+
+  if (resolveOptions.preventProcessEnvWrite === false) {
+    writeResolvedToProcessEnv(result as Record<string, unknown>);
+  }
 
   return result as unknown;
 }
@@ -381,6 +413,7 @@ async function resolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
     interpolate: true,
     strict: true,
     enableAudit: isProduction,
+    preventProcessEnvWrite: true,
     policies: defaultPolicies,
     ...normalizedOptions,
   };
@@ -391,6 +424,11 @@ async function resolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
     resolvers,
     resolveOptions,
   );
+
+  if (resolveOptions.preventProcessEnvWrite === false) {
+    writeResolvedToProcessEnv(result as Record<string, unknown>);
+  }
+
   return result as unknown;
 }
 
@@ -485,6 +523,7 @@ function safeResolve<T extends SimpleEnvSchema>(
       interpolate: true,
       strict: true,
       enableAudit: isProduction,
+      preventProcessEnvWrite: true,
       policies: defaultPolicies,
       ...options,
     };
@@ -496,6 +535,11 @@ function safeResolve<T extends SimpleEnvSchema>(
       resolvers,
       resolveOptions,
     );
+
+    if (resolveOptions.preventProcessEnvWrite === false) {
+      writeResolvedToProcessEnv(result as Record<string, unknown>);
+    }
+
     return {
       success: true,
       data: result as { [K in keyof T]: InferSimpleValue<T[K]> },
@@ -589,6 +633,7 @@ async function safeResolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
     interpolate: true,
     strict: true,
     enableAudit: isProduction,
+    preventProcessEnvWrite: true,
     policies: defaultPolicies,
     ...normalizedOptions,
   };
@@ -600,6 +645,11 @@ async function safeResolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
       resolvers,
       resolveOptions,
     );
+
+    if (resolveOptions.preventProcessEnvWrite === false) {
+      writeResolvedToProcessEnv(result as Record<string, unknown>);
+    }
+
     return { success: true, data: result } as unknown;
   } catch (error) {
     return {
