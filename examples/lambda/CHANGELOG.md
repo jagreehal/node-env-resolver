@@ -1,5 +1,13 @@
 # aws-lambda-example
 
+## 1.0.22
+
+### Patch Changes
+
+- Updated dependencies [1b04092]
+  - node-env-resolver@6.5.0
+  - node-env-resolver-aws@12.0.0
+
 ## 1.0.21
 
 ### Patch Changes

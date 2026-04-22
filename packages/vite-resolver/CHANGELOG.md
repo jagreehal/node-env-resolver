@@ -1,5 +1,12 @@
 # node-env-resolver-vite
 
+## 2.4.1
+
+### Patch Changes
+
+- Updated dependencies [1b04092]
+  - node-env-resolver@6.5.0
+
 ## 2.4.0
 
 ### Minor Changes
