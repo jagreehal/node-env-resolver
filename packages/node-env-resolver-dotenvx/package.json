@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver-dotenvx",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Dotenvx and OS Keychain resolvers for node-env-resolver (encrypted .env files, keychain:// secret references)",
   "type": "module",
   "main": "./dist/index.js",
@@ -73,7 +73,7 @@
     "@dotenvx/dotenvx": "^1.61.1"
   },
   "peerDependencies": {
-    "node-env-resolver": "^6.4.0"
+    "node-env-resolver": "^6.5.0"
   },
   "publishConfig": {
     "access": "public"
