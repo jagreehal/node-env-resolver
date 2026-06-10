@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.1
+
+### Patch Changes
+
+- b352cef: chore: update dependencies + migrate to vite 8
+
+  Minor/patch dependency refresh via npm-check-updates (--target minor, 3-day cooldown) — no major bumps. Forced vite ^8 via pnpm override.
+
 ## 2.0.0
 
 ### Major Changes
