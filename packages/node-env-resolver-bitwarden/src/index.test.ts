@@ -113,6 +113,54 @@ describe('node-env-resolver-bitwarden', () => {
     ).toThrow('Bitwarden accessToken is required');
   });
 
+  it('accepts a function accessToken so the token can stay out of process.env', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          access_token: 'jwt-token',
+          expires_in: 3600,
+          token_type: 'Bearer',
+          encrypted_payload: 'encrypted_payload',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: '12345678-1234-1234-1234-123456789abc',
+          organizationId: 'org-id',
+          key: 'API_KEY',
+          value: 'encrypted_secret',
+          note: '',
+          creationDate: '',
+          revisionDate: '',
+        }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const accessToken = vi.fn(async () => '0.client.secret:c2VjcmV0S2V5');
+    const resolver = bitwarden({
+      accessToken,
+      secretId: '12345678-1234-1234-1234-123456789abc',
+    });
+    if (!resolver.load) throw new Error('Expected async resolver');
+
+    const result = await resolver.load();
+    expect(result).toEqual({ API_KEY: 'decrypted-secret-value' });
+    expect(accessToken).toHaveBeenCalled();
+  });
+
+  it('rejects a non-https apiUrl to protect the access token in transit', () => {
+    expect(() =>
+      bitwarden({
+        accessToken: '0.client.secret:c2VjcmV0S2V5',
+        secretId: '12345678-1234-1234-1234-123456789abc',
+        apiUrl: 'http://api.evil.example.com',
+      }),
+    ).toThrow('Bitwarden apiUrl must use https://');
+  });
+
   it('reuses authentication cache across repeated resolver loads', async () => {
     const fetchMock = vi
       .fn()

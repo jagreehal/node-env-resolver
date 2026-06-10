@@ -124,7 +124,11 @@ export async function decryptAes256CbcHmac(
 ): Promise<string> {
   const parts = encryptedValue.split('.');
   if (parts.length !== 2 || parts[0] !== '2') {
-    throw new Error(`Invalid encryption format: ${encryptedValue}`);
+    // Don't echo the ciphertext itself into the error/log; report only its shape.
+    const tag = encryptedValue.split('.')[0] ?? '';
+    throw new Error(
+      `Invalid encryption format: expected "2.<iv>|<ciphertext>|<mac>", got type tag "${tag}"`,
+    );
   }
 
   const [ivBase64, ciphertextBase64, macBase64] = parts[1].split('|');

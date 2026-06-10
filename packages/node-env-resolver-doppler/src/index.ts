@@ -52,6 +52,12 @@ import type {
   SafeResolveResultType,
 } from 'node-env-resolver';
 import { resolveAsync, safeResolveAsync } from 'node-env-resolver';
+import {
+  type CredentialInput,
+  requireCredential,
+  resolveCredential,
+  fetchWithTimeout,
+} from 'node-env-resolver/provider-kit';
 
 // Re-export main functions for convenience
 export { resolveAsync, safeResolveAsync };
@@ -60,8 +66,9 @@ export { processEnv } from 'node-env-resolver/resolvers';
 const DOPPLER_API_BASE = 'https://api.doppler.com/v3';
 
 export interface DopplerOptions {
-  /** Doppler service token */
-  serviceToken: string;
+  /** Doppler service token. A function lets it come from the OS keychain or a
+   *  short-lived source instead of `process.env`. */
+  serviceToken: CredentialInput;
   /** Doppler project name */
   project: string;
   /** Doppler config name (e.g., dev, stg, prd) */
@@ -73,8 +80,9 @@ export interface DopplerOptions {
 }
 
 export interface DopplerHandlerOptions {
-  /** Doppler service token */
-  serviceToken: string;
+  /** Doppler service token. A function lets it come from the OS keychain or a
+   *  short-lived source instead of `process.env`. */
+  serviceToken: CredentialInput;
   /** Doppler project name */
   project: string;
   /** Doppler config name */
@@ -91,23 +99,19 @@ interface DopplerSecretsResponse {
 }
 
 class DopplerClient {
-  private static readonly REQUEST_TIMEOUT_MS = 30_000;
-  private serviceToken: string;
+  private serviceToken: CredentialInput;
   private project: string;
   private config: string;
   private secretsCache?: Promise<Record<string, string>>;
 
   constructor(options: DopplerHandlerOptions) {
-    if (!options.serviceToken?.trim()) {
-      throw new Error('Doppler serviceToken is required');
-    }
+    this.serviceToken = requireCredential(options.serviceToken, 'Doppler serviceToken');
     if (!options.project?.trim()) {
       throw new Error('Doppler project is required');
     }
     if (!options.config?.trim()) {
       throw new Error('Doppler config is required');
     }
-    this.serviceToken = options.serviceToken;
     this.project = options.project;
     this.config = options.config;
   }
@@ -132,11 +136,12 @@ class DopplerClient {
     url.searchParams.set('project', this.project);
     url.searchParams.set('config', this.config);
 
-    const response = await this.fetchWithTimeout(url.toString(), {
+    const serviceToken = await resolveCredential(this.serviceToken, 'Doppler serviceToken');
+    const response = await fetchWithTimeout(url.toString(), {
       headers: {
-        Authorization: `Bearer ${this.serviceToken}`,
+        Authorization: `Bearer ${serviceToken}`,
       },
-    });
+    }, 'Doppler');
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -200,24 +205,6 @@ ${
     return await this.fetchAllSecrets();
   }
 
-  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), DopplerClient.REQUEST_TIMEOUT_MS);
-    try {
-      return await fetch(url, { ...init, signal: controller.signal });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(
-          `Request to Doppler timed out after ${DopplerClient.REQUEST_TIMEOUT_MS}ms
-Check Doppler service status and your network connection`,
-          { cause: error },
-        );
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
 }
 
 /**

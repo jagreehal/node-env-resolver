@@ -48,6 +48,33 @@ describe('node-env-resolver-doppler', () => {
     await expect(resolver.load()).resolves.toEqual({ RENAMED: 'computed' });
   });
 
+  it('accepts a function serviceToken so it can stay out of process.env', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockSecretsResponse()));
+
+    const serviceToken = vi.fn(async () => 'dp.token');
+    const resolver = doppler({
+      serviceToken,
+      project: 'proj',
+      config: 'dev',
+      secretName: 'API_KEY',
+    });
+    if (!resolver.load) throw new Error('Expected async resolver');
+
+    await expect(resolver.load()).resolves.toEqual({ API_KEY: 'computed' });
+    expect(serviceToken).toHaveBeenCalled();
+  });
+
+  it('throws when the serviceToken is missing', () => {
+    expect(() =>
+      doppler({
+        serviceToken: undefined as unknown as string,
+        project: 'proj',
+        config: 'dev',
+        secretName: 'API_KEY',
+      }),
+    ).toThrow('Doppler serviceToken is required');
+  });
+
   it('reuses cached all-secrets response across repeated loads', async () => {
     const fetchMock = vi.fn().mockResolvedValue(mockSecretsResponse());
     vi.stubGlobal('fetch', fetchMock);

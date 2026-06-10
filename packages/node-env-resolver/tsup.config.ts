@@ -13,6 +13,7 @@ export default defineConfig({
     'src/audit.ts',
     'src/builder.ts',
     'src/resolvers.ts',
+    'src/provider-kit.ts',
     'src/resolver.ts',
     'src/types.ts',
     'src/validation-types.ts',

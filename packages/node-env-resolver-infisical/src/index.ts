@@ -54,6 +54,13 @@ import type {
   SafeResolveResultType,
 } from 'node-env-resolver';
 import { resolveAsync, safeResolveAsync } from 'node-env-resolver';
+import {
+  type CredentialInput,
+  requireCredential,
+  resolveCredential,
+  assertSecureUrl,
+  fetchWithTimeout,
+} from 'node-env-resolver/provider-kit';
 
 // Re-export main functions for convenience
 export { resolveAsync, safeResolveAsync };
@@ -61,9 +68,10 @@ export { processEnv } from 'node-env-resolver/resolvers';
 
 export interface InfisicalOptions {
   /** Infisical Universal Auth Client ID */
-  clientId: string;
-  /** Infisical Universal Auth Client Secret */
-  clientSecret: string;
+  clientId: CredentialInput;
+  /** Infisical Universal Auth Client Secret. A function lets it come from the OS
+   *  keychain or a short-lived source instead of `process.env`. */
+  clientSecret: CredentialInput;
   /** Infisical project ID */
   projectId: string;
   /** Environment (dev, staging, production, etc.) */
@@ -76,13 +84,16 @@ export interface InfisicalOptions {
   secretPath?: string;
   /** Optional custom Infisical site URL (for self-hosted) */
   siteUrl?: string;
+  /** Allow a non-https siteUrl (loopback is always allowed). Off by default. */
+  allowInsecureHttp?: boolean;
 }
 
 export interface InfisicalHandlerOptions {
   /** Infisical Universal Auth Client ID */
-  clientId: string;
-  /** Infisical Universal Auth Client Secret */
-  clientSecret: string;
+  clientId: CredentialInput;
+  /** Infisical Universal Auth Client Secret. A function lets it come from the OS
+   *  keychain or a short-lived source instead of `process.env`. */
+  clientSecret: CredentialInput;
   /** Infisical project ID */
   projectId: string;
   /** Environment (dev, staging, production, etc.) */
@@ -91,6 +102,8 @@ export interface InfisicalHandlerOptions {
   secretPath?: string;
   /** Optional custom Infisical site URL */
   siteUrl?: string;
+  /** Allow a non-https siteUrl (loopback is always allowed). Off by default. */
+  allowInsecureHttp?: boolean;
 }
 
 interface InfisicalTokenResponse {
@@ -105,9 +118,8 @@ interface InfisicalSecretResponse {
 }
 
 class InfisicalClient {
-  private static readonly REQUEST_TIMEOUT_MS = 30_000;
-  private clientId: string;
-  private clientSecret: string;
+  private clientId: CredentialInput;
+  private clientSecret: CredentialInput;
   private projectId: string;
   private environment: string;
   private secretPath: string;
@@ -117,12 +129,8 @@ class InfisicalClient {
   private tokenInFlight?: Promise<string>;
 
   constructor(options: InfisicalHandlerOptions) {
-    if (!options.clientId?.trim()) {
-      throw new Error('Infisical clientId is required');
-    }
-    if (!options.clientSecret?.trim()) {
-      throw new Error('Infisical clientSecret is required');
-    }
+    this.clientId = requireCredential(options.clientId, 'Infisical clientId');
+    this.clientSecret = requireCredential(options.clientSecret, 'Infisical clientSecret');
     if (!options.projectId?.trim()) {
       throw new Error('Infisical projectId is required');
     }
@@ -130,12 +138,11 @@ class InfisicalClient {
       throw new Error('Infisical environment is required');
     }
 
-    this.clientId = options.clientId;
-    this.clientSecret = options.clientSecret;
     this.projectId = options.projectId;
     this.environment = options.environment;
     this.secretPath = options.secretPath || '/';
     this.siteUrl = (options.siteUrl || 'https://app.infisical.com').replace(/\/+$/, '');
+    assertSecureUrl(this.siteUrl, 'Infisical siteUrl', options.allowInsecureHttp);
   }
 
   private async authenticate(): Promise<string> {
@@ -160,17 +167,19 @@ class InfisicalClient {
 
   private async doAuthenticate(): Promise<string> {
     const url = `${this.siteUrl}/api/v1/auth/universal-auth/login`;
+    const clientId = await resolveCredential(this.clientId, 'Infisical clientId');
+    const clientSecret = await resolveCredential(this.clientSecret, 'Infisical clientSecret');
 
-    const response = await this.fetchWithTimeout(url, {
+    const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        clientId: this.clientId,
-        clientSecret: this.clientSecret,
+        clientId,
+        clientSecret,
       }),
-    });
+    }, 'Infisical');
 
     if (!response.ok) {
       const error = await response.text();
@@ -208,11 +217,11 @@ ${
     url.searchParams.set('environment', this.environment);
     url.searchParams.set('secretPath', path);
 
-    const response = await this.fetchWithTimeout(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-    });
+    }, 'Infisical');
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -252,24 +261,6 @@ ${
     return data.secret.secretValue;
   }
 
-  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), InfisicalClient.REQUEST_TIMEOUT_MS);
-    try {
-      return await fetch(url, { ...init, signal: controller.signal });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(
-          `Request to Infisical timed out after ${InfisicalClient.REQUEST_TIMEOUT_MS}ms
-Check Infisical service status and your network connection`,
-          { cause: error },
-        );
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
 }
 
 /**
@@ -296,6 +287,7 @@ export function infisical(options: InfisicalOptions): Resolver {
     environment: options.environment,
     secretPath: options.secretPath,
     siteUrl: options.siteUrl,
+    allowInsecureHttp: options.allowInsecureHttp,
   });
 
   return {

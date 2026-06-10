@@ -58,6 +58,46 @@ describe('node-env-resolver-infisical', () => {
     await expect(resolver.load()).resolves.toEqual({ API_KEY: 'value-2' });
   });
 
+  it('rejects a non-https siteUrl to protect the client secret in transit', () => {
+    expect(() =>
+      infisical({
+        clientId: 'cid',
+        clientSecret: 'secret',
+        projectId: 'project',
+        environment: 'dev',
+        secretName: 'API_KEY',
+        siteUrl: 'http://infisical.internal.example.com',
+      }),
+    ).toThrow('Infisical siteUrl must use https://');
+  });
+
+  it('accepts a function clientSecret so it can stay out of process.env', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accessToken: 'token', expiresIn: 3600, tokenType: 'Bearer' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ secret: { secretKey: 'API_KEY', secretValue: 'value-1' } }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const clientSecret = vi.fn(async () => 'secret');
+    const resolver = infisical({
+      clientId: 'cid',
+      clientSecret,
+      projectId: 'project',
+      environment: 'dev',
+      secretName: 'API_KEY',
+    });
+    if (!resolver.load) throw new Error('Expected async resolver');
+
+    await expect(resolver.load()).resolves.toEqual({ API_KEY: 'value-1' });
+    expect(clientSecret).toHaveBeenCalled();
+  });
+
   it('reuses auth token across repeated loads with same resolver instance', async () => {
     const fetchMock = vi
       .fn()

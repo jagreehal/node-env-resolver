@@ -47,6 +47,13 @@ import type {
   SafeResolveResultType,
 } from 'node-env-resolver';
 import { resolveAsync, safeResolveAsync } from 'node-env-resolver';
+import {
+  type CredentialInput,
+  requireCredential,
+  resolveCredential,
+  assertSecureUrl,
+  fetchWithTimeout,
+} from 'node-env-resolver/provider-kit';
 import { deriveKeyFromAccessToken, decryptAes256CbcHmac } from './crypto.js';
 
 // Re-export main functions for convenience
@@ -81,8 +88,9 @@ interface CachedAuth {
 }
 
 export interface BitwardenOptions {
-  /** Bitwarden Secrets Manager access token (machine account) */
-  accessToken: string;
+  /** Bitwarden Secrets Manager access token (machine account). A function lets the
+   *  token come from the OS keychain or a short-lived source instead of `process.env`. */
+  accessToken: CredentialInput;
   /** Secret UUID to fetch */
   secretId: string;
   /** Override target env key (defaults to Bitwarden secret key field) */
@@ -91,35 +99,40 @@ export interface BitwardenOptions {
   apiUrl?: string;
   /** Identity URL - defaults to https://identity.bitwarden.com */
   identityUrl?: string;
+  /** Allow a non-https apiUrl/identityUrl (loopback is always allowed). Off by default. */
+  allowInsecureHttp?: boolean;
 }
 
 export interface BitwardenHandlerOptions {
-  /** Bitwarden Secrets Manager access token (machine account) */
-  accessToken: string;
+  /** Bitwarden Secrets Manager access token (machine account). A function lets the
+   *  token come from the OS keychain or a short-lived source instead of `process.env`. */
+  accessToken: CredentialInput;
   /** API URL - defaults to https://api.bitwarden.com */
   apiUrl?: string;
   /** Identity URL - defaults to https://identity.bitwarden.com */
   identityUrl?: string;
+  /** Allow a non-https apiUrl/identityUrl (loopback is always allowed). Off by default. */
+  allowInsecureHttp?: boolean;
 }
 
 class BitwardenClient {
-  private static readonly REQUEST_TIMEOUT_MS = 30_000;
-  private accessToken: string;
+  private accessToken: CredentialInput;
   private apiUrl: string;
   private identityUrl: string;
   private cachedAuth?: CachedAuth;
   private authInFlight?: Promise<CachedAuth>;
 
-  constructor(options: { accessToken: string; apiUrl?: string; identityUrl?: string }) {
-    if (!options.accessToken || typeof options.accessToken !== 'string') {
-      throw new Error('Bitwarden accessToken is required');
-    }
-    if (!options.accessToken.trim()) {
-      throw new Error('Bitwarden accessToken cannot be empty');
-    }
-    this.accessToken = options.accessToken;
+  constructor(options: {
+    accessToken: CredentialInput;
+    apiUrl?: string;
+    identityUrl?: string;
+    allowInsecureHttp?: boolean;
+  }) {
+    this.accessToken = requireCredential(options.accessToken, 'Bitwarden accessToken');
     this.apiUrl = options.apiUrl ?? 'https://api.bitwarden.com';
     this.identityUrl = options.identityUrl ?? 'https://identity.bitwarden.com';
+    assertSecureUrl(this.apiUrl, 'Bitwarden apiUrl', options.allowInsecureHttp);
+    assertSecureUrl(this.identityUrl, 'Bitwarden identityUrl', options.allowInsecureHttp);
   }
 
   /**
@@ -189,10 +202,11 @@ class BitwardenClient {
   }
 
   private async doAuthenticate(): Promise<CachedAuth> {
-    const { clientId, clientSecret, encryptionKey } = this.parseAccessToken(this.accessToken);
+    const token = await resolveCredential(this.accessToken, 'Bitwarden accessToken');
+    const { clientId, clientSecret, encryptionKey } = this.parseAccessToken(token);
 
     // Step 1: Exchange access token for JWT
-    const tokenResponse = await this.fetchWithTimeout(`${this.identityUrl}/connect/token`, {
+    const tokenResponse = await fetchWithTimeout(`${this.identityUrl}/connect/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -203,7 +217,7 @@ class BitwardenClient {
         client_id: clientId,
         client_secret: clientSecret,
       }),
-    });
+    }, 'Bitwarden');
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
@@ -283,11 +297,11 @@ class BitwardenClient {
     const auth = await this.authenticate();
 
     try {
-      const response = await this.fetchWithTimeout(`${this.apiUrl}/secrets/${secretId}`, {
+      const response = await fetchWithTimeout(`${this.apiUrl}/secrets/${secretId}`, {
         headers: {
           Authorization: `Bearer ${auth.jwt}`,
         },
-      });
+      }, 'Bitwarden');
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -305,24 +319,6 @@ class BitwardenClient {
       return { key: data.key, value: decryptedValue };
     } catch (error) {
       throw this.handleRuntimeError(error, secretId);
-    }
-  }
-
-  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), BitwardenClient.REQUEST_TIMEOUT_MS);
-    try {
-      return await fetch(url, { ...init, signal: controller.signal });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(
-          `Request to Bitwarden timed out after ${BitwardenClient.REQUEST_TIMEOUT_MS}ms`,
-          { cause: error },
-        );
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
     }
   }
 
@@ -422,6 +418,7 @@ export function bitwarden(options: BitwardenOptions): Resolver {
     accessToken: options.accessToken,
     apiUrl: options.apiUrl,
     identityUrl: options.identityUrl,
+    allowInsecureHttp: options.allowInsecureHttp,
   });
 
   return {
@@ -474,6 +471,7 @@ export function createBitwardenHandler(options: BitwardenHandlerOptions): Refere
     accessToken: options.accessToken,
     apiUrl: options.apiUrl,
     identityUrl: options.identityUrl,
+    allowInsecureHttp: options.allowInsecureHttp,
   });
 
   return {

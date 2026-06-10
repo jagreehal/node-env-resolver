@@ -50,6 +50,12 @@ import type {
   SafeResolveResultType,
 } from 'node-env-resolver';
 import { resolveAsync, safeResolveAsync } from 'node-env-resolver';
+import {
+  type CredentialInput,
+  resolveCredential,
+  assertSecureUrl,
+  fetchWithTimeout,
+} from 'node-env-resolver/provider-kit';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -58,12 +64,13 @@ export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
 
 export interface OnePasswordOptions {
-  /** 1Password service account token (starts with ops_) */
-  serviceAccountToken?: string;
+  /** 1Password service account token (starts with ops_). A function lets it come
+   *  from the OS keychain or a short-lived source instead of `process.env`. */
+  serviceAccountToken?: CredentialInput;
   /** Connect server URL (for self-hosted Connect) */
   connectHost?: string;
-  /** Connect server token */
-  connectToken?: string;
+  /** Connect server token. A function lets it come from the OS keychain instead of `process.env`. */
+  connectToken?: CredentialInput;
   /** 1Password reference: op://vault/item/field */
   reference: string;
   /** Override target env key (defaults to reference field) */
@@ -72,19 +79,24 @@ export interface OnePasswordOptions {
   account?: string;
   /** If true, allow using 1Password desktop app via CLI */
   allowAppAuth?: boolean;
+  /** Allow a non-https connectHost (loopback is always allowed). Off by default. */
+  allowInsecureHttp?: boolean;
 }
 
 export interface OnePasswordHandlerOptions {
-  /** 1Password service account token */
-  serviceAccountToken?: string;
+  /** 1Password service account token. A function lets it come from the OS keychain
+   *  or a short-lived source instead of `process.env`. */
+  serviceAccountToken?: CredentialInput;
   /** Connect server URL */
   connectHost?: string;
-  /** Connect server token */
-  connectToken?: string;
+  /** Connect server token. A function lets it come from the OS keychain instead of `process.env`. */
+  connectToken?: CredentialInput;
   /** Optional account shorthand */
   account?: string;
   /** Allow desktop app auth via CLI */
   allowAppAuth?: boolean;
+  /** Allow a non-https connectHost (loopback is always allowed). Off by default. */
+  allowInsecureHttp?: boolean;
 }
 
 interface ConnectField {
@@ -143,9 +155,9 @@ function parseOpReference(ref: string): {
 
 class OnePasswordClient {
   private static readonly REQUEST_TIMEOUT_MS = 30_000;
-  private serviceAccountToken?: string;
+  private serviceAccountToken?: CredentialInput;
   private connectHost?: string;
-  private connectToken?: string;
+  private connectToken?: CredentialInput;
   private account?: string;
   private allowAppAuth?: boolean;
 
@@ -164,6 +176,9 @@ class OnePasswordClient {
         'No authentication method configured. Provide serviceAccountToken, connectHost+connectToken, or set allowAppAuth=true.',
       );
     }
+    if (this.connectHost) {
+      assertSecureUrl(this.connectHost, '1Password connectHost', options.allowInsecureHttp);
+    }
   }
 
   private get isConnect(): boolean {
@@ -175,13 +190,14 @@ class OnePasswordClient {
       throw new Error('Connect server not configured');
     }
 
+    const token = await resolveCredential(this.connectToken, '1Password connectToken');
     const url = `${this.connectHost}/v1${path}`;
-    const res = await this.fetchWithTimeout(url, {
+    const res = await fetchWithTimeout(url, {
       headers: {
-        Authorization: `Bearer ${this.connectToken}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-    });
+    }, '1Password Connect', OnePasswordClient.REQUEST_TIMEOUT_MS);
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
@@ -304,16 +320,6 @@ ${
   }
 
   async getSecret(reference: string): Promise<string> {
-    // Validate service account token format if provided
-    if (
-      this.serviceAccountToken &&
-      !this.serviceAccountToken.startsWith('ops_')
-    ) {
-      throw new Error(
-        'Invalid service account token format. Token must start with "ops_"',
-      );
-    }
-
     if (this.isConnect) {
       // Use Connect server REST API
       const parsed = parseOpReference(reference);
@@ -335,7 +341,16 @@ ${
   private async readWithCli(reference: string): Promise<string> {
     const env: Record<string, string> = { ...process.env } as Record<string, string>;
     if (this.serviceAccountToken) {
-      env.OP_SERVICE_ACCOUNT_TOKEN = this.serviceAccountToken;
+      const token = await resolveCredential(
+        this.serviceAccountToken,
+        '1Password serviceAccountToken',
+      );
+      if (!token.startsWith('ops_')) {
+        throw new Error(
+          'Invalid service account token format. Token must start with "ops_"',
+        );
+      }
+      env.OP_SERVICE_ACCOUNT_TOKEN = token;
     }
     const args = [
       'read',
@@ -387,23 +402,6 @@ ${
     }
   }
 
-  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), OnePasswordClient.REQUEST_TIMEOUT_MS);
-    try {
-      return await fetch(url, { ...init, signal: controller.signal });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(
-          `1Password Connect request timed out after ${OnePasswordClient.REQUEST_TIMEOUT_MS}ms`,
-          { cause: error },
-        );
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
 }
 
 /**
@@ -426,6 +424,7 @@ export function onePassword(options: OnePasswordOptions): Resolver {
     connectToken: options.connectToken,
     account: options.account,
     allowAppAuth: options.allowAppAuth,
+    allowInsecureHttp: options.allowInsecureHttp,
   });
 
   return {

@@ -109,6 +109,24 @@ describe('node-env-resolver-1password', () => {
     });
   });
 
+  it('rejects a non-https connectHost to protect the connect token in transit', () => {
+    expect(() =>
+      createOnePasswordHandler({
+        connectHost: 'http://connect.internal.example.com',
+        connectToken: 'connect-token',
+      }),
+    ).toThrow('1Password connectHost must use https://');
+  });
+
+  it('allows a loopback connectHost over http for local development', () => {
+    expect(() =>
+      createOnePasswordHandler({
+        connectHost: 'http://localhost:8080',
+        connectToken: 'connect-token',
+      }),
+    ).not.toThrow();
+  });
+
   it('onePasswordHandlerFromEnv validates auth env vars', () => {
     const oldSvc = process.env.OP_SERVICE_ACCOUNT_TOKEN;
     const oldHost = process.env.OP_CONNECT_HOST;
