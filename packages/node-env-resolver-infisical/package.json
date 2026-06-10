@@ -1,7 +1,7 @@
 {
-  "name": "node-env-resolver-aws",
-  "version": "12.0.2",
-  "description": "AWS resolvers for node-env-resolver (Secrets Manager, SSM Parameter Store)",
+  "name": "node-env-resolver-infisical",
+  "version": "1.0.0",
+  "description": "Infisical resolver for node-env-resolver",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,21 +11,12 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
-    },
-    "./handlers": {
-      "types": "./dist/handlers.d.ts",
-      "import": "./dist/handlers.js",
-      "require": "./dist/handlers.cjs",
-      "default": "./dist/handlers.js"
     }
   },
   "typesVersions": {
     "*": {
       "*": [
         "./dist/index.d.ts"
-      ],
-      "handlers": [
-        "./dist/handlers.d.ts"
       ]
     }
   },
@@ -44,10 +35,8 @@
     "prepublishOnly": "pnpm build && pnpm type-check"
   },
   "keywords": [
-    "aws",
+    "infisical",
     "secrets-manager",
-    "ssm",
-    "parameter-store",
     "environment",
     "env",
     "config",
@@ -62,19 +51,15 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/jagreehal/node-env-resolver.git",
-    "directory": "packages/node-env-resolver-aws"
+    "directory": "packages/node-env-resolver-infisical"
   },
   "sideEffects": false,
   "engines": {
     "node": ">=18"
   },
-  "dependencies": {
-    "@aws-sdk/credential-providers": "^3.1063.0",
-    "@aws-sdk/client-secrets-manager": "^3.1063.0",
-    "@aws-sdk/client-ssm": "^3.1063.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
-    "node-env-resolver": "^6.5.0"
+    "node-env-resolver": "^6.6.0"
   },
   "publishConfig": {
     "access": "public"
@@ -82,14 +67,14 @@
   "devDependencies": {
     "node-env-resolver": "workspace:*",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.9.2",
-    "@typescript-eslint/eslint-plugin": "^8.60.1",
-    "@typescript-eslint/parser": "^8.60.1",
-    "eslint": "^10.4.1",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.3",
+    "prettier": "^3.8.2",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   }
 }

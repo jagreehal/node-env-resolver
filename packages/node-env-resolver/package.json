@@ -46,6 +46,12 @@
       "require": "./dist/resolvers.cjs",
       "default": "./dist/resolvers.js"
     },
+    "./provider-kit": {
+      "types": "./dist/provider-kit.d.ts",
+      "import": "./dist/provider-kit.js",
+      "require": "./dist/provider-kit.cjs",
+      "default": "./dist/provider-kit.js"
+    },
     "./validators": {
       "types": "./dist/validators.d.ts",
       "import": "./dist/validators.js",

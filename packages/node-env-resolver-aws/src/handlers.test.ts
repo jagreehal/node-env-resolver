@@ -2,15 +2,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockSecretsManagerSend = vi.hoisted(() => vi.fn());
 const mockSsmSend = vi.hoisted(() => vi.fn());
+const mockFromIni = vi.hoisted(() => vi.fn(() => 'profile-credentials'));
+const mockSecretsCtor = vi.hoisted(() => vi.fn());
+const mockSsmCtor = vi.hoisted(() => vi.fn());
 
 const MockSecretsManagerClient = vi.hoisted(() => {
   return class {
+    constructor(config: unknown) {
+      mockSecretsCtor(config);
+    }
     send = mockSecretsManagerSend;
   };
 });
 
 const MockSSMClient = vi.hoisted(() => {
   return class {
+    constructor(config: unknown) {
+      mockSsmCtor(config);
+    }
     send = mockSsmSend;
   };
 });
@@ -29,6 +38,10 @@ vi.mock('@aws-sdk/client-ssm', () => ({
   },
 }));
 
+vi.mock('@aws-sdk/credential-providers', () => ({
+  fromIni: mockFromIni,
+}));
+
 import {
   createAwsSecretHandler,
   createAwsSsmHandler,
@@ -40,6 +53,9 @@ describe('AWS Secret Reference Handlers', () => {
   beforeEach(() => {
     mockSecretsManagerSend.mockReset();
     mockSsmSend.mockReset();
+    mockFromIni.mockClear();
+    mockSecretsCtor.mockClear();
+    mockSsmCtor.mockClear();
   });
 
   describe('createAwsSecretHandler', () => {
@@ -98,6 +114,39 @@ describe('AWS Secret Reference Handlers', () => {
           region: undefined,
         },
       });
+    });
+
+    it('should decode SecretBinary values', async () => {
+      mockSecretsManagerSend.mockResolvedValueOnce({
+        SecretBinary: new TextEncoder().encode('binary-secret-value'),
+      });
+
+      const handler = createAwsSecretHandler();
+      const result = await handler.resolve('aws-sm://myapp/binary', {
+        key: 'BINARY',
+        source: null,
+        reference: 'aws-sm://myapp/binary',
+      });
+
+      expect(result).toMatchObject({ value: 'binary-secret-value' });
+    });
+
+    it('supports profile credentials on handler client config', async () => {
+      mockSecretsManagerSend.mockResolvedValueOnce({
+        SecretString: 'value',
+      });
+
+      const handler = createAwsSecretHandler({ profile: 'work-profile' });
+      await handler.resolve('aws-sm://test', {
+        key: 'TEST',
+        source: null,
+        reference: 'aws-sm://test',
+      });
+
+      expect(mockFromIni).toHaveBeenCalledWith({ profile: 'work-profile' });
+      expect(mockSecretsCtor).toHaveBeenCalledWith(
+        expect.objectContaining({ credentials: 'profile-credentials' }),
+      );
     });
 
     it('should throw actionable error for invalid reference format', async () => {
@@ -180,17 +229,17 @@ describe('AWS Secret Reference Handlers', () => {
       });
 
       const handler = createAwsSsmHandler();
-      const result = await handler.resolve('aws-ssm://myapp/database', {
+      const result = await handler.resolve('aws-ssm:///myapp/database', {
         key: 'DATABASE_URL',
         source: 'dotenv(.env)',
-        reference: 'aws-ssm://myapp/database',
+        reference: 'aws-ssm:///myapp/database',
       });
 
       expect(result).toEqual({
         value: 'postgres://localhost:5432/mydb',
         resolvedVia: 'aws-ssm',
         metadata: {
-          parameterPath: 'myapp/database',
+          parameterPath: '/myapp/database',
           region: undefined,
         },
       });
@@ -222,10 +271,10 @@ describe('AWS Secret Reference Handlers', () => {
       mockSsmSend.mockRejectedValueOnce(new Error('AccessDenied'));
       const handler = createAwsSsmHandler();
       await expect(
-        handler.resolve('aws-ssm://missing/param', {
+        handler.resolve('aws-ssm:///missing/param', {
           key: 'TEST',
           source: null,
-          reference: 'aws-ssm://missing/param',
+          reference: 'aws-ssm:///missing/param',
         })
       ).rejects.toThrow(/ssm:GetParameter/);
     });
@@ -236,14 +285,14 @@ describe('AWS Secret Reference Handlers', () => {
       });
 
       const handler = createAwsSsmHandler();
-      await handler.resolve('aws-ssm://myapp/secret', {
+      await handler.resolve('aws-ssm:///myapp/secret', {
         key: 'TEST',
         source: null,
-        reference: 'aws-ssm://myapp/secret',
+        reference: 'aws-ssm:///myapp/secret',
       });
 
       expect(mockSsmSend.mock.calls[0][0].input).toMatchObject({
-        Name: 'myapp/secret',
+        Name: '/myapp/secret',
         WithDecryption: true,
       });
     });
@@ -254,16 +303,27 @@ describe('AWS Secret Reference Handlers', () => {
       });
 
       const handler = createAwsSsmHandler({ withDecryption: false });
-      await handler.resolve('aws-ssm://myapp/secret', {
+      await handler.resolve('aws-ssm:///myapp/secret', {
         key: 'TEST',
         source: null,
-        reference: 'aws-ssm://myapp/secret',
+        reference: 'aws-ssm:///myapp/secret',
       });
 
       expect(mockSsmSend.mock.calls[0][0].input).toMatchObject({
-        Name: 'myapp/secret',
+        Name: '/myapp/secret',
         WithDecryption: false,
       });
+    });
+
+    it('should reject non-slash aws-ssm paths', async () => {
+      const handler = createAwsSsmHandler();
+      await expect(
+        handler.resolve('aws-ssm://myapp/secret', {
+          key: 'TEST',
+          source: null,
+          reference: 'aws-ssm://myapp/secret',
+        }),
+      ).rejects.toThrow('SSM parameter names must start with "/"');
     });
   });
 

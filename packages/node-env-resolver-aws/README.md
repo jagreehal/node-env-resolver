@@ -508,6 +508,7 @@ interface AwsSecretsOptions {
   region?: string; // AWS region (overrides profile/env defaults)
   accessKeyId?: string; // AWS access key (optional)
   secretAccessKey?: string; // AWS secret key (optional)
+  profile?: string; // AWS shared credentials profile (optional)
   parseJson?: boolean; // Parse JSON secrets (default: true)
 }
 ```
@@ -520,6 +521,7 @@ interface AwsSsmOptions {
   region?: string; // AWS region (overrides profile/env defaults)
   accessKeyId?: string; // AWS access key (optional)
   secretAccessKey?: string; // AWS secret key (optional)
+  profile?: string; // AWS shared credentials profile (optional)
   recursive?: boolean; // Get all parameters under path (default: false)
 }
 ```
