@@ -14,8 +14,8 @@
     "node-env-resolver-vite": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.8"
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
   }
 }
