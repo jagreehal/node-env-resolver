@@ -1,5 +1,14 @@
 # express-app-example
 
+## 1.0.23
+
+### Patch Changes
+
+- Updated dependencies [bdee44b]
+- Updated dependencies [b352cef]
+  - node-env-resolver@6.6.0
+  - node-env-resolver-aws@13.0.0
+
 ## 1.0.22
 
 ### Patch Changes

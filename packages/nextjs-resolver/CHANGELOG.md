@@ -1,5 +1,16 @@
 # Changelog
 
+## 7.4.4
+
+### Patch Changes
+
+- b352cef: chore: update dependencies + migrate to vite 8
+
+  Minor/patch dependency refresh via npm-check-updates (--target minor, 3-day cooldown) — no major bumps. Forced vite ^8 via pnpm override.
+
+- Updated dependencies [bdee44b]
+  - node-env-resolver@6.6.0
+
 ## 7.4.1
 
 ### Patch Changes
