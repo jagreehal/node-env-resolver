@@ -5,6 +5,8 @@
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParametersByPathCommand, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { fromIni } from '@aws-sdk/credential-providers';
+import { Buffer } from 'node:buffer';
 import type {
   Resolver,
   SimpleEnvSchema,
@@ -33,9 +35,50 @@ export interface AwsSecretsOptions {
   region?: string;
   accessKeyId?: string;
   secretAccessKey?: string;
+  profile?: string;
   parseJson?: boolean;
-  /** Enable caching with TTL (recommended for production) */
-  cache?: boolean | { ttl?: number; maxAge?: number; staleWhileRevalidate?: boolean };
+}
+
+function buildCredentials(options: {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  profile?: string;
+}) {
+  if (options.accessKeyId && options.secretAccessKey) {
+    return {
+      accessKeyId: options.accessKeyId,
+      secretAccessKey: options.secretAccessKey,
+    };
+  }
+  if (options.profile) {
+    return fromIni({ profile: options.profile });
+  }
+  return undefined;
+}
+
+function validateSsmParameterName(name: string): void {
+  if (!name.startsWith('/')) {
+    throw new Error(
+      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names must start with "/"`,
+    );
+  }
+  if (/^\/ssm(\/|$)/i.test(name)) {
+    throw new Error(
+      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names cannot start with "/ssm"`,
+    );
+  }
+  if (!/^[a-zA-Z0-9/._-]+$/.test(name)) {
+    const invalidChars = [...new Set(name.match(/[^a-zA-Z0-9/._-]/g) || [])].join('');
+    throw new Error(
+      `Invalid AWS SSM parameter name: "${name}"\nInvalid character(s): ${invalidChars}`,
+    );
+  }
+}
+
+function decodeSecretValue(response: { SecretString?: string; SecretBinary?: Uint8Array }): string {
+  if (response.SecretString) return response.SecretString;
+  if (response.SecretBinary) return Buffer.from(response.SecretBinary).toString('utf-8');
+  throw new Error('Secret not found or empty');
 }
 
 export function awsSecrets(options: AwsSecretsOptions): Resolver {
@@ -53,13 +96,7 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
           // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
           // 2. IAM roles (EC2, Lambda, ECS)
           // 3. AWS credentials file (~/.aws/credentials)
-          credentials:
-            options.accessKeyId && options.secretAccessKey
-              ? {
-                  accessKeyId: options.accessKeyId,
-                  secretAccessKey: options.secretAccessKey,
-                }
-              : undefined,
+          credentials: buildCredentials(options),
         });
 
         const command = new GetSecretValueCommand({
@@ -68,20 +105,18 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
 
         const response = await client.send(command);
 
-        if (!response.SecretString) {
-          throw new Error('Secret not found or empty');
-        }
+        const secretValue = decodeSecretValue(response);
 
         if (options.parseJson !== false) {
           try {
-            return JSON.parse(response.SecretString);
+            return JSON.parse(secretValue);
           } catch {
             // If not valid JSON, return as single key-value
-            return { [options.secretId]: response.SecretString };
+            return { [options.secretId]: secretValue };
           }
         }
 
-        return { [options.secretId]: response.SecretString };
+        return { [options.secretId]: secretValue };
       } catch (error) {
         throw new Error(`AWS Secrets Manager: ${error instanceof Error ? error.message : error}`, {
           cause: error,
@@ -98,8 +133,7 @@ export interface AwsSsmOptions {
   region?: string;
   accessKeyId?: string;
   secretAccessKey?: string;
-  /** Enable caching with TTL (recommended for production) */
-  cache?: boolean | { ttl?: number; maxAge?: number; staleWhileRevalidate?: boolean };
+  profile?: string;
 }
 
 export function awsSsm(options: AwsSsmOptions): Resolver {
@@ -117,16 +151,11 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
           // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
           // 2. IAM roles (EC2, Lambda, ECS)
           // 3. AWS credentials file (~/.aws/credentials)
-          credentials:
-            options.accessKeyId && options.secretAccessKey
-              ? {
-                  accessKeyId: options.accessKeyId,
-                  secretAccessKey: options.secretAccessKey,
-                }
-              : undefined,
+          credentials: buildCredentials(options),
         });
 
         const env: Record<string, string> = {};
+        validateSsmParameterName(options.path);
 
         if (options.recursive) {
           // Get all parameters under path

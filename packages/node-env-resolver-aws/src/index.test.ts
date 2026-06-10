@@ -5,17 +5,26 @@ const mockSecretsManagerSend = vi.hoisted(() => vi.fn());
 const mockSsmSend = vi.hoisted(() => vi.fn());
 const mockResolveWith = vi.hoisted(() => vi.fn());
 const mockSafeResolveWith = vi.hoisted(() => vi.fn());
+const mockFromIni = vi.hoisted(() => vi.fn(() => 'profile-credentials'));
+const mockSecretsCtor = vi.hoisted(() => vi.fn());
+const mockSsmCtor = vi.hoisted(() => vi.fn());
 
 // Mock AWS SDK clients - use class constructors that work with 'new'
 // Must be hoisted to be available in vi.mock calls
 const MockSecretsManagerClient = vi.hoisted(() => {
   return class {
+    constructor(config: unknown) {
+      mockSecretsCtor(config);
+    }
     send = mockSecretsManagerSend;
   };
 });
 
 const MockSSMClient = vi.hoisted(() => {
   return class {
+    constructor(config: unknown) {
+      mockSsmCtor(config);
+    }
     send = mockSsmSend;
   };
 });
@@ -40,6 +49,10 @@ vi.mock('@aws-sdk/client-ssm', () => ({
   },
 }));
 
+vi.mock('@aws-sdk/credential-providers', () => ({
+  fromIni: mockFromIni,
+}));
+
 // Mock node-env-resolver
 vi.mock('node-env-resolver', () => ({
   resolveAsync: mockResolveWith,
@@ -56,6 +69,9 @@ describe('node-env-resolver/aws', () => {
     mockSsmSend.mockReset();
     mockResolveWith.mockReset();
     mockSafeResolveWith.mockReset();
+    mockFromIni.mockClear();
+    mockSecretsCtor.mockClear();
+    mockSsmCtor.mockClear();
   });
 
   describe('awsSecrets', () => {
@@ -95,6 +111,40 @@ describe('node-env-resolver/aws', () => {
       expect(result).toEqual({
         'simple-secret': 'simple-secret-value',
       });
+    });
+
+    it('should decode SecretBinary values when SecretString is not present', async () => {
+      mockSecretsManagerSend.mockResolvedValueOnce({
+        SecretBinary: new TextEncoder().encode('binary-secret-value'),
+      });
+
+      const provider = awsSecrets({
+        secretId: 'binary-secret',
+        parseJson: false,
+      });
+      const result = await provider.load!();
+
+      expect(result).toEqual({
+        'binary-secret': 'binary-secret-value',
+      });
+    });
+
+    it('should support AWS shared profile credentials', async () => {
+      mockSecretsManagerSend.mockResolvedValueOnce({
+        SecretString: 'simple-secret-value',
+      });
+
+      const provider = awsSecrets({
+        secretId: 'profiled-secret',
+        profile: 'dev-profile',
+        parseJson: false,
+      });
+      await provider.load!();
+
+      expect(mockFromIni).toHaveBeenCalledWith({ profile: 'dev-profile' });
+      expect(mockSecretsCtor).toHaveBeenCalledWith(
+        expect.objectContaining({ credentials: 'profile-credentials' }),
+      );
     });
 
     it('should handle errors gracefully', async () => {
@@ -155,6 +205,14 @@ describe('node-env-resolver/aws', () => {
       });
 
       await expect(provider.load!()).rejects.toThrow('Parameter not found');
+    });
+
+    it('should reject invalid non-slash SSM parameter names', async () => {
+      const provider = awsSsm({
+        path: 'app/INVALID_PARAM',
+      });
+
+      await expect(provider.load!()).rejects.toThrow('SSM parameter names must start with "/"');
     });
   });
 

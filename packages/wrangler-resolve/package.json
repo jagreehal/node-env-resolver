@@ -1,7 +1,7 @@
 {
-  "name": "node-env-resolver-aws",
-  "version": "12.0.2",
-  "description": "AWS resolvers for node-env-resolver (Secrets Manager, SSM Parameter Store)",
+  "name": "wrangler-resolve",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers integration for node-env-resolver (wrangler dev/deploy, FIFO secrets, hot reload)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,6 +17,24 @@
       "import": "./dist/handlers.js",
       "require": "./dist/handlers.cjs",
       "default": "./dist/handlers.js"
+    },
+    "./wrangler": {
+      "types": "./dist/wrangler.d.ts",
+      "import": "./dist/wrangler.js",
+      "require": "./dist/wrangler.cjs",
+      "default": "./dist/wrangler.js"
+    },
+    "./chunking": {
+      "types": "./dist/chunking.d.ts",
+      "import": "./dist/chunking.js",
+      "require": "./dist/chunking.cjs",
+      "default": "./dist/chunking.js"
+    },
+    "./fifo": {
+      "types": "./dist/fifo.d.ts",
+      "import": "./dist/fifo.js",
+      "require": "./dist/fifo.cjs",
+      "default": "./dist/fifo.js"
     }
   },
   "typesVersions": {
@@ -26,11 +44,25 @@
       ],
       "handlers": [
         "./dist/handlers.d.ts"
+      ],
+      "wrangler": [
+        "./dist/wrangler.d.ts"
+      ],
+      "chunking": [
+        "./dist/chunking.d.ts"
+      ],
+      "fifo": [
+        "./dist/fifo.d.ts"
       ]
     }
   },
+  "bin": {
+    "wrangler-resolve": "./bin/wrangler-resolve.js",
+    "cloudflare-resolve": "./bin/wrangler-resolve.js"
+  },
   "files": [
     "dist",
+    "bin",
     "README.md"
   ],
   "scripts": {
@@ -44,10 +76,11 @@
     "prepublishOnly": "pnpm build && pnpm type-check"
   },
   "keywords": [
-    "aws",
-    "secrets-manager",
-    "ssm",
-    "parameter-store",
+    "cloudflare",
+    "workers",
+    "wrangler",
+    "secrets",
+    "fifo",
     "environment",
     "env",
     "config",
@@ -62,34 +95,30 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/jagreehal/node-env-resolver.git",
-    "directory": "packages/node-env-resolver-aws"
+    "directory": "packages/wrangler-resolve"
   },
   "sideEffects": false,
   "engines": {
     "node": ">=18"
   },
-  "dependencies": {
-    "@aws-sdk/credential-providers": "^3.1063.0",
-    "@aws-sdk/client-secrets-manager": "^3.1063.0",
-    "@aws-sdk/client-ssm": "^3.1063.0"
-  },
   "peerDependencies": {
-    "node-env-resolver": "^6.5.0"
+    "node-env-resolver": "6.5.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "node-env-resolver": "workspace:*",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.9.2",
-    "@typescript-eslint/eslint-plugin": "^8.60.1",
-    "@typescript-eslint/parser": "^8.60.1",
-    "eslint": "^10.4.1",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
+    "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
+    "node-env-resolver": "6.5.0",
     "prettier": "^3.8.3",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.5"
   }
 }

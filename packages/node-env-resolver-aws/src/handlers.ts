@@ -4,7 +4,7 @@
  * These handlers dereference URI-style references like:
  * - aws-sm://secret-id           - AWS Secrets Manager (full secret string)
  * - aws-sm://secret-id#key       - AWS Secrets Manager (JSON key extraction)
- * - aws-ssm://parameter-path     - SSM Parameter Store
+ * - aws-ssm:///parameter-path    - SSM Parameter Store
  *
  * @example
  * ```ts
@@ -30,6 +30,8 @@
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { fromIni } from '@aws-sdk/credential-providers';
+import { Buffer } from 'node:buffer';
 import type { ReferenceHandler } from 'node-env-resolver';
 
 export interface AwsHandlerOptions {
@@ -37,6 +39,7 @@ export interface AwsHandlerOptions {
   accessKeyId?: string;
   secretAccessKey?: string;
   sessionToken?: string;
+  profile?: string;
 }
 
 export interface AwsSecretHandlerOptions extends AwsHandlerOptions {
@@ -54,6 +57,9 @@ function buildCredentials(options: AwsHandlerOptions) {
       secretAccessKey: options.secretAccessKey,
       ...(options.sessionToken && { sessionToken: options.sessionToken }),
     };
+  }
+  if (options.profile) {
+    return fromIni({ profile: options.profile });
   }
   return undefined;
 }
@@ -93,11 +99,36 @@ function parseAwsSsmReference(reference: string): { parameterPath: string } {
   if (!match) {
     throw new Error(
       `Invalid aws-ssm reference: "${reference}"\n` +
-        `Expected format: aws-ssm://parameter-path`,
+        `Expected format: aws-ssm:///parameter-path`,
     );
   }
 
   return { parameterPath: match[1]! };
+}
+
+function validateSsmParameterName(name: string): void {
+  if (!name.startsWith('/')) {
+    throw new Error(
+      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names must start with "/"`,
+    );
+  }
+  if (/^\/ssm(\/|$)/i.test(name)) {
+    throw new Error(
+      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names cannot start with "/ssm"`,
+    );
+  }
+  if (!/^[a-zA-Z0-9/._-]+$/.test(name)) {
+    const invalidChars = [...new Set(name.match(/[^a-zA-Z0-9/._-]/g) || [])].join('');
+    throw new Error(
+      `Invalid AWS SSM parameter name: "${name}"\nInvalid character(s): ${invalidChars}`,
+    );
+  }
+}
+
+function decodeSecretValue(response: { SecretString?: string; SecretBinary?: Uint8Array }): string {
+  if (response.SecretString) return response.SecretString;
+  if (response.SecretBinary) return Buffer.from(response.SecretBinary).toString('utf-8');
+  throw new Error('Secret has no SecretString or SecretBinary value.');
 }
 
 async function fetchSecretValue(
@@ -117,19 +148,15 @@ async function fetchSecretValue(
     );
   }
 
-  if (!response.SecretString) {
-    throw new Error(
-      `Secret "${secretId}" has no SecretString value. Binary secrets are not supported.`,
-    );
-  }
+  const secretValue = decodeSecretValue(response);
 
   if (!key) {
-    return response.SecretString;
+    return secretValue;
   }
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(response.SecretString);
+    parsed = JSON.parse(secretValue);
   } catch {
     throw new Error(
       `Secret "${secretId}" is not valid JSON — cannot extract key "${key}".\n` +
@@ -156,6 +183,7 @@ async function fetchParameter(
   withDecryption: boolean,
   client: SSMClient,
 ): Promise<string> {
+  validateSsmParameterName(parameterPath);
   let response;
   try {
     response = await client.send(
