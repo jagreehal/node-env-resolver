@@ -14,7 +14,7 @@
     "example:basic": "pnpm --filter simple-example dev",
     "example:express": "pnpm --filter express-app-example dev",
     "example:lambda": "pnpm --filter aws-lambda-example dev",
-    "release": "pnpm changeset publish --provenance --access public",
+    "release": "pnpm changeset publish",
     "quality": "turbo run build lint type-check test"
   },
   "devDependencies": {
