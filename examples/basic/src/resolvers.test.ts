@@ -193,7 +193,7 @@ describe('Advanced Resolvers Example', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toContain('Missing required environment variable: REQUIRED_VAR');
+        expect(result.error).toContain('REQUIRED_VAR: Missing required environment variable');
       }
     });
 
@@ -205,13 +205,13 @@ describe('Advanced Resolvers Example', () => {
 
       expect(safeResult.success).toBe(false);
       if (!safeResult.success) {
-        expect(safeResult.error).toContain('Invalid environment variable name: "PORT-INVALID"');
+        expect(safeResult.error).toContain('PORT-INVALID: Invalid environment variable name');
       }
 
       // Test with resolve (should throw)
       expect(() => resolve({
         '123PORT': 3000, // Invalid variable name (starts with number)
-      })).toThrow('Invalid environment variable name: "123PORT"');
+      })).toThrow('123PORT: Invalid environment variable name');
 
       // Test valid variable name (should work)
       const validResult = safeResolve({

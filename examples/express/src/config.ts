@@ -2,7 +2,7 @@
  * Centralized configuration using node-env-resolver
  * Perfect for Express.js applications with multiple deployment environments
  */
-import { resolve, resolveAsync } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
 import { url, string } from 'node-env-resolver/validators';
 import { processEnv } from 'node-env-resolver/resolvers';
 import { patchGlobalConsole } from 'node-env-resolver/runtime';

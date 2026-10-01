@@ -13,8 +13,8 @@ Every subpath is a separate entry point. Import from the correct path.
 
 | Import path                    | Exports                                                                                                                                                                                                                                                       |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `node-env-resolver`            | `resolve`, `resolveAsync`, `safeResolve`, `safeResolveAsync`, `getAuditLog`, `clearAuditLog`, `createDebugView`, `createSecuritySnapshot`, `createRedactedObject`                                                                                             |
-| `node-env-resolver/resolvers`  | `processEnv`, `dotenv`, `packageJson`, `json`, `yaml`, `toml`, `http`, `secrets`                                                                                                                                                                              |
+| `node-env-resolver`            | `resolve`, `resolveAsync`, `safeResolve`, `safeResolveAsync`, `getAuditLog`, `clearAuditLog`, `createDebugView`, `createSecuritySnapshot`, `createRedactedObject`, `EnvValidationError`, types `EnvIssue`, `InferSimpleSchema`                              |
+| `node-env-resolver/resolvers`  | `processEnv`, `fromObject`, `dotenv`, `packageJson`, `json`, `yaml`, `toml`, `http`, `secrets`                                                                                                                                                                |
 | `node-env-resolver/validators` | `string`, `number`, `boolean`, `url`, `email`, `port`, `postgres`, `mysql`, `mongodb`, `redis`, `http`, `https`, `secret`, `duration`, `file`, `json`, `date`, `timestamp`, `oneOf`, `enumOf`, `optional`, `custom`, `stringArray`, `numberArray`, `urlArray` |
 | `node-env-resolver/builder`    | `env`, `envSync`, `EnvBuilder`, `EnvBuilderSync`                                                                                                                                                                                                              |
 | `node-env-resolver/zod`        | `resolveZod`, `safeResolveZod`, `resolveSyncZod`, `safeResolveSyncZod`                                                                                                                                                                                        |
@@ -90,11 +90,22 @@ if (result.success) {
   console.log(result.data.PORT);
 } else {
   console.error(result.error);
+  // result.issues: { key, reason: 'missing' | 'invalid' | 'policy', message }[]
   process.exit(1);
 }
 ```
 
-All four variants: `resolve`, `resolveAsync`, `safeResolve`, `safeResolveAsync`.
+All four variants: `resolve`, `resolveAsync`, `safeResolve`, `safeResolveAsync`. `resolve`/`resolveAsync` throw `EnvValidationError` with the same `issues`. Each error line reads `KEY: message`, and messages leave out the rejected value.
+
+### Config type
+
+```typescript
+import { resolve, type InferSimpleSchema } from 'node-env-resolver';
+
+const schema = { PORT: 3000, API_KEY: string() };
+export type Env = InferSimpleSchema<typeof schema>;
+export const env: Env = resolve(schema);
+```
 
 ### Builder / Fluent API
 
@@ -118,6 +129,7 @@ Builder auto-includes `dotenv()` in non-production and `processEnv()` always. Us
 | Resolver           | Source         | Sync | Notes                                                                 |
 | ------------------ | -------------- | ---- | --------------------------------------------------------------------- |
 | `processEnv()`     | `process.env`  | yes  | Always available, default for `resolve()`                             |
+| `fromObject(env)`  | Plain object   | yes  | Tests, Lambda, Workers `env`; skips `undefined` values                |
 | `dotenv(options?)` | `.env` files   | yes  | `expand: true` loads `.env.defaults`, `.env.local`, `.env.{NODE_ENV}` |
 | `packageJson()`    | `package.json` | yes  | Reads `name`, `version`, `config`                                     |
 | `json(path?)`      | JSON file      | yes  | Flattens to uppercase keys                                            |
@@ -272,7 +284,7 @@ resolve(schema, {
 - Set `preventProcessEnvWrite: true` in production (`process.env` leaks to child processes, `/proc/self/environ`, logs).
 - Use `enforceAllowedSources` to lock secrets to their intended resolver.
 - dotenv is blocked in production by default — only `process.env` and cloud resolvers are allowed.
-- Pass resolvers as parameters for testability (no `vi.mock()` needed).
+- Pass resolvers as parameters for testability (no `vi.mock()` needed). In tests, pass `fromObject({ ... })`.
 
 ## Common Agent Mistakes
 
@@ -287,4 +299,7 @@ resolve(schema, {
 | `debug.audit()`                                       | `createDebugView()`, `getAuditLog()`                                                                                              |
 | `dotenv()` as default for `resolve()`                 | `resolve()` only uses `processEnv()` by default; add `dotenv()` explicitly via resolvers                                          |
 | `options: { audit: true }`                            | `options: { enableAudit: true }` (the option is `enableAudit`)                                                                    |
+| Hand-written `{ name, load, loadSync }` over an object | `fromObject(env)` from `node-env-resolver/resolvers`                                                                              |
+| `ReturnType<typeof getConfig>` for the config type    | `InferSimpleSchema<typeof schema>`                                                                                                |
+| Parsing `result.error` to find the failing key        | Read `result.issues` (or `error.issues` on `EnvValidationError`)                                                                  |
 | Zod schema inside resolver tuple                      | Zod schemas ONLY work with `resolveZod`/`safeResolveZod`. Use native validators (`string()`, `postgres()`) inside resolver tuples |

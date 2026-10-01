@@ -154,6 +154,7 @@ const config = await resolveAsync({
   - [Optional values](#optional-values)
   - [Enums](#enums)
   - [Optional Enums](#optional-enums)
+  - [Inferring the config type](#inferring-the-config-type)
 - [Variable Naming Conventions](#variable-naming-conventions)
 - [Performance & Bundle Size](#performance--bundle-size)
 - [Custom validators](#custom-validators)
@@ -261,6 +262,26 @@ const config = resolve({
 // config.PROTOCOL: 'http' | 'grpc' | undefined
 // config.LOG_LEVEL: 'error' | 'warn' | 'info' | 'debug' | undefined
 // config.COMPRESSION: 'gzip' | 'brotli' | 'none'
+```
+
+### Inferring the config type
+
+Define the schema once and derive its type with `InferSimpleSchema`:
+
+```ts
+import { resolve, type InferSimpleSchema } from 'node-env-resolver';
+import { port, string } from 'node-env-resolver/validators';
+
+const schema = {
+  PORT: port({ default: 8400 }),
+  TOKEN: string(),
+  NODE_ENV: ['development', 'production'] as const,
+};
+
+export type Env = InferSimpleSchema<typeof schema>;
+// { PORT: number; TOKEN: string; NODE_ENV: 'development' | 'production' }
+
+export const env: Env = resolve(schema);
 ```
 
 ## Variable Naming Conventions
@@ -674,6 +695,30 @@ if (result.success) {
   // Handle error gracefully
   console.error(result.error);
   process.exit(1);
+}
+```
+
+When validation fails, `result.issues` lists each problem so you can map it to a field without parsing strings:
+
+```ts
+// result.issues: { key: string; reason: 'missing' | 'invalid' | 'policy'; message: string }[]
+for (const issue of result.issues ?? []) {
+  console.error(`${issue.key} (${issue.reason}): ${issue.message}`);
+}
+```
+
+`resolve()` and `resolveAsync()` throw an `EnvValidationError` carrying the same `issues`:
+
+```ts
+import { resolve, EnvValidationError } from 'node-env-resolver';
+
+try {
+  resolve(schema);
+} catch (error) {
+  if (error instanceof EnvValidationError) {
+    console.error(error.issues);
+  }
+  throw error;
 }
 ```
 
@@ -1652,6 +1697,23 @@ export const handler = async (event) => {
 };
 ```
 
+If the values arrive as an object (e.g. Cloudflare Workers `env`, or a Lambda event/context you've merged), resolve from it directly with `fromObject()`:
+
+```ts
+import { resolve } from 'node-env-resolver';
+import { fromObject } from 'node-env-resolver/resolvers';
+import { string } from 'node-env-resolver/validators';
+
+export default {
+  async fetch(request: Request, env: Record<string, string | undefined>) {
+    const config = resolve({
+      resolvers: [[fromObject(env), { API_KEY: string() }]],
+    });
+    // ...
+  },
+};
+```
+
 ## Security Policies
 
 Control where environment variables can be loaded from to enforce security requirements.
@@ -2205,6 +2267,28 @@ describe('getConfig', () => {
 });
 ```
 
+### Resolving from a plain object
+
+Use `fromObject()` when you already have an env object (tests, Lambda, Workers). `undefined` values are skipped, so `Record<string, string | undefined>` works as-is:
+
+```typescript
+import { resolve } from 'node-env-resolver';
+import { fromObject } from 'node-env-resolver/resolvers';
+import { string, number } from 'node-env-resolver/validators';
+
+const config = resolve({
+  resolvers: [
+    [fromObject({ DATABASE_URL: 'postgres://localhost/db', PORT: '8080' }), {
+      DATABASE_URL: string(),
+      PORT: number({ default: 3000 }),
+    }],
+  ],
+});
+
+// Or pass it to the DI-style getConfig() above
+const testConfig = await getConfig([fromObject({ DATABASE_URL: 'postgres://test/db' })]);
+```
+
 ### Creating Mock Resolvers
 
 A resolver is just an object with `name` and `load`/`loadSync` methods:
@@ -2259,14 +2343,16 @@ Benefits of dependency injection:
 
 ## Error messages
 
-The library provides clear, actionable error messages:
+Every line names the variable it is about:
 
 ```text
 Environment validation failed:
-  - Missing required environment variable: DATABASE_URL
-  - PORT: Invalid port number (1-65535)
-  - NODE_ENV: must be one of: development, production (got: "staging")
+  - PORT: Invalid port
+  - NODE_ENV: Invalid value. Allowed values: development, production
+  - DATABASE_URL: Missing required environment variable
 ```
+
+Messages leave out the rejected value, so a malformed `DATABASE_URL` or API key stays out of your startup logs. Read `error.issues` or `result.issues` for structured access (see [Safe error handling](#safe-error-handling)).
 
 ## Licence
 

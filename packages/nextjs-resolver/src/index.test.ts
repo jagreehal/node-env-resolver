@@ -131,7 +131,7 @@ describe('node-env-resolver-nextjs', () => {
           REQUIRED_SERVER: string()
         },
         client: {}
-      })).toThrow(/Missing required environment variable: REQUIRED_SERVER/);
+      })).toThrow(/REQUIRED_SERVER: Missing required environment variable/);
     });
 
     it('handles enum validation', () => {
@@ -317,7 +317,7 @@ describe('node-env-resolver-nextjs', () => {
           API_KEY: string({ pattern: '^sk_[a-zA-Z0-9]+$' })
         },
         client: {}
-      })).toThrow(/API_KEY does not match required pattern/);
+      })).toThrow(/API_KEY: does not match required pattern/);
     });
 
     it('handles secret validation', () => {
@@ -435,7 +435,7 @@ describe('node-env-resolver-nextjs', () => {
           MISSING_REQUIRED: string()
         },
         client: {}
-      })).toThrow(/Missing required environment variable: MISSING_REQUIRED/);
+      })).toThrow(/MISSING_REQUIRED: Missing required environment variable/);
     });
 
     it('provides clear error messages for invalid enum values', () => {
@@ -484,7 +484,7 @@ describe('node-env-resolver-nextjs', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toContain('Missing required environment variable: REQUIRED_VAR');
+        expect(result.error).toContain('REQUIRED_VAR: Missing required environment variable');
       }
     });
 

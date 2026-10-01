@@ -189,7 +189,7 @@ describe('Simplified resolve() API', () => {
           ],
         ],
       }),
-    ).rejects.toThrow(/Missing required environment variable: REQUIRED_VAR/);
+    ).rejects.toThrow(/REQUIRED_VAR: Missing required environment variable/);
   });
 
   it('handles enum validation', async () => {

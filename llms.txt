@@ -209,7 +209,7 @@ export interface Resolver {
 
 ```ts
 import { processEnv } from 'node-env-resolver';
-import { dotenv, secrets } from 'node-env-resolver/resolvers';
+import { dotenv, secrets, fromObject } from 'node-env-resolver/resolvers';
 import { cliArgs } from 'node-env-resolver/cli';
 
 // Load from process.env
@@ -229,6 +229,9 @@ cliArgs({ argv: ['--port', '8080', '--verbose'] })
 
 // Load from Docker/K8s secrets directory
 secrets('/run/secrets')  // Reads all files in directory
+
+// Load from a plain object (tests, Lambda, Workers env); skips undefined values
+fromObject({ PORT: '8080', API_KEY: undefined })
 ```
 
 ### AWS resolvers
@@ -558,11 +561,13 @@ Example:
 
 ```
 Environment validation failed:
-  - Missing required environment variable: DATABASE_URL
-  - PORT: Invalid port number (1-65535)
-  - NODE_ENV: must be one of: development, production (got: "staging")
-  - API_KEY: does not match pattern: ^sk_[a-zA-Z0-9]+$
+  - DATABASE_URL: Missing required environment variable
+  - PORT: Invalid port
+  - NODE_ENV: Invalid value. Allowed values: development, production
+  - API_KEY: does not match required pattern
 ```
+
+Messages leave out the rejected value. For per-key handling, read `issues` (`{ key, reason: 'missing' | 'invalid' | 'policy', message }[]`) from `safeResolve()`/`safeResolveAsync()` results, or from the `EnvValidationError` that `resolve()`/`resolveAsync()` throw.
 
 **Recommendation for agents:** When validation fails, propose the minimal fix:
 
