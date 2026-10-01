@@ -1,0 +1,49 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "import",
+    "react",
+    "nextjs"
+  ],
+  "jsPlugins": [
+    "eslint-plugin-import-zod"
+  ],
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/coverage/**",
+    "**/.next/**",
+    "**/*.d.ts"
+  ],
+  "rules": {
+    "no-debugger": "error",
+    "prefer-const": "error",
+    "no-var": "error",
+    "object-shorthand": "error",
+    "prefer-template": "error",
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "typescript/no-explicit-any": "warn"
+  },
+  "overrides": [
+    {
+      "files": [
+        "packages/node-env-resolver/**/*.ts"
+      ],
+      "rules": {
+        "import-zod/prefer-zod-namespace": "error"
+      }
+    }
+  ]
+}

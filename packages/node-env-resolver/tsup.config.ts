@@ -27,7 +27,7 @@ export default defineConfig({
   bundle: true,
   watch: false,
   treeshake: true,
-  dts: true,
+  dts: false,
   target: 'es2022',
   minify: process.env.NODE_ENV === 'production',
   keepNames: false,

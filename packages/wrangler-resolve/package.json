@@ -66,11 +66,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "NODE_ENV=production tsup",
-    "build:dev": "tsup",
-    "build:dts": "tsc --emitDeclarationOnly",
+    "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
+    "build:dev": "tsup && tsc -p tsconfig.build.json",
+    "build:dts": "tsc -p tsconfig.build.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src/",
     "test": "vitest run",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "prepublishOnly": "pnpm build && pnpm type-check"
@@ -108,17 +107,11 @@
     "access": "public"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^25.6.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.1",
-    "@typescript-eslint/parser": "^8.59.1",
-    "eslint": "^10.2.1",
-    "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.6.0",
+    "@types/node": "^26.6.3",
     "node-env-resolver": "6.5.0",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.9",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   }
 }

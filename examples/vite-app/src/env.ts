@@ -1,13 +1,11 @@
 import {
   resolve,
-  resolveAsyncFn,
   string,
   url,
   port,
   postgres,
   boolean,
 } from 'node-env-resolver-vite';
-import { processEnv } from 'node-env-resolver/resolvers';
 
 /**
  * Environment configuration for Vite app

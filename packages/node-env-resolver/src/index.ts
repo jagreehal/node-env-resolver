@@ -90,7 +90,10 @@ import {
   normalizeSchema,
   resolveEnvInternal,
   resolveEnvInternalSync,
+  EnvValidationError,
+  type EnvIssue,
 } from './resolver';
+export { EnvValidationError, type EnvIssue } from './resolver';
 import { processEnv } from './process-env';
 export {
   strictReferencePolicies,
@@ -123,6 +126,18 @@ export interface SafeResolveError {
   success: false;
   error: string;
   errors?: string[];
+  /** Per-variable problems; present when validation (not setup) failed */
+  issues?: EnvIssue[];
+}
+
+function toSafeError(error: unknown): SafeResolveError {
+  if (error instanceof EnvValidationError) {
+    return { success: false, error: error.message, issues: error.issues };
+  }
+  return {
+    success: false,
+    error: error instanceof Error ? error.message : String(error),
+  };
 }
 
 export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
@@ -545,10 +560,7 @@ function safeResolve<T extends SimpleEnvSchema>(
       data: result as { [K in keyof T]: InferSimpleValue<T[K]> },
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return toSafeError(error);
   }
 }
 
@@ -652,10 +664,7 @@ async function safeResolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
 
     return { success: true, data: result } as unknown;
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    } as unknown;
+    return toSafeError(error);
   }
 }
 

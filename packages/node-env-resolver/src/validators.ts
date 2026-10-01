@@ -364,7 +364,7 @@ export function http<
     } {
   const validator = ((value: string) => {
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
-      throw new Error(`Invalid HTTP URL: "${value}"`);
+      throw new Error('Invalid HTTP URL');
     }
     return value;
   }) as unknown;
@@ -404,7 +404,7 @@ export function json<
     try {
       return JSON.parse(value);
     } catch {
-      throw new Error(`Invalid JSON: "${value}"`);
+      throw new Error('Invalid JSON');
     }
   }) as unknown;
 
@@ -458,7 +458,7 @@ export function string<
       optional?: Opts['optional'];
       default?: Opts['default'];
     } {
-  const validator = ((value: string, key?: string) => {
+  const validator = ((value: string) => {
     if (value === '' && !opts?.allowEmpty) {
       throw new Error('String cannot be empty');
     }
@@ -469,10 +469,7 @@ export function string<
       throw new Error(`String too long (max: ${opts.max})`);
     }
     if (opts?.pattern && !new RegExp(opts.pattern).test(value)) {
-      const keyPrefix = key
-        ? `${key} does not match required pattern`
-        : 'String does not match pattern';
-      throw new Error(keyPrefix);
+      throw new Error('does not match required pattern');
     }
     return value;
   }) as unknown;
@@ -526,7 +523,7 @@ export function number<
   const validator = ((value: string) => {
     const num = Number(value);
     if (isNaN(num)) {
-      throw new Error(`Invalid number: "${value}"`);
+      throw new Error('Invalid number');
     }
     if (opts?.min !== undefined && num < opts.min) {
       throw new Error(`Number too small (min: ${opts.min})`);
@@ -588,7 +585,7 @@ export function boolean<
     if (['false', '0', 'no', 'off', ''].includes(lowerValue)) {
       return false;
     }
-    throw new Error(`Invalid boolean: "${value}"`);
+    throw new Error('Invalid boolean');
   }) as unknown;
 
   // Attach options to the validator function for runtime
@@ -638,7 +635,7 @@ export function url<
       new URL(value);
       return value;
     } catch {
-      throw new Error(`Invalid URL: "${value}"`);
+      throw new Error('Invalid URL');
     }
   }) as unknown;
 
@@ -687,7 +684,7 @@ export function email<
   const validator = ((value: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(value)) {
-      throw new Error(`Invalid email: "${value}"`);
+      throw new Error('Invalid email');
     }
     return value;
   }) as unknown;
@@ -737,7 +734,7 @@ export function port<
   const validator = ((value: string) => {
     const num = Number(value);
     if (isNaN(num) || num < 1 || num > 65535) {
-      throw new Error(`Invalid port: "${value}"`);
+      throw new Error('Invalid port');
     }
     return num;
   }) as unknown;
@@ -790,7 +787,7 @@ export function postgres<
       !value.startsWith('postgres://') &&
       !value.startsWith('postgresql://')
     ) {
-      throw new Error(`Invalid PostgreSQL URL: "${value}"`);
+      throw new Error('Invalid PostgreSQL URL');
     }
     return value;
   }) as unknown;
@@ -840,7 +837,7 @@ export function mysql<
     } {
   const validator = ((value: string) => {
     if (!value.startsWith('mysql://')) {
-      throw new Error(`Invalid MySQL URL: "${value}"`);
+      throw new Error('Invalid MySQL URL');
     }
     return value;
   }) as unknown;
@@ -893,7 +890,7 @@ export function mongodb<
       !value.startsWith('mongodb://') &&
       !value.startsWith('mongodb+srv://')
     ) {
-      throw new Error(`Invalid MongoDB URL: "${value}"`);
+      throw new Error('Invalid MongoDB URL');
     }
     return value;
   }) as unknown;
@@ -943,7 +940,7 @@ export function redis<
     } {
   const validator = ((value: string) => {
     if (!value.startsWith('redis://') && !value.startsWith('rediss://')) {
-      throw new Error(`Invalid Redis URL: "${value}"`);
+      throw new Error('Invalid Redis URL');
     }
     return value;
   }) as unknown;
@@ -993,7 +990,7 @@ export function https<
     } {
   const validator = ((value: string) => {
     if (!value.startsWith('https://')) {
-      throw new Error(`Invalid HTTPS URL: "${value}"`);
+      throw new Error('Invalid HTTPS URL');
     }
     return value;
   }) as unknown;
@@ -1101,7 +1098,7 @@ export function numberArray<
     return value.split(separator).map((s) => {
       const num = Number(s.trim());
       if (isNaN(num)) {
-        throw new Error(`Invalid number in array: "${s}"`);
+        throw new Error('Invalid number in array');
       }
       return num;
     });
@@ -1162,7 +1159,7 @@ export function urlArray<
       try {
         new URL(url);
       } catch {
-        throw new Error(`Invalid URL in array: "${url}"`);
+        throw new Error('Invalid URL in array');
       }
     }
     return urls;
@@ -1217,7 +1214,7 @@ export function oneOf<
   const validator = ((value: string) => {
     if (!values.includes(value as T[number])) {
       throw new Error(
-        `Invalid value: "${value}". Allowed values: ${values.join(', ')}`,
+        `Invalid value. Allowed values: ${values.join(', ')}`,
       );
     }
     return value as T[number];
@@ -1348,7 +1345,7 @@ export function duration<
     const match = value.match(/^(\d+)([smhd])$/);
     if (!match) {
       throw new Error(
-        `Invalid duration: "${value}". Use format like "5s", "2m", "1h", "1d"`,
+        `Invalid duration. Use format like "5s", "2m", "1h", "1d"`,
       );
     }
     const [, num, unit] = match;
@@ -1581,11 +1578,11 @@ export function date<
     const iso8601Pattern =
       /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
     if (!iso8601Pattern.test(value)) {
-      throw new Error(`Date must be in ISO 8601 format: "${value}"`);
+      throw new Error('Date must be in ISO 8601 format');
     }
     const date = new Date(value);
     if (isNaN(date.getTime())) {
-      throw new Error(`Cannot parse date value: "${value}"`);
+      throw new Error('Cannot parse date value');
     }
     return value;
   }) as unknown;
@@ -1636,14 +1633,14 @@ export function timestamp<
   const validator = ((value: string) => {
     const num = Number(value);
     if (isNaN(num) || !Number.isInteger(num)) {
-      throw new Error(`Invalid timestamp: "${value}"`);
+      throw new Error('Invalid timestamp');
     }
     if (num < 0) {
-      throw new Error(`Invalid timestamp: "${value}"`);
+      throw new Error('Invalid timestamp');
     }
     if (num > 253402300799) {
       // Year 9999
-      throw new Error(`Timestamp too large: "${value}"`);
+      throw new Error('Timestamp too large');
     }
     return num;
   }) as unknown;

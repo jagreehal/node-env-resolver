@@ -4,3 +4,6 @@ packages:
 
 overrides:
   'vite': '^8.0.0'
+
+# match ncu --cooldown 3
+minimumReleaseAge: 4320

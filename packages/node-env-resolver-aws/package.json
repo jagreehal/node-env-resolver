@@ -34,11 +34,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "NODE_ENV=production tsup",
-    "build:dev": "tsup",
-    "build:dts": "tsc --emitDeclarationOnly",
+    "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
+    "build:dev": "tsup && tsc -p tsconfig.build.json",
+    "build:dts": "tsc -p tsconfig.build.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src/",
     "test": "vitest run",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "prepublishOnly": "pnpm build && pnpm type-check"
@@ -69,9 +68,9 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@aws-sdk/credential-providers": "^3.1063.0",
-    "@aws-sdk/client-secrets-manager": "^3.1063.0",
-    "@aws-sdk/client-ssm": "^3.1063.0"
+    "@aws-sdk/credential-providers": "^3.1141.0",
+    "@aws-sdk/client-secrets-manager": "^3.1141.0",
+    "@aws-sdk/client-ssm": "^3.1141.0"
   },
   "peerDependencies": {
     "node-env-resolver": "^6.6.0"
@@ -81,15 +80,10 @@
   },
   "devDependencies": {
     "node-env-resolver": "workspace:*",
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^25.9.2",
-    "@typescript-eslint/eslint-plugin": "^8.60.1",
-    "@typescript-eslint/parser": "^8.60.1",
-    "eslint": "^10.4.1",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.3",
+    "@types/node": "^26.6.3",
+    "prettier": "^3.9.9",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   }
 }

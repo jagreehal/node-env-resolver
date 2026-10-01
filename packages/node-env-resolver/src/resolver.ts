@@ -93,7 +93,7 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
         validator: (val: string) => {
           const num = Number(val);
           if (isNaN(num)) {
-            throw new Error(`Invalid number: "${val}"`);
+            throw new Error('Invalid number');
           }
           return num;
         },
@@ -111,7 +111,7 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
           if (['false', '0', 'no', 'off', ''].includes(lowerValue)) {
             return false;
           }
-          throw new Error(`Invalid boolean: "${val}"`);
+          throw new Error('Invalid boolean');
         },
       };
     } else if (Array.isArray(value)) {
@@ -156,11 +156,26 @@ function interpolateValue(
   });
 }
 
-/**
- * Inline validation for basic types (no external dependencies)
- * Core types: string, number, boolean, enum, pattern, custom
- * Advanced types lazy-load validators from validators.ts
- */
+/** One problem found while resolving a variable */
+export interface EnvIssue {
+  key: string;
+  reason: 'missing' | 'invalid' | 'policy';
+  message: string;
+}
+
+/** Thrown by resolve()/resolveAsync() when one or more variables fail */
+export class EnvValidationError extends Error {
+  readonly issues: EnvIssue[];
+
+  constructor(issues: EnvIssue[]) {
+    super(
+      `Environment validation failed:\n${issues.map((i) => `  - ${i.key}: ${i.message}`).join('\n')}`,
+    );
+    this.name = 'EnvValidationError';
+    this.issues = issues;
+  }
+}
+
 interface ValidationResult {
   success: boolean;
   value?: unknown;
@@ -403,13 +418,13 @@ function applyPolicies(
     // If array, only allow specific vars
     if (Array.isArray(policy)) {
       if (!policy.includes(key)) {
-        return `${key} cannot be sourced from .env files in production. Use process.env or cloud resolvers. To allow: policies.allowDotenvInProduction: ['${key}'] or set to true for all.`;
+        return `cannot be sourced from .env files in production. Use process.env or cloud resolvers. To allow: policies.allowDotenvInProduction: ['${key}'] or set to true for all.`;
       }
       return null;
     }
 
     // Default: forbid all .env in production
-    return `${key} cannot be sourced from .env files in production (secure default). Production platforms (Vercel, AWS, etc.) use process.env. To allow .env in production: policies.allowDotenvInProduction: true`;
+    return `cannot be sourced from .env files in production (secure default). Production platforms (Vercel, AWS, etc.) use process.env. To allow .env in production: policies.allowDotenvInProduction: true`;
   }
 
   const enforceAllowedSources = policies.enforceAllowedSources;
@@ -439,7 +454,7 @@ function applyPolicies(
       const actual = provenanceForKey.resolvedVia
         ? `${provenanceForKey.source} via ${provenanceForKey.resolvedVia}`
         : provenanceForKey.source;
-      return `${key} must be sourced from one of: ${allowed.join(', ')} (actual: ${actual})`;
+      return `must be sourced from one of: ${allowed.join(', ')} (actual: ${actual})`;
     }
   }
 
@@ -449,19 +464,22 @@ function applyPolicies(
 /**
  * Validate environment variable names
  */
-function validateEnvVarNames(schema: EnvSchema): string[] {
-  const errors: string[] = [];
+function validateEnvVarNames(schema: EnvSchema): EnvIssue[] {
+  const issues: EnvIssue[] = [];
   const envVarRegex = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
   for (const key of Object.keys(schema)) {
     if (!envVarRegex.test(key)) {
-      errors.push(
-        `Invalid environment variable name: "${key}". Environment variable names must contain only letters, numbers, and underscores, and cannot start with a number.`,
-      );
+      issues.push({
+        key,
+        reason: 'invalid',
+        message:
+          'Invalid environment variable name. Names must contain only letters, numbers, and underscores, and cannot start with a number.',
+      });
     }
   }
 
-  return errors;
+  return issues;
 }
 
 /**
@@ -542,13 +560,11 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       logAuditEvent({
         type: 'validation_failure',
         timestamp: Date.now(),
-        error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`,
+        error: `Invalid environment variable names: ${nameValidationErrors.map((i) => i.key).join(', ')}`,
         sessionId,
       });
     }
-    throw new Error(
-      `Environment validation failed:\n${nameValidationErrors.map((e) => `  - ${e}`).join('\n')}`,
-    );
+    throw new EnvValidationError(nameValidationErrors);
   }
 
   // Collect all schema keys for early termination optimization
@@ -577,7 +593,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     throw error;
   }
 
-  const errors: string[] = [];
+  const issues: EnvIssue[] = [];
 
   for (const [key, def] of Object.entries(schema)) {
     const defTyped = def as EnvDefinition;
@@ -591,7 +607,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       policies,
     );
     if (policyViolation) {
-      errors.push(policyViolation);
+      issues.push({ key, reason: 'policy', message: policyViolation });
       if (enableAudit) {
         logAuditEvent({
           type: 'policy_violation',
@@ -606,8 +622,8 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     }
 
     try {
-      // const type = defTyped.type || 'string';
       let validationResult: ValidationResult;
+      let reason: EnvIssue['reason'] = 'invalid';
 
       // Handle missing values
       if (rawValue === undefined) {
@@ -616,7 +632,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         if (defTyped.type === 'file' && effectiveSecretsDir) {
           const fileName = key.toLowerCase().replace(/_/g, '-');
           const filePath = join(effectiveSecretsDir, fileName);
-          const fileResult = file(filePath, key);
+          const fileResult = file(filePath);
 
           if (fileResult.valid) {
             validationResult = { success: true, value: fileResult.value };
@@ -625,9 +641,10 @@ export async function resolveEnvInternal<T extends EnvSchema>(
               timestamp: Date.now(),
             };
           } else {
+            reason = 'missing';
             validationResult = {
               success: false,
-              error: fileResult.error ?? `Failed to read secret for ${key}`,
+              error: fileResult.error ?? 'Failed to read secret',
             };
           }
         } else if (defTyped.default !== undefined) {
@@ -635,9 +652,10 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         } else if (defTyped.optional) {
           validationResult = { success: true, value: undefined };
         } else {
+          reason = 'missing';
           validationResult = {
             success: false,
-            error: `Missing required environment variable: ${key}`,
+            error: 'Missing required environment variable',
           };
         }
       } else {
@@ -652,7 +670,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
               error:
                 error instanceof Error
                   ? error.message
-                  : `Validation failed for ${key}`,
+                  : 'Validation failed',
             };
           }
         } else {
@@ -662,7 +680,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       }
 
       if (!validationResult.success) {
-        errors.push(validationResult.error!);
+        issues.push({ key, reason, message: validationResult.error! });
         if (enableAudit) {
           logAuditEvent({
             type: 'validation_failure',
@@ -703,7 +721,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      errors.push(`${key}: ${message}`);
+      issues.push({ key, reason: 'invalid', message });
       if (enableAudit) {
         logAuditEvent({
           type: 'validation_failure',
@@ -716,19 +734,17 @@ export async function resolveEnvInternal<T extends EnvSchema>(
     }
   }
 
-  if (errors.length > 0) {
+  if (issues.length > 0) {
     if (enableAudit) {
       logAuditEvent({
         type: 'validation_failure',
         timestamp: Date.now(),
-        error: `${errors.length} validation error(s)`,
-        metadata: { errorCount: errors.length },
+        error: `${issues.length} validation error(s)`,
+        metadata: { errorCount: issues.length },
         sessionId,
       });
     }
-    throw new Error(
-      `Environment validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`,
-    );
+    throw new EnvValidationError(issues);
   }
 
   if (enableAudit) {
@@ -790,13 +806,11 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       logAuditEventSync({
         type: 'validation_failure',
         timestamp: Date.now(),
-        error: `Invalid environment variable names: ${nameValidationErrors.join(', ')}`,
+        error: `Invalid environment variable names: ${nameValidationErrors.map((i) => i.key).join(', ')}`,
         sessionId,
       });
     }
-    throw new Error(
-      `Environment validation failed:\n${nameValidationErrors.map((e) => `  - ${e}`).join('\n')}`,
-    );
+    throw new EnvValidationError(nameValidationErrors);
   }
 
   // Collect all schema keys for early termination optimization
@@ -825,7 +839,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     throw error;
   }
 
-  const errors: string[] = [];
+  const issues: EnvIssue[] = [];
 
   for (const [key, def] of Object.entries(schema)) {
     const defTyped = def as EnvDefinition;
@@ -838,7 +852,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       policies,
     );
     if (policyViolation) {
-      errors.push(policyViolation);
+      issues.push({ key, reason: 'policy', message: policyViolation });
       if (enableAudit) {
         logAuditEventSync({
           type: 'policy_violation',
@@ -853,8 +867,8 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     }
 
     try {
-      // const type = defTyped.type || 'string';
       let validationResult: ValidationResult;
+      let reason: EnvIssue['reason'] = 'invalid';
 
       // Handle missing values
       if (rawValue === undefined) {
@@ -863,7 +877,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
         if (defTyped.type === 'file' && effectiveSecretsDir) {
           const fileName = key.toLowerCase().replace(/_/g, '-');
           const filePath = join(effectiveSecretsDir, fileName);
-          const fileResult = file(filePath, key);
+          const fileResult = file(filePath);
 
           if (fileResult.valid) {
             validationResult = { success: true, value: fileResult.value };
@@ -872,9 +886,10 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
               timestamp: Date.now(),
             };
           } else {
+            reason = 'missing';
             validationResult = {
               success: false,
-              error: fileResult.error ?? `Failed to read secret for ${key}`,
+              error: fileResult.error ?? 'Failed to read secret',
             };
           }
         } else if (defTyped.default !== undefined) {
@@ -882,9 +897,10 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
         } else if (defTyped.optional) {
           validationResult = { success: true, value: undefined };
         } else {
+          reason = 'missing';
           validationResult = {
             success: false,
-            error: `Missing required environment variable: ${key}`,
+            error: 'Missing required environment variable',
           };
         }
       } else {
@@ -899,7 +915,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
               error:
                 error instanceof Error
                   ? error.message
-                  : `Validation failed for ${key}`,
+                  : 'Validation failed',
             };
           }
         } else {
@@ -909,7 +925,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       }
 
       if (!validationResult.success) {
-        errors.push(validationResult.error!);
+        issues.push({ key, reason, message: validationResult.error! });
         if (enableAudit) {
           logAuditEventSync({
             type: 'validation_failure',
@@ -950,7 +966,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      errors.push(`${key}: ${message}`);
+      issues.push({ key, reason: 'invalid', message });
       if (enableAudit) {
         logAuditEventSync({
           type: 'validation_failure',
@@ -963,19 +979,17 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
     }
   }
 
-  if (errors.length > 0) {
+  if (issues.length > 0) {
     if (enableAudit) {
       logAuditEventSync({
         type: 'validation_failure',
         timestamp: Date.now(),
-        error: `${errors.length} validation error(s)`,
-        metadata: { errorCount: errors.length },
+        error: `${issues.length} validation error(s)`,
+        metadata: { errorCount: issues.length },
         sessionId,
       });
     }
-    throw new Error(
-      `Environment validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`,
-    );
+    throw new EnvValidationError(issues);
   }
 
   if (enableAudit) {

@@ -6,10 +6,9 @@
  * - HTTP response scanning
  * - Sensitive value extraction
  */
-import { resolve, resolveAsync } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
 import { string, url } from 'node-env-resolver/validators';
 import {
-  patchGlobalConsole,
   createRedactor,
   extractSensitiveValues,
 } from 'node-env-resolver/runtime';

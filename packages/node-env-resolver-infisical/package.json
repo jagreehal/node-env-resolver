@@ -25,11 +25,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "NODE_ENV=production tsup",
-    "build:dev": "tsup",
-    "build:dts": "tsc --emitDeclarationOnly",
+    "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
+    "build:dev": "tsup && tsc -p tsconfig.build.json",
+    "build:dts": "tsc -p tsconfig.build.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src/",
     "test": "vitest run",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "prepublishOnly": "pnpm build && pnpm type-check"
@@ -66,15 +65,10 @@
   },
   "devDependencies": {
     "node-env-resolver": "workspace:*",
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^25.6.0",
-    "@typescript-eslint/eslint-plugin": "^8.58.1",
-    "@typescript-eslint/parser": "^8.58.1",
-    "eslint": "^10.2.0",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.2",
+    "@types/node": "^26.6.3",
+    "prettier": "^3.9.9",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   }
 }

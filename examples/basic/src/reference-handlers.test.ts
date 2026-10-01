@@ -12,7 +12,6 @@
  * API_KEY=aws-ssm://prod/api-key
  */
 import { resolveAsync } from 'node-env-resolver';
-import { string, url } from 'node-env-resolver/validators';
 import { processEnv } from 'node-env-resolver/resolvers';
 import { createAwsSecretHandler, createAwsSsmHandler } from 'node-env-resolver-aws/handlers';
 import type { ReferenceHandler } from 'node-env-resolver';

@@ -6,27 +6,24 @@
     "clean": "turbo run clean",
     "dev": "dotenv -- turbo run dev --no-cache --parallel --continue",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint -- --fix",
-    "lint:exports": "eslint --ext .ts,.js packages/*/src/index.ts packages/*/src/index.js",
+    "lint": "oxlint packages examples",
+    "lint:fix": "oxlint packages examples --fix",
     "test": "turbo run test",
     "type-check": "turbo run type-check",
     "example:basic": "pnpm --filter simple-example dev",
     "example:express": "pnpm --filter express-app-example dev",
     "example:lambda": "pnpm --filter aws-lambda-example dev",
     "release": "pnpm changeset publish",
-    "quality": "turbo run build lint type-check test"
+    "quality": "pnpm lint && turbo run build type-check test"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.60.1",
-    "@typescript-eslint/parser": "^8.60.1",
-    "globals": "^17.6.0",
-    "prettier": "^3.8.3",
-    "turbo": "^2.9.16"
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.5",
+    "oxlint": "^1.86.0",
+    "eslint-plugin-import-zod": "^1.2.1"
   },
   "packageManager": "pnpm@10.26.0",
   "dependencies": {
-    "@changesets/cli": "^2.31.0"
+    "@changesets/cli": "^3.0.3"
   }
 }

@@ -631,6 +631,8 @@ if (result.success) {
 }
 ```
 
+On failure, `result.issues` lists `{ key, reason: 'missing' | 'invalid' | 'policy', message }` for each variable. `resolve()` and `resolveAsync()` throw an `EnvValidationError` with the same `issues`.
+
 All functions have safe variants:
 
 - `resolve()` → `safeResolve()` (both synchronous)
@@ -1674,9 +1676,9 @@ The library provides clear, actionable error messages:
 
 ```text
 Environment validation failed:
-  - Missing required environment variable: DATABASE_URL
-  - PORT: Invalid port number (1-65535)
-  - NODE_ENV: must be one of: development, production (got: "staging")
+  - DATABASE_URL: Missing required environment variable
+  - PORT: Invalid port
+  - NODE_ENV: Invalid value. Allowed values: development, production
 ```
 
 ## Licence

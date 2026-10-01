@@ -490,7 +490,7 @@ describe('Advanced Features', () => {
         throw new Error('Should have thrown');
       } catch (error) {
         expect((error as Error).message).toContain(
-          'Missing required environment variable: DB_PASSWORD',
+          'DB_PASSWORD: Missing required environment variable',
         );
       }
     });

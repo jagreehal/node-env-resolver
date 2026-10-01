@@ -27,11 +27,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "NODE_ENV=production tsup",
-    "build:dev": "tsup",
-    "build:dts": "tsc --emitDeclarationOnly",
+    "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
+    "build:dev": "tsup && tsc -p tsconfig.build.json",
+    "build:dts": "tsc -p tsconfig.build.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src/",
     "test": "vitest run",
     "dev": "tsup --watch",
     "prepublishOnly": "pnpm build && pnpm type-check"
@@ -66,7 +65,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "vite": "^8.0.16"
+    "vite": "^8.3.1"
   },
   "peerDependenciesMeta": {
     "vite": {
@@ -77,13 +76,12 @@
     "node-env-resolver": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "eslint": "^10.4.1",
-    "prettier": "^3.8.3",
+    "@types/node": "^26.6.3",
+    "prettier": "^3.9.9",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.8"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
   },
   "engines": {
     "node": ">=18"

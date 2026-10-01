@@ -27,7 +27,7 @@ describe('Environment Variable Name Validation', () => {
       resolve({
         '123INVALID': 3000, // Invalid variable name - starts with number
       }),
-    ).toThrow('Invalid environment variable name: "123INVALID"');
+    ).toThrow('123INVALID: Invalid environment variable name');
 
     // Test valid variable name (should work) - use default value to avoid "missing required" error
     const result = resolve({
@@ -45,7 +45,7 @@ describe('Environment Variable Name Validation', () => {
     expect(safeResult.success).toBe(false);
     if (!safeResult.success) {
       expect(safeResult.error).toContain(
-        'Invalid environment variable name: "PORT-INVALID"',
+        'PORT-INVALID: Invalid environment variable name',
       );
     }
 
@@ -103,7 +103,7 @@ describe('Environment Variable Name Validation', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toContain(
-          `Invalid environment variable name: "${name}"`,
+          `${name}: Invalid environment variable name`,
         );
       }
     }
