@@ -66,6 +66,9 @@ export function patchGlobalConsole(
           if (typeof arg === 'string' && redactStrings) {
             return redactor.redactString(arg);
           }
+          if ((typeof arg === 'number' || typeof arg === 'bigint') && redactStrings) {
+            return redactor.redactObject(arg);
+          }
           if (typeof arg === 'object' && redactObjects && arg !== null) {
             return redactor.redactObject(arg);
           }

@@ -11,21 +11,14 @@
 import { createHash } from 'crypto';
 import type { Provenance } from './types.js';
 
-// Default sensitive key patterns - exported for custom sensitivity detection
-export const DEFAULT_SENSITIVE_PATTERNS: readonly RegExp[] = [
-  /DATABASE_URL$/i,
-  /KEY$/i,
-  /TOKEN$/i,
-  /SECRET$/i,
-  /PASSWORD$/i,
-  /CREDENTIAL/i,
-  /DSN$/i,
-  /PRIVATE/i,
-  /_AUTH$/i,
-  /API_KEY/i,
-  /ACCESS_KEY/i,
-  /SESSION/i,
-];
+import {
+  DEFAULT_SENSITIVE_PATTERNS,
+  isSensitiveKeyName,
+  isSensitiveValue,
+} from './sensitivity.js';
+
+// Re-exported for backwards compatibility - one list shared with runtime redaction
+export { DEFAULT_SENSITIVE_PATTERNS };
 
 /**
  * Value display modes - from most to least safe
@@ -157,27 +150,22 @@ function isSensitiveKey(
   customIsSensitive?: (key: string, value: string) => boolean,
   customSensitiveKeys?: readonly string[],
 ): boolean {
+  // Explicit metadata (secret(), withMeta, derived values) always wins
+  if (isSensitiveValue(_value)) return true;
+
   if (customIsSensitive) {
     return customIsSensitive(key, _value);
   }
 
-  const upperKey = key.toUpperCase();
-
   if (customSensitiveKeys) {
     for (const pattern of customSensitiveKeys) {
-      if (new RegExp(pattern, 'i').test(upperKey)) {
+      if (new RegExp(pattern, 'i').test(key)) {
         return true;
       }
     }
   }
 
-  for (const pattern of DEFAULT_SENSITIVE_PATTERNS) {
-    if (pattern.test(upperKey)) {
-      return true;
-    }
-  }
-
-  return false;
+  return isSensitiveKeyName(key);
 }
 
 /**
@@ -188,12 +176,15 @@ export function createDebugEntry(
   value: string | undefined,
   provenance: Provenance | undefined,
   options: DebugOptions,
+  /** Schema says this key is sensitive (secret(), withMeta, ...) */
+  explicitSensitive = false,
 ): DebugEntry {
   const resolved = value !== undefined;
   const length = value?.length ?? 0;
   const sensitive =
     resolved &&
-    isSensitiveKey(key, value, options.isSensitive, options.sensitiveKeys);
+    (explicitSensitive ||
+      isSensitiveKey(key, value, options.isSensitive, options.sensitiveKeys));
 
   let preview: string | null = null;
   let fp: string | null = null;

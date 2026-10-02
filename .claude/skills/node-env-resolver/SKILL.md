@@ -253,15 +253,53 @@ const events = getAuditLog(config);
 ## CLI Binary
 
 ```bash
-# Scan for hardcoded secrets in source files
-npx node-env-resolver scan [paths...]
-npx node-env-resolver scan --staged  # pre-commit hook
+# Scan for hardcoded secrets (dotfiles included; findings never contain values)
+npx ner scan [paths...]
+npx ner scan --staged          # scans staged blobs; use as a pre-commit hook
+npx ner scan --format json .
 
 # Run command with resolved .env (supports reference URIs)
-npx node-env-resolver run --env .env -- node server.js
+npx ner run --env .env -- node server.js
+
+# Schema context without values or provider calls (reads env.schema.ts, export `schema`)
+npx ner describe --format json     # manifest for agents
+npx ner describe --format dotenv   # .env.example with fake values
+
+# Validate without printing values. Exit 0 valid, 1 issues, 2 usage/schema error
+npx ner check --agent              # offline: reference URIs reported as `deferred`
+npx ner check --resolve            # online: resolves known reference schemes first
 ```
 
-Alias: `ner scan`, `ner run`.
+`node-env-resolver` is the long-form binary name.
+
+## Sensitive Values
+
+Mark secrets explicitly. Debug views, runtime redaction, `ner describe`/`ner check` and the Next.js/Vite client guards all read this metadata:
+
+```typescript
+import { secret, number, url, withMeta } from 'node-env-resolver/validators';
+
+const schema = {
+  SERVICE_CONFIG: secret(),                                    // sensitive
+  PIN: withMeta(number(), { sensitive: true }),                // any validator
+  API_URL: withMeta(url(), { description: 'Upstream API' }),   // shows in `ner describe`
+};
+```
+
+`secret()`, `file()`, `postgres()`, `mysql()`, `mongodb()` and `redis()` are sensitive by default. Values containing a registered secret (interpolation, `withComputed`) count as sensitive. Key-name patterns are the fallback.
+
+## Coding Agents and Tests
+
+- Give agents `ner describe --format json` and `ner check --agent`, never resolved values.
+- Don't launch an agent through `ner run`: the child inherits every resolved secret.
+- Use `fakeEnv(schema)` for tests that run without credentials. It validates every generated value and throws if one fails; pass `withMeta(v, { example: '...' })` for constrained validators.
+
+```typescript
+import { resolve, fakeEnv } from 'node-env-resolver';
+import { fromObject } from 'node-env-resolver/resolvers';
+
+const config = resolve({ resolvers: [[fromObject(fakeEnv(schema)), schema]] });
+```
 
 ## Policies
 
@@ -303,3 +341,6 @@ resolve(schema, {
 | `ReturnType<typeof getConfig>` for the config type    | `InferSimpleSchema<typeof schema>`                                                                                                |
 | Parsing `result.error` to find the failing key        | Read `result.issues` (or `error.issues` on `EnvValidationError`)                                                                  |
 | Zod schema inside resolver tuple                      | Zod schemas ONLY work with `resolveZod`/`safeResolveZod`. Use native validators (`string()`, `postgres()`) inside resolver tuples |
+| `string()` for a secret with a neutral name           | `secret()` or `withMeta(validator, { sensitive: true })` so redaction does not rely on the key name                              |
+| Reading `.env` to check config                        | `ner check --agent` (no values in output)                                                                                         |
+| Hand-written fake env for tests                       | `fakeEnv(schema)`                                                                                                                 |

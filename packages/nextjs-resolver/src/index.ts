@@ -8,7 +8,7 @@
  * - Advanced types: postgres, url, email, json, port, etc.
  */
 
-import { resolve as nodeEnvResolve } from 'node-env-resolver';
+import { resolve as nodeEnvResolve, isSensitiveValidator, findSensitiveKeys } from 'node-env-resolver';
 import type { SimpleEnvSchema, ResolveOptions, InferSimpleSchema } from 'node-env-resolver';
 export {
   string,
@@ -142,6 +142,17 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
     );
   }
 
+  // Sensitive values are never allowed client-side, whatever their prefix
+  const secretClientKeys = Object.entries(config.client)
+    .filter(([, v]) => isSensitiveValidator(v))
+    .map(([k]) => k);
+  if (secretClientKeys.length > 0) {
+    throw new Error(
+      `❌ Sensitive values cannot be in the client schema (they are bundled into browser code): ${secretClientKeys.join(', ')}\n` +
+      `💡 Move these to the server schema.`
+    );
+  }
+
   // Validate server keys don't have client prefix
   const serverKeys = Object.keys(config.server);
   const incorrectServerKeys = serverKeys.filter(key => key.startsWith(clientPrefix));
@@ -156,6 +167,15 @@ export function resolve<TServer extends SimpleEnvSchema, TClient extends SimpleE
   // Next.js already handles .env files via process.env, so no custom resolvers needed
   const serverResult = nodeEnvResolve(config.server) as InferSimpleSchema<TServer>;
   const clientResult = nodeEnvResolve(config.client) as InferSimpleSchema<TClient>;
+
+  // Values matter too: a client string() can hold a server secret() value
+  const leaked = findSensitiveKeys(clientResult as Record<string, unknown>);
+  if (leaked.length > 0) {
+    throw new Error(
+      `❌ Client environment variables contain sensitive values (they would be bundled into browser code): ${leaked.join(', ')}\n` +
+      `💡 Never copy a secret into a client variable.`
+    );
+  }
 
   // Create protected environment object with runtime guards
   const isBrowser = () => typeof (globalThis as GlobalWithWindow).window !== 'undefined';

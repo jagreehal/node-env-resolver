@@ -178,4 +178,6 @@ if (isClient) {
 | `import { resolve } from 'node-env-resolver'` for Vite | `import { resolve } from 'node-env-resolver-vite'` (different API — takes `{ server, client }`) |
 | Using `resolveAsync` from core package                 | Use `resolveAsyncFn` from `node-env-resolver-vite` (wraps dotenv + reference handlers)          |
 | Flat schema without server/client split                | Always use `{ server: {...}, client: {...} }`                                                   |
+| `secret()` or `postgres()` in the client schema        | Keep sensitive validators server-side; `resolve()` throws otherwise                             |
+| Copying a server secret into a `VITE_` var             | `resolve()` throws when a client value contains a registered secret                             |
 | Plugin with one argument                               | `nodeEnvResolverPlugin(config, options)` — config and options are separate args                 |

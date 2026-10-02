@@ -262,6 +262,8 @@ export interface EnvDefinition {
   default?: unknown;
   optional?: boolean;
   secretsDir?: string;
+  /** Value is a secret: redacted in debug views, runtime output and CLI */
+  sensitive?: boolean;
 }
 
 // Additional legacy types

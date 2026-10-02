@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { resolve, safeResolve, isServer, isClient } from './index';
-import { string, url, postgres, port, number, boolean } from 'node-env-resolver/validators';
+import { string, url, postgres, port, number, boolean, secret } from 'node-env-resolver/validators';
 
 describe('node-env-resolver-vite', () => {
   // Store original process.env
@@ -42,6 +42,20 @@ describe('node-env-resolver-vite', () => {
           },
         });
       }).toThrow(/must be prefixed 'VITE_'/);
+    });
+
+    it('should reject sensitive validators in the client schema', () => {
+      expect(() => {
+        resolve({ server: {}, client: { VITE_DB: postgres() } });
+      }).toThrow(/Sensitive values cannot be in the client schema/);
+    });
+
+    it('should reject a client value that copies a server secret', () => {
+      process.env.VITE_COPY = 'vt-copied-secret-1';
+      expect(() => {
+        resolve({ server: { SECRET_SRC_SERVER: secret({ default: 'vt-copied-secret-1' }) }, client: { VITE_COPY: string() } });
+      }).toThrow(/contain sensitive values.*VITE_COPY/);
+      delete process.env.VITE_COPY;
     });
 
     it('should accept server vars without VITE_ prefix', () => {
