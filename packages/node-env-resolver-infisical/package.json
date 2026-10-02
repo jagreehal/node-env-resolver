@@ -1,6 +1,6 @@
 {
   "name": "node-env-resolver-infisical",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Infisical resolver for node-env-resolver",
   "type": "module",
   "main": "./dist/index.js",
@@ -58,7 +58,7 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "node-env-resolver": "^6.6.0"
+    "node-env-resolver": "^6.7.0"
   },
   "publishConfig": {
     "access": "public"
