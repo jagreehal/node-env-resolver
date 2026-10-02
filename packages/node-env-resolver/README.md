@@ -770,17 +770,20 @@ The `ner` CLI ships with the package. Install globally or run via `npx ner`.
 
 #### `ner scan` — secret scanner
 
-Scans files for hardcoded secrets (Stripe keys, GitHub tokens, JWTs, DB connection strings, AWS keys, private keys, and more):
+Scans files for hardcoded secrets: Stripe keys, GitHub tokens, JWTs, DB connection strings, AWS keys, private keys and more. The scan includes dotfiles such as `.env.local` and `.npmrc`, because `.gitignore` does not stop an agent or a `git add -f` from reading them. Each finding reports file, line, column and type. Exit codes: `0` clean, `1` findings, `2` usage error.
 
 ```bash
 # Scan a directory
 ner scan src/
 
-# Scan only git-staged files (ideal for pre-commit hooks)
+# Scan the staged blobs that will be committed (pre-commit hooks)
 ner scan --staged
 
-# Show surrounding line context
+# Show the matching line, with every secret replaced by [REDACTED]
 ner scan --context src/
+
+# Machine-readable output
+ner scan --format json .
 
 # Exclude patterns
 ner scan --ignore "fixtures" --ignore "\.test\." src/
@@ -830,6 +833,92 @@ Requires `node-env-resolver-aws` for `aws-sm://` and `aws-ssm://` support:
 ```bash
 npm install node-env-resolver-aws
 ```
+
+> `ner run` passes the resolved values and the parent environment to the child process. Launch your app with it, not a coding agent. See [Coding agents](#coding-agents).
+
+#### `ner describe`: schema manifest
+
+`ner describe` prints names, types, requirements, descriptions and fake examples from your schema. It reads no values and calls no providers, so you can commit the output and hand it to a coding agent.
+
+```ts
+// env.schema.ts: export the schema you pass to resolve()
+import { secret, url, port, withMeta } from 'node-env-resolver/validators';
+
+export const schema = {
+  STRIPE_KEY: withMeta(secret(), { description: 'Stripe API key' }),
+  API_URL: withMeta(url(), { description: 'Upstream API', example: 'https://api.example.com' }),
+  PORT: port({ default: 3000 }),
+};
+```
+
+```bash
+ner describe                                    # table
+ner describe --format json > env.manifest.json
+ner describe --format dotenv > .env.example
+```
+
+The CLI loads `env.schema.{ts,mts,js,mjs}` or `--schema <file>`, using the `schema` export or the default export. `.ts` files need Node 22.18+ or a loader such as `tsx`.
+
+In code, use `describeSchema(schema)`, `toDotenvExample(schema)` and `fakeEnv(schema)`. `fakeEnv` returns fake values for tests that run without cloud credentials. It validates each value and throws if a constraint such as `number({ min: 10 })` rejects the generated one. Supply your own with `withMeta(validator, { example })`.
+
+```ts
+import { resolve, fakeEnv } from 'node-env-resolver';
+import { fromObject } from 'node-env-resolver/resolvers';
+
+const config = resolve({ resolvers: [[fromObject(fakeEnv(schema)), schema]] });
+```
+
+#### `ner check`: validate without printing values
+
+```bash
+ner check            # offline: reference URIs show up as "deferred"
+ner check --agent    # JSON: { ok, issues: [{ key, code, message, sensitive }], deferred }
+ner check --resolve  # online: resolve aws-sm:// and friends first (needs credentials)
+```
+
+Output contains key names, issue codes and the failed type check, plus allowed values for enums. It leaves out values, fragments, lengths, fingerprints and validator messages. `--resolve` resolves schema keys that use a known reference scheme (`aws-sm`, `aws-ssm`, `op`, `bws`, `doppler`, `infisical`, `vault`) and treats plain URLs as values. A `file()` variable with a `secretsDir` shows up as deferred. Exit codes: `0` valid, `1` missing or invalid variables, `2` usage or schema error.
+
+### Sensitive values
+
+The library masks sensitive values in debug views and redacts them in runtime console and HTTP protection, including numbers and `json()` fields. The Next.js and Vite adapters reject them from client config, by validator and by resolved value. A value counts as sensitive when:
+
+1. **You mark it**: `secret()`, `file()`, `postgres()`, `mysql()`, `mongodb()`, `redis()`, or `withMeta(validator, { sensitive: true })`.
+2. **It contains a marked value**: for example a URL built by interpolation or `withComputed()`. Encodings such as base64 fall outside this check.
+3. **Its key name matches** `DEFAULT_SENSITIVE_PATTERNS` (`*KEY*`, `*TOKEN*`, `*SECRET*`, `*PASSWORD*` and others).
+
+`withMeta(validator, { sensitive: false })` turns off the key-name match for `ner describe` and `ner check`. Debug views and runtime redaction keep it on.
+
+### Coding agents
+
+A coding agent reads whatever its process can reach: environment variables, repo files including git-ignored `.env` files, and command output. Give the agent the schema and the right to use credentials, and keep the credential values on the host.
+
+- **Share context**: commit `ner describe --format json` output. Let agents run `ner check --agent` and tests against `fakeEnv(schema)`.
+- **Keep plaintext out of the workspace**: put reference URIs (`aws-sm://...`) in `.env`. Docker documents that a sandboxed agent can read ignored and untracked files in the mounted repo.
+- **Launch agents directly**: an agent started through `ner run` inherits every resolved secret.
+
+#### Docker Sandboxes
+
+[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/security/credentials/) run agents in a microVM. A proxy on the host holds the real credential and the agent sees a placeholder. The proxy swaps in the real value on requests to hosts you allow. Point it at the secret your reference already names, and the value stays on the host:
+
+```bash
+# .env, shared with the sandbox: references only
+STRIPE_KEY=aws-sm://prod/stripe-key
+
+# On the host. The sandbox sees STRIPE_KEY=<placeholder>; the proxy injects
+# the real value on requests to api.stripe.com.
+sbx secret set-custom \
+  --host api.stripe.com \
+  --env STRIPE_KEY \
+  --command 'aws secretsmanager get-secret-value --secret-id prod/stripe-key --query SecretString --output text'
+
+# 1Password references work for built-in services
+sbx secret set anthropic --ref 'op://Work/Anthropic/credential'
+```
+
+Plan for two limits:
+
+- The agent can make any request the credential allows to the allowed hosts. Scope credentials and host lists tightly.
+- The proxy swaps placeholders in HTTP(S) traffic. Database drivers and SDKs that sign requests locally need the raw value, so run them against `fakeEnv(schema)` or local services and keep real integration tests outside the sandbox.
 
 ### Runtime Protection
 

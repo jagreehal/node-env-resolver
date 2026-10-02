@@ -3,200 +3,24 @@
  * node-env-resolver CLI (ner)
  *
  * Commands:
- *   scan  - Scan files for hardcoded secrets
- *   run   - Run a command with .env vars injected
+ *   scan      - Scan files for hardcoded secrets
+ *   run       - Run a command with .env vars injected
+ *   describe  - Describe the env schema (no values, no provider calls)
+ *   check     - Validate env against the schema without printing values
  */
 
 import { parseArgs } from 'util';
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname } from 'path';
-import { execSync, spawn } from 'child_process';
-
-// ─── Secret patterns ──────────────────────────────────────────────────────────
-
-const SECRET_PATTERNS: Array<{ pattern: RegExp; type: string }> = [
-  { pattern: /sk_(live|test)_[a-zA-Z0-9]{24,}/g, type: 'stripe-key' },
-  { pattern: /pk_(live|test)_[a-zA-Z0-9]{24,}/g, type: 'stripe-key' },
-  { pattern: /xox[baprs]-[a-zA-Z0-9-]+/g, type: 'slack-token' },
-  { pattern: /ghp_[a-zA-Z0-9]{36}/g, type: 'github-token' },
-  { pattern: /gho_[a-zA-Z0-9]{36}/g, type: 'github-token' },
-  { pattern: /ghu_[a-zA-Z0-9]{36}/g, type: 'github-token' },
-  { pattern: /ghs_[a-zA-Z0-9]{36}/g, type: 'github-token' },
-  { pattern: /ghr_[a-zA-Z0-9]{36}/g, type: 'github-token' },
-  {
-    pattern: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g,
-    type: 'jwt-token',
-  },
-  {
-    pattern: /(postgres|mysql|mongodb|redis):\/\/[^:]+:[^@]+@/g,
-    type: 'connection-string',
-  },
-  { pattern: /AKIA[0-9A-Z]{16}/g, type: 'aws-access-key' },
-  {
-    pattern: /aws_secret_access_key["']?\s*[:=]\s*["']?[A-Za-z0-9/+=]{40}/gi,
-    type: 'aws-secret-key',
-  },
-  {
-    pattern: /-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/g,
-    type: 'private-key',
-  },
-];
-
-const SCAN_EXTENSIONS = new Set([
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.json',
-  '.yaml',
-  '.yml',
-  '.toml',
-  '.txt',
-  '.env',
-  '.md',
-]);
-
-const SKIP_DIRS = new Set([
-  'node_modules',
-  'dist',
-  'build',
-  '.git',
-  '.next',
-  '.turbo',
-]);
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Finding {
-  file: string;
-  line: number;
-  column: number;
-  type: string;
-  match: string;
-  context: string;
-}
-
-interface ScanOptions {
-  paths: string[];
-  ignorePatterns: RegExp[];
-  verbose: boolean;
-  showContext: boolean;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function matchesIgnore(path: string, patterns: RegExp[]): boolean {
-  return patterns.some((p) => p.test(path));
-}
-
-function scanLine(
-  line: string,
-  lineIndex: number,
-  file: string,
-  showContext: boolean,
-): Finding[] {
-  const findings: Finding[] = [];
-
-  for (const { pattern, type } of SECRET_PATTERNS) {
-    pattern.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(line)) !== null) {
-      const ctx = showContext
-        ? line
-            .slice(
-              Math.max(0, match.index - 20),
-              match.index + match[0].length + 20,
-            )
-            .trim()
-        : '';
-      findings.push({
-        file,
-        line: lineIndex + 1,
-        column: match.index + 1,
-        type,
-        match: match[0].length > 30 ? `${match[0].slice(0, 30)}…` : match[0],
-        context: ctx,
-      });
-    }
-  }
-
-  // Key=value heuristic
-  const kv = line.match(
-    /(password|secret|token|api[_-]?key)\s*[:=]\s*["']?([^"'\s,}]{9,})/i,
-  );
-  if (
-    kv &&
-    kv[2] &&
-    !kv[2].includes('${') &&
-    !kv[2].startsWith('process.env')
-  ) {
-    findings.push({
-      file,
-      line: lineIndex + 1,
-      column: (kv.index ?? 0) + 1,
-      type: 'potential-secret',
-      match: `${kv[1]}=${kv[2].slice(0, 20)}…`,
-      context: showContext ? line.trim() : '',
-    });
-  }
-
-  return findings;
-}
-
-function scanFile(filePath: string, options: ScanOptions): Finding[] {
-  if (matchesIgnore(filePath, options.ignorePatterns)) return [];
-
-  let content: string;
-  try {
-    content = readFileSync(filePath, 'utf-8');
-  } catch {
-    return [];
-  }
-
-  const lines = content.split('\n');
-  return lines.flatMap((line, i) =>
-    scanLine(line, i, filePath, options.showContext),
-  );
-}
-
-function scanDirectory(dirPath: string, options: ScanOptions): Finding[] {
-  if (matchesIgnore(dirPath, options.ignorePatterns)) return [];
-
-  let entries: string[];
-  try {
-    entries = readdirSync(dirPath);
-  } catch {
-    return [];
-  }
-
-  return entries.flatMap((entry) => {
-    if (entry.startsWith('.') && entry !== '.env') return [];
-    const full = join(dirPath, entry);
-
-    try {
-      const stat = statSync(full);
-      if (stat.isDirectory()) {
-        return SKIP_DIRS.has(entry) ? [] : scanDirectory(full, options);
-      }
-      if (stat.isFile()) {
-        const ext = extname(full);
-        if (SCAN_EXTENSIONS.has(ext) || entry.startsWith('.env')) {
-          return scanFile(full, options);
-        }
-      }
-    } catch {
-      // skip inaccessible entries
-    }
-    return [];
-  });
-}
+import { existsSync, readFileSync } from 'fs';
+import { resolve as resolvePath } from 'path';
+import { pathToFileURL } from 'url';
+import { spawn } from 'child_process';
+import { scanFile, scanPaths, scanStaged, type Finding } from './scan';
+import { checkEnv, describeSchema, toDotenvExample, KNOWN_REFERENCE_SCHEMES } from '../inspect';
+import type { SimpleEnvSchema } from '../types';
 
 function fmt(finding: Finding, showContext: boolean): string {
-  let out = `\x1b[31m${finding.file}:${finding.line}:${finding.column}\x1b[0m \x1b[33m[${finding.type}]\x1b[0m ${finding.match}`;
-  if (showContext && finding.context)
-    out += `\n  \x1b[90m${finding.context}\x1b[0m`;
+  let out = `\x1b[31m${finding.file}:${finding.line}:${finding.column}\x1b[0m \x1b[33m[${finding.type}]\x1b[0m`;
+  if (showContext && finding.context) out += `\n  \x1b[90m${finding.context}\x1b[0m`;
   return out;
 }
 
@@ -242,7 +66,7 @@ interface RefHandler {
   ) => Promise<{ value: string }>;
 }
 
-const REFERENCE_URI = /^[a-z][a-z0-9-]+:\/\//;
+const REFERENCE_URI = /^([a-z][a-z0-9-]+):\/\//;
 
 async function loadHandlers(): Promise<RefHandler[]> {
   const handlers: RefHandler[] = [];
@@ -263,7 +87,10 @@ async function loadHandlers(): Promise<RefHandler[]> {
 async function resolveEnvReferences(
   vars: Record<string, string>,
 ): Promise<Record<string, string>> {
-  const refs = Object.entries(vars).filter(([, v]) => REFERENCE_URI.test(v));
+  // Plain URLs (https://, postgres://) are values, not references.
+  const refs = Object.entries(vars).filter(([, v]) =>
+    KNOWN_REFERENCE_SCHEMES.includes(v.match(REFERENCE_URI)?.[1] ?? ''),
+  );
   if (refs.length === 0) return vars;
 
   const handlers = await loadHandlers();
@@ -321,8 +148,9 @@ async function runScan(args: string[]) {
       ignore: {
         type: 'string',
         multiple: true,
-        default: ['node_modules', '\\.git', 'dist', 'build', '\\.map$'],
+        default: ['node_modules', '\\.git(/|$)', 'dist', 'build', '\\.map$'],
       },
+      format: { type: 'string', default: 'text' },
       verbose: { type: 'boolean', short: 'v', default: false },
       context: { type: 'boolean', short: 'c', default: false },
       help: { type: 'boolean', short: 'h', default: false },
@@ -333,19 +161,23 @@ async function runScan(args: string[]) {
     console.log(`
 \x1b[1mner scan\x1b[0m [options] [paths...]
 
-Scan files for hardcoded secrets.
+Scan files (including dotfiles like .env.local) for hardcoded secrets.
+Findings never include the secret value or any fragment of it.
 
 Options:
-  --staged           Scan only git-staged files (ideal for pre-commit hooks)
+  --staged           Scan staged content (what will be committed)
   --ignore <pattern> Regex patterns to exclude (repeatable)
-  -c, --context      Show surrounding line context
+  --format <fmt>     text (default) or json
+  -c, --context      Show the matching line with secrets replaced by [REDACTED]
   -v, --verbose      Verbose output
   -h, --help         Show this help
+
+Exit codes: 0 no findings, 1 findings, 2 usage error
 
 Examples:
   ner scan src/
   ner scan --staged
-  ner scan --context --ignore "fixtures" src/
+  ner scan --format json .
 
 Pre-commit hook setup:
   echo 'ner scan --staged' >> .git/hooks/pre-commit
@@ -354,88 +186,203 @@ Pre-commit hook setup:
     process.exit(0);
   }
 
-  const ignorePatterns = ((values.ignore as string[]) ?? []).map(
-    (p) => new RegExp(p),
-  );
-  const showContext = Boolean(values.context);
-
-  let paths: string[] = positionals;
-
-  if (values.staged) {
-    try {
-      const output = execSync('git diff --cached --name-only', {
-        encoding: 'utf-8',
-      });
-      paths = output.trim().split('\n').filter(Boolean);
-      if (paths.length === 0) {
-        console.log('\x1b[32m✓ No staged files to scan.\x1b[0m');
-        process.exit(0);
-      }
-      if (values.verbose) {
-        console.log(`Scanning ${paths.length} staged file(s)…\n`);
-      }
-    } catch {
-      console.error(
-        '\x1b[31mError:\x1b[0m could not get staged files — is this a git repo?',
-      );
-      process.exit(1);
-    }
-  }
-
-  if (paths.length === 0) {
-    console.error(
-      'Provide at least one path to scan, or use --staged.\nRun: ner scan --help',
-    );
-    process.exit(1);
-  }
-
-  const options: ScanOptions = {
-    paths,
-    ignorePatterns,
-    verbose: Boolean(values.verbose),
-    showContext,
+  const json = values.format === 'json';
+  const options = {
+    ignorePatterns: ((values.ignore as string[]) ?? []).map((p) => new RegExp(p)),
+    showContext: Boolean(values.context),
   };
 
-  if (!values.staged) console.log('\x1b[1mScanning for secrets…\x1b[0m\n');
-
-  const findings: Finding[] = paths.flatMap((p) => {
+  let findings: Finding[];
+  if (values.staged) {
     try {
-      return statSync(p).isDirectory()
-        ? scanDirectory(p, options)
-        : scanFile(p, options);
+      findings = scanStaged(options);
     } catch {
-      return [];
+      console.error('\x1b[31mError:\x1b[0m could not read staged files. Is this a git repo?');
+      process.exit(2);
     }
-  });
+  } else {
+    if (positionals.length === 0) {
+      console.error('Provide at least one path to scan, or use --staged.\nRun: ner scan --help');
+      process.exit(2);
+    }
+    if (!json) console.log('\x1b[1mScanning for secrets…\x1b[0m\n');
+    findings = scanPaths(positionals, options);
+  }
+
+  if (json) {
+    console.log(JSON.stringify({ count: findings.length, findings }, null, 2));
+    process.exit(findings.length === 0 ? 0 : 1);
+  }
 
   if (findings.length === 0) {
     console.log('\x1b[32m✓ No secrets found.\x1b[0m');
     process.exit(0);
   }
 
-  console.log(
-    `\x1b[31m✗ Found ${findings.length} potential secret(s):\x1b[0m\n`,
-  );
-  for (const f of findings) console.log(fmt(f, showContext));
+  console.log(`\x1b[31m✗ Found ${findings.length} potential secret(s):\x1b[0m\n`);
+  for (const f of findings) console.log(fmt(f, options.showContext));
 
-  // Summary
   const byType: Record<string, number> = {};
   for (const f of findings) byType[f.type] = (byType[f.type] ?? 0) + 1;
-
   console.log('\nSummary:');
-  for (const [type, count] of Object.entries(byType)) {
-    console.log(`  ${type}: ${count}`);
-  }
+  for (const [type, count] of Object.entries(byType)) console.log(`  ${type}: ${count}`);
 
   console.log('\nRecommendations:');
   console.log('  • Move secrets to environment variables or a secret manager');
   console.log('  • Use reference handlers:  DATABASE_URL=aws-sm://prod/db-url');
   console.log('  • Add this check to CI:    ner scan src/');
-  console.log(
-    '  • Pre-commit hook:         echo "ner scan --staged" >> .git/hooks/pre-commit\n',
-  );
+  console.log('  • Pre-commit hook:         echo "ner scan --staged" >> .git/hooks/pre-commit\n');
 
   process.exit(1);
+}
+
+// ─── Schema loading (describe / check) ───────────────────────────────────────
+
+const SCHEMA_CANDIDATES = ['env.schema.ts', 'env.schema.mts', 'env.schema.js', 'env.schema.mjs'];
+
+/**
+ * Import the schema module. It must export `schema` (or a default export).
+ * .ts files need Node >= 22.18 (native type stripping) or a loader such as tsx.
+ */
+async function loadSchema(file: string | undefined): Promise<SimpleEnvSchema> {
+  const path = file ?? SCHEMA_CANDIDATES.find((c) => existsSync(c));
+  if (!path) {
+    throw new Error(
+      `No schema file found. Pass --schema <file> or create one of: ${SCHEMA_CANDIDATES.join(', ')}\n` +
+        '  The module must export `schema` (or a default export).',
+    );
+  }
+  const mod = (await import(pathToFileURL(resolvePath(path)).href)) as Record<string, unknown>;
+  const schema = (mod.schema ?? mod.default) as SimpleEnvSchema | undefined;
+  if (!schema || typeof schema !== 'object') {
+    throw new Error(`${path} must export \`schema\` (or a default export)`);
+  }
+  return schema;
+}
+
+async function runDescribe(args: string[]) {
+  const { values } = parseArgs({
+    args: args.slice(1),
+    options: {
+      schema: { type: 'string' },
+      format: { type: 'string', default: 'text' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+  });
+
+  if (values.help) {
+    console.log(`
+\x1b[1mner describe\x1b[0m [options]
+
+Describe the env schema: names, types, requirements, descriptions and safe
+fake examples. Never resolves references, calls providers or reads values,
+so the output is safe to commit and to give to coding agents.
+
+Options:
+  --schema <file>   Schema module (default: env.schema.{ts,mts,js,mjs})
+  --format <fmt>    text (default), json (manifest) or dotenv (.env.example)
+
+Examples:
+  ner describe --format json > env.manifest.json
+  ner describe --format dotenv > .env.example
+`);
+    process.exit(0);
+  }
+
+  let schema: SimpleEnvSchema;
+  try {
+    schema = await loadSchema(values.schema);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(2);
+  }
+
+  if (values.format === 'json') {
+    console.log(JSON.stringify({ version: 1, variables: describeSchema(schema) }, null, 2));
+  } else if (values.format === 'dotenv') {
+    process.stdout.write(toDotenvExample(schema));
+  } else {
+    for (const d of describeSchema(schema)) {
+      const flags = [d.type, d.required ? 'required' : 'optional', d.sensitive && 'sensitive']
+        .filter(Boolean)
+        .join(', ');
+      console.log(`${d.key}  (${flags})${d.description ? `  ${d.description}` : ''}`);
+    }
+  }
+  process.exit(0);
+}
+
+async function runCheck(args: string[]) {
+  const { values } = parseArgs({
+    args: args.slice(1),
+    options: {
+      schema: { type: 'string' },
+      env: { type: 'string', default: '.env' },
+      resolve: { type: 'boolean', default: false },
+      agent: { type: 'boolean', default: false },
+      format: { type: 'string', default: 'text' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+  });
+
+  if (values.help) {
+    console.log(`
+\x1b[1mner check\x1b[0m [options]
+
+Validate the environment (process env + .env file) against the schema.
+Output never contains values, fragments, lengths or fingerprints.
+
+By default the check is offline: reference URIs (aws-sm://, op://, ...) are
+reported as "deferred" because resolving them needs credentials. Use
+--resolve for a full check where credentials are available.
+
+Options:
+  --schema <file>   Schema module (default: env.schema.{ts,mts,js,mjs})
+  --env <file>      .env file to read (default: .env, optional)
+  --resolve         Resolve reference URIs first (needs credentials)
+  --agent           Machine-readable JSON output (same as --format json)
+  --format <fmt>    text (default) or json
+
+Exit codes: 0 valid, 1 missing/invalid variables, 2 usage or schema error
+`);
+    process.exit(0);
+  }
+
+  let schema: SimpleEnvSchema;
+  try {
+    schema = await loadSchema(values.schema);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(2);
+  }
+
+  let env: Record<string, string | undefined> = {
+    ...loadDotenv(values.env as string),
+    ...process.env,
+  };
+  if (values.resolve) {
+    // Resolve only the schema's own keys
+    const schemaVars = Object.fromEntries(
+      Object.keys(schema).flatMap((k) => (env[k] === undefined ? [] : [[k, env[k]!]])),
+    );
+    env = { ...env, ...(await resolveEnvReferences(schemaVars)) };
+  }
+
+  const result = checkEnv(schema, env);
+  const json = values.agent || values.format === 'json';
+
+  if (json) {
+    console.log(JSON.stringify({ mode: values.resolve ? 'online' : 'offline', ...result }, null, 2));
+  } else {
+    for (const i of result.issues) {
+      console.log(`\x1b[31m✗\x1b[0m ${i.key}: ${i.message}`);
+    }
+    for (const d of result.deferred) {
+      console.log(`\x1b[33m…\x1b[0m ${d.key}: ${d.scheme}:// reference not resolved (run with --resolve where credentials are available)`);
+    }
+    if (result.ok) console.log(`\x1b[32m✓ ${result.checked} variable(s) valid\x1b[0m`);
+  }
+  process.exit(result.ok ? 0 : 1);
 }
 
 async function runRun(args: string[]) {
@@ -472,6 +419,9 @@ Examples:
 Run a command with .env vars injected. Reference URIs are resolved before the
 process starts — no code changes needed in your app.
 
+The child receives the resolved values and the parent environment. Use it to
+start your app. For coding agents, see "Coding agents" in the README.
+
 Options:
   --env <file>     .env file to load (default: .env)
   --no-resolve     Skip reference URI resolution, inject values as-is
@@ -494,12 +444,7 @@ Reference resolution (install node-env-resolver-aws for AWS support):
   let envVars = loadDotenv(envFile);
 
   if (values.scan) {
-    const findings = scanFile(envFile, {
-      paths: [envFile],
-      ignorePatterns: [],
-      verbose: false,
-      showContext: false,
-    });
+    const findings = scanFile(envFile, { ignorePatterns: [], showContext: false });
     if (findings.length > 0) {
       console.error(
         `\x1b[33m⚠ ${findings.length} potential hardcoded secret(s) in ${envFile}:\x1b[0m`,
@@ -551,8 +496,10 @@ async function main() {
 \x1b[1mner\x1b[0m — node-env-resolver CLI
 
 Commands:
-  scan    Scan files for hardcoded secrets
-  run     Run a command with .env vars injected
+  scan      Scan files for hardcoded secrets
+  run       Run a command with .env vars injected
+  describe  Describe the env schema (safe for agents; no values)
+  check     Validate env against the schema (no values in output)
 
 Run \x1b[1mner <command> --help\x1b[0m for command-specific options.
 `);
@@ -563,6 +510,10 @@ Run \x1b[1mner <command> --help\x1b[0m for command-specific options.
     await runScan(args);
   } else if (command === 'run') {
     await runRun(args);
+  } else if (command === 'describe') {
+    await runDescribe(args);
+  } else if (command === 'check') {
+    await runCheck(args);
   } else {
     console.error(
       `\x1b[31mUnknown command:\x1b[0m ${command}\nRun: ner --help`,

@@ -2,6 +2,12 @@
  * Redaction utilities for protecting secrets in logs and responses
  */
 
+import {
+  DEFAULT_SENSITIVE_PATTERNS,
+  isSensitiveValue,
+  sensitiveForms,
+} from '../sensitivity.js';
+
 export interface RedactorOptions {
   sensitiveKeys?: string[];
   sensitivePatterns?: RegExp[];
@@ -9,24 +15,7 @@ export interface RedactorOptions {
   fallbackValue?: string;
 }
 
-const DEFAULT_SENSITIVE_KEY_PATTERNS: RegExp[] = [
-  /password/i,
-  /secret/i,
-  /token/i,
-  /key/i,
-  /credential/i,
-  /auth/i,
-  /api[_-]?key/i,
-  /access[_-]?token/i,
-  /refresh[_-]?token/i,
-  /private[_-]?key/i,
-  /database[_-]?url/i,
-  /db[_-]?url/i,
-  /connection[_-]?string/i,
-  /conn[_-]?string/i,
-  /dsn/i,
-  /bearer/i,
-];
+const DEFAULT_SENSITIVE_KEY_PATTERNS: readonly RegExp[] = DEFAULT_SENSITIVE_PATTERNS;
 
 const DEFAULT_SECRET_PATTERNS: RegExp[] = [
   /sk_live_[a-zA-Z0-9]{24,}/g,
@@ -66,6 +55,7 @@ export function createRedactor(
   } = options;
 
   const allPatterns = [...DEFAULT_SECRET_PATTERNS, ...customPatterns];
+  const secretForms = new Set(sensitiveValues.values());
 
   function shouldRedactKey(key: string): boolean {
     return sensitivePatterns.some((pattern) => pattern.test(key));
@@ -92,6 +82,9 @@ export function createRedactor(
     if (depth > 10) return obj;
     if (obj === null || obj === undefined) return obj;
     if (typeof obj === 'string') return redactSecretsInString(obj);
+    if (typeof obj === 'number' || typeof obj === 'bigint') {
+      return secretForms.has(String(obj)) ? fallbackValue : obj;
+    }
     if (typeof obj !== 'object') return obj;
 
     if (seen.has(obj)) return '[Circular]';
@@ -163,7 +156,13 @@ export function extractSensitiveValues(
     options.sensitiveKeys?.map((k) => new RegExp(k, 'i')) ?? DEFAULT_SENSITIVE_KEY_PATTERNS;
 
   for (const [key, value] of Object.entries(config)) {
-    if (typeof value === 'string' && patterns.some((p) => p.test(key))) {
+    // Explicit metadata (secret(), withMeta, values derived from secrets) wins,
+    // for any output type; key-name patterns are the fallback for strings.
+    if (isSensitiveValue(value)) {
+      sensitiveForms(value).forEach((form, i) => {
+        sensitiveValues.set(i === 0 ? key : `${key}#${i}`, form);
+      });
+    } else if (typeof value === 'string' && patterns.some((p) => p.test(key))) {
       sensitiveValues.set(key, value);
     }
   }

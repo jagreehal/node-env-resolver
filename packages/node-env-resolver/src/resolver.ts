@@ -12,6 +12,7 @@ import type {
   Provenance,
 } from './types';
 import { createDebugEntry } from './debug';
+import { isSensitiveValidator, markSensitiveValue } from './sensitivity';
 import { resolveReferences, resolveReferencesSync } from './references';
 import { join, resolve } from 'path';
 import { readFileSync } from 'fs';
@@ -70,6 +71,7 @@ export function normalizeSchema(schema: SimpleEnvSchema): EnvSchema {
         ...(validator.secretsDir !== undefined && {
           secretsDir: validator.secretsDir,
         }),
+        ...(isSensitiveValidator(validator) && { sensitive: true }),
       };
     } else if (typeof value === 'string') {
       // String shorthand - treat as default value
@@ -595,9 +597,22 @@ export async function resolveEnvInternal<T extends EnvSchema>(
 
   const issues: EnvIssue[] = [];
 
+  // Debug entries are emitted after every key is validated, so all sensitive
+  // outputs (including file() contents) are registered first, whatever the
+  // schema order.
+  const debugKeys: string[] = [];
+
   for (const [key, def] of Object.entries(schema)) {
     const defTyped = def as EnvDefinition;
     const rawValue = mergedEnv[key];
+
+    // Register explicitly sensitive inputs before validating: debug entries
+    // are emitted even when validation later fails, and the raw form can
+    // differ from the coerced output (e.g. "00004829" -> 4829).
+    // A file() input is only the path, not the secret.
+    if (defTyped.sensitive && defTyped.type !== 'file') {
+      markSensitiveValue(rawValue);
+    }
 
     // Policy checks
     const policyViolation = applyPolicies(
@@ -692,6 +707,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
         }
       } else {
         result[key] = validationResult.value;
+        if (defTyped.sensitive) markSensitiveValue(validationResult.value);
         // Audit ALL env var loads (not just secrets - all env vars are sensitive)
         if (enableAudit) {
           logAuditEvent({
@@ -707,17 +723,7 @@ export async function resolveEnvInternal<T extends EnvSchema>(
             sessionId,
           });
         }
-        // Generate debug entry if debug is enabled
-        if (isDebugEnabled && onDebugEntry) {
-          const rawValue = mergedEnv[key];
-          const entry = createDebugEntry(
-            key,
-            rawValue,
-            provenance[key],
-            debugOpts,
-          );
-          onDebugEntry(entry);
-        }
+        if (isDebugEnabled && onDebugEntry) debugKeys.push(key);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -731,6 +737,20 @@ export async function resolveEnvInternal<T extends EnvSchema>(
           sessionId,
         });
       }
+    }
+  }
+
+  if (isDebugEnabled && onDebugEntry) {
+    for (const key of debugKeys) {
+      onDebugEntry(
+        createDebugEntry(
+          key,
+          mergedEnv[key],
+          provenance[key],
+          debugOpts,
+          (schema[key] as EnvDefinition).sensitive === true,
+        ),
+      );
     }
   }
 
@@ -841,9 +861,22 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
 
   const issues: EnvIssue[] = [];
 
+  // Debug entries are emitted after every key is validated, so all sensitive
+  // outputs (including file() contents) are registered first, whatever the
+  // schema order.
+  const debugKeys: string[] = [];
+
   for (const [key, def] of Object.entries(schema)) {
     const defTyped = def as EnvDefinition;
     const rawValue = mergedEnv[key];
+
+    // Register explicitly sensitive inputs before validating: debug entries
+    // are emitted even when validation later fails, and the raw form can
+    // differ from the coerced output (e.g. "00004829" -> 4829).
+    // A file() input is only the path, not the secret.
+    if (defTyped.sensitive && defTyped.type !== 'file') {
+      markSensitiveValue(rawValue);
+    }
 
     const policyViolation = applyPolicies(
       key,
@@ -937,6 +970,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
         }
       } else {
         result[key] = validationResult.value;
+        if (defTyped.sensitive) markSensitiveValue(validationResult.value);
         // Audit ALL env var loads (not just secrets - all env vars are sensitive)
         if (enableAudit) {
           logAuditEventSync({
@@ -952,17 +986,7 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
             sessionId,
           });
         }
-        // Generate debug entry if debug is enabled
-        if (isDebugEnabled && onDebugEntry) {
-          const rawValue = mergedEnv[key];
-          const entry = createDebugEntry(
-            key,
-            rawValue,
-            provenance[key],
-            debugOpts,
-          );
-          onDebugEntry(entry);
-        }
+        if (isDebugEnabled && onDebugEntry) debugKeys.push(key);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -976,6 +1000,20 @@ export function resolveEnvInternalSync<T extends EnvSchema>(
           sessionId,
         });
       }
+    }
+  }
+
+  if (isDebugEnabled && onDebugEntry) {
+    for (const key of debugKeys) {
+      onDebugEntry(
+        createDebugEntry(
+          key,
+          mergedEnv[key],
+          provenance[key],
+          debugOpts,
+          (schema[key] as EnvDefinition).sensitive === true,
+        ),
+      );
     }
   }
 

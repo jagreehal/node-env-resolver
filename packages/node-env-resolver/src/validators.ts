@@ -369,13 +369,12 @@ export function http<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'http';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
     (validator as Record<string, unknown>).optional = opts.optional;
   }
-  (validator as Record<string, unknown>).__sensitive = true;
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
 }
@@ -408,6 +407,7 @@ export function json<
     }
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'json';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -474,6 +474,7 @@ export function string<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'string';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -534,6 +535,7 @@ export function number<
     return num;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'number';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -588,6 +590,7 @@ export function boolean<
     throw new Error('Invalid boolean');
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'boolean';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -639,6 +642,7 @@ export function url<
     }
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'url';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -689,6 +693,7 @@ export function email<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'email';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -739,6 +744,7 @@ export function port<
     return num;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'port';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -792,6 +798,8 @@ export function postgres<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'postgres';
+  (validator as Record<string, unknown>).__sensitive = true;
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -842,6 +850,8 @@ export function mysql<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'mysql';
+  (validator as Record<string, unknown>).__sensitive = true;
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -895,6 +905,8 @@ export function mongodb<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'mongodb';
+  (validator as Record<string, unknown>).__sensitive = true;
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -945,6 +957,8 @@ export function redis<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'redis';
+  (validator as Record<string, unknown>).__sensitive = true;
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -995,6 +1009,7 @@ export function https<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'https';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1048,6 +1063,7 @@ export function stringArray<
       .filter((s) => s.length > 0);
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'stringArray';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1104,6 +1120,7 @@ export function numberArray<
     });
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'numberArray';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1165,6 +1182,7 @@ export function urlArray<
     return urls;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'urlArray';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1220,6 +1238,8 @@ export function oneOf<
     return value as T[number];
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'oneOf';
+  (validator as Record<string, unknown>).__enum = values;
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1354,6 +1374,7 @@ export function duration<
     return Number(num) * multiplier;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'duration';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1423,6 +1444,8 @@ export function file<
     }
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'file';
+  (validator as Record<string, unknown>).__sensitive = true;
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1475,6 +1498,8 @@ export function secret<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'secret';
+  (validator as Record<string, unknown>).__sensitive = true;
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1530,6 +1555,7 @@ export function custom<
   : Validator<T> & { optional?: Opts['optional']; default?: Opts['default'] } {
   const validatorWithOptions = validator as unknown;
 
+  (validatorWithOptions as Record<string, unknown>).__type = 'custom';
   // Attach options to the validator function for runtime
   if (opts) {
     (validatorWithOptions as Record<string, unknown>).default = opts.default;
@@ -1587,6 +1613,7 @@ export function date<
     return value;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'date';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1645,6 +1672,7 @@ export function timestamp<
     return num;
   }) as unknown;
 
+  (validator as Record<string, unknown>).__type = 'timestamp';
   // Attach options to the validator function for runtime
   if (opts) {
     (validator as Record<string, unknown>).default = opts.default;
@@ -1653,4 +1681,28 @@ export function timestamp<
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return validator as any;
+}
+
+/**
+ * Attach documentation/sensitivity metadata to any validator.
+ * Used by `ner describe`, `ner check`, debug views and runtime redaction.
+ * `example` appears in manifests, so use a fake value.
+ *
+ * @example
+ * ```ts
+ * const schema = {
+ *   STRIPE_KEY: withMeta(string(), { description: 'Stripe API key', sensitive: true }),
+ *   PORT: withMeta(port({ default: 3000 }), { description: 'HTTP port' }),
+ * };
+ * ```
+ */
+export function withMeta<V>(
+  validator: V,
+  meta: { description?: string; example?: string; sensitive?: boolean },
+): V {
+  const rec = validator as unknown as Record<string, unknown>;
+  if (meta.description !== undefined) rec.__description = meta.description;
+  if (meta.example !== undefined) rec.__example = meta.example;
+  if (meta.sensitive !== undefined) rec.__sensitive = meta.sensitive;
+  return validator;
 }

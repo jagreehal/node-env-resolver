@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { boolean, email, number, port, resolve, safeResolve, string, url } from './index';
+import { boolean, email, number, port, postgres, resolve, safeResolve, string, url } from './index';
+import { secret } from 'node-env-resolver/validators';
 // Mock the globalThis.window for browser detection
 const originalGlobalThis = globalThis;
 
@@ -65,6 +66,24 @@ describe('node-env-resolver-nextjs', () => {
           INVALID_CLIENT_VAR: string() // Missing NEXT_PUBLIC_ prefix
         }
       })).toThrow(/Client environment variables must be prefixed with 'NEXT_PUBLIC_'/);
+    });
+
+    it('rejects sensitive validators in the client schema regardless of prefix', () => {
+      expect(() => resolve({
+        server: {},
+        client: { NEXT_PUBLIC_DB: postgres() }
+      })).toThrow(/Sensitive values cannot be in the client schema/);
+    });
+
+    it('rejects a client value that copies a server secret', () => {
+      process.env.NEXT_SECRET_ONE = 'nx-copied-secret-1';
+      process.env.NEXT_PUBLIC_COPY = 'prefix-nx-copied-secret-1';
+      expect(() => resolve({
+        server: { NEXT_SECRET_ONE: secret() },
+        client: { NEXT_PUBLIC_COPY: string() }
+      })).toThrow(/Client environment variables contain sensitive values.*NEXT_PUBLIC_COPY/);
+      delete process.env.NEXT_SECRET_ONE;
+      delete process.env.NEXT_PUBLIC_COPY;
     });
 
     it('validates server variables should not have client prefix', () => {

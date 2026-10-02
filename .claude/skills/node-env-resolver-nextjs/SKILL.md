@@ -142,3 +142,5 @@ Disable with `runtimeProtection: false` in options.
 | Adding dotenv resolver                                    | Not needed — Next.js loads `.env` into `process.env` automatically      |
 | Using `node-env-resolver-vite` for Next.js                | Use `node-env-resolver-nextjs` — different prefix, sync-only, no plugin |
 | Flat schema without server/client split                   | Always use `{ server: {...}, client: {...} }`                           |
+| `secret()` or `postgres()` in the client schema           | Keep sensitive validators server-side; `resolve()` throws otherwise     |
+| Copying a server secret into a `NEXT_PUBLIC_` var         | `resolve()` throws when a client value contains a registered secret     |

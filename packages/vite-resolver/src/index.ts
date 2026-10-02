@@ -3,7 +3,7 @@
  * Zero-config Vite integration with automatic client/server split
  */
 
-import { resolve as nodeEnvResolve, resolveAsync } from 'node-env-resolver';
+import { resolve as nodeEnvResolve, resolveAsync, isSensitiveValidator, findSensitiveKeys } from 'node-env-resolver';
 import { dotenv } from 'node-env-resolver/resolvers';
 import type {
   SimpleEnvSchema,
@@ -77,6 +77,16 @@ function createIsBrowser(): () => boolean {
   return () => typeof window !== 'undefined';
 }
 
+/** Throw if any resolved client value is a secret or derived from one. */
+function assertNoClientSecrets(client: Record<string, unknown>): void {
+  const leaked = findSensitiveKeys(client);
+  if (leaked.length > 0) {
+    throw new Error(
+      `Client env vars contain sensitive values (they would be bundled into browser code): ${leaked.join(', ')}`
+    );
+  }
+}
+
 function validatePrefixes<
   TServer extends SimpleEnvSchema,
   TClient extends SimpleEnvSchema,
@@ -84,6 +94,12 @@ function validatePrefixes<
   const badClientKeys = Object.keys(config.client).filter((k) => !k.startsWith(clientPrefix));
   if (badClientKeys.length > 0) {
     return `Client env vars must be prefixed '${clientPrefix}': ${badClientKeys.join(', ')}`;
+  }
+  const secretClientKeys = Object.entries(config.client)
+    .filter(([, v]) => isSensitiveValidator(v))
+    .map(([k]) => k);
+  if (secretClientKeys.length > 0) {
+    return `Sensitive values cannot be in the client schema (they are bundled into browser code): ${secretClientKeys.join(', ')}`;
   }
   const badServerKeys = Object.keys(config.server).filter((k) => k.startsWith(clientPrefix));
   if (badServerKeys.length > 0) {
@@ -104,6 +120,7 @@ function resolveInternal<TServer extends SimpleEnvSchema, TClient extends Simple
 
     const serverResult = nodeEnvResolve(config.server);
     const clientResult = nodeEnvResolve(config.client);
+    assertNoClientSecrets(clientResult);
 
     const isBrowser = createIsBrowser();
 
@@ -163,6 +180,7 @@ export async function resolveAsyncFn<
       references: referenceOptions,
     }),
   ]);
+  assertNoClientSecrets(clientResult);
 
   const isBrowser = createIsBrowser();
 

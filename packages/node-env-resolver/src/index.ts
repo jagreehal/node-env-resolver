@@ -84,6 +84,13 @@ export {
   DEFAULT_DEBUG_OPTIONS,
   DEFAULT_SENSITIVE_PATTERNS,
 } from './debug';
+export {
+  isSensitiveValidator,
+  isSensitiveValue,
+  isSensitiveKeyName,
+  markSensitiveValue,
+  findSensitiveKeys,
+} from './sensitivity';
 
 // Import resolver functions
 import {
@@ -669,3 +676,16 @@ async function safeResolveAsync(config: ResolveAsyncConfig): Promise<unknown> {
 }
 
 export { safeResolveAsync, resolveAsync, resolve, safeResolve };
+
+// Schema inspection for `ner describe` and `ner check`
+export {
+  describeSchema,
+  fakeEnv,
+  toDotenvExample,
+  checkEnv,
+  KNOWN_REFERENCE_SCHEMES,
+  type VarDescription,
+  type CheckResult,
+  type CheckIssue,
+  type CheckDeferred,
+} from './inspect';

@@ -14,25 +14,16 @@ npm install node-env-resolver
 
 ## CLI
 
-This package ships a small CLI for working with an `EnvConfig` file:
+The `ner` CLI ships with the package:
 
-- **Scaffold a config**:
+```bash
+npx ner scan src/                        # find hardcoded secrets
+npx ner run -- node server.js            # run with .env and resolved aws-sm:// references
+npx ner describe --format json           # schema manifest for people and coding agents
+npx ner check --agent                    # validate env, JSON issues without values
+```
 
-  ```bash
-  npx node-env-resolver init
-  # or in this monorepo:
-  pnpm --filter node-env-resolver exec node-env-resolver init
-  ```
-
-- **Inspect resolved config**:
-
-  ```bash
-  node-env-resolver load        # pretty table
-  node-env-resolver load --format=json
-  node-env-resolver typegen --output env.d.ts
-  ```
-
-See the [`node-env-resolver` package README](packages/node-env-resolver/README.md#cli-tool-node-env-resolver) for full CLI usage and options.
+The [`node-env-resolver` package README](packages/node-env-resolver/README.md#cli) covers every command and option.
 
 ## Quick start (uses process.env)
 
