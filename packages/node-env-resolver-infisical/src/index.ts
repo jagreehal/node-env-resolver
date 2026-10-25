@@ -62,7 +62,6 @@ import {
   fetchWithTimeout,
 } from 'node-env-resolver/provider-kit';
 
-// Re-export main functions for convenience
 export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
 

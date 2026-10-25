@@ -2,8 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { cached, retry, TTL, awsCache, withPrefix, withAliases, poll } from './utils';
 import type { Resolver } from './types';
 describe('resolvers', () => {
-  // Removed tests for deprecated dotenvExpand
-
   describe('cached', () => {
     it('should cache provider results', async () => {
       const mockLoad = vi.fn().mockResolvedValue({ TEST: 'value' });

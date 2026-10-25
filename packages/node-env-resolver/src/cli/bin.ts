@@ -435,7 +435,7 @@ Examples:
 
 Reference resolution (install node-env-resolver-aws for AWS support):
   DATABASE_URL=aws-sm://prod/database    resolved before process start
-  API_KEY=aws-ssm://prod/api-key         resolved before process start
+  API_KEY=aws-ssm:///prod/api-key        resolved before process start
 `);
     process.exit(0);
   }

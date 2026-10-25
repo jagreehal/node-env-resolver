@@ -5,7 +5,11 @@ description: 'Use when loading secrets from AWS Secrets Manager or SSM Parameter
 
 ## Overview
 
-`node-env-resolver-aws` provides two patterns for AWS secret resolution: **resolvers** (bulk-fetch) and **reference handlers** (per-value URI resolution). Requires `node-env-resolver` as peer dependency.
+`node-env-resolver-aws` provides two patterns for AWS secret resolution: **resolvers** (bulk-fetch) and **reference handlers** (per-value URI resolution). Peer dependencies: `node-env-resolver`, `@aws-sdk/client-secrets-manager` and `@aws-sdk/client-ssm` (3.714.0 or later).
+
+```bash
+npm install node-env-resolver-aws node-env-resolver @aws-sdk/client-secrets-manager @aws-sdk/client-ssm
+```
 
 ## Import Map
 
@@ -81,6 +85,9 @@ const config = await resolveAsync({
 - `aws-sm://secret-id` — full secret string
 - `aws-sm://secret-id#json-key` — extract one key from JSON secret
 - `aws-ssm:///param/path` — SSM parameter (note triple slash for absolute paths)
+- `aws-ssm://param-name` — SSM parameter with a flat name (no `/`)
+
+Several `aws-sm://secret#key` references to one secret share a single `GetSecretValue` call within a resolve.
 
 ### When to use which
 
@@ -167,20 +174,24 @@ awsSecrets({
   region?: string,            // defaults to AWS_REGION env var
   accessKeyId?: string,       // explicit credentials (optional)
   secretAccessKey?: string,
-  parseJson?: boolean,        // default true — parse SecretString as JSON
-  cache?: boolean | { ttl?, maxAge?, staleWhileRevalidate? },
+  sessionToken?: string,      // with temporary keys
+  profile?: string,           // ~/.aws/config profile; ignored when keys are given
+  parseJson?: boolean,        // default true — a JSON object becomes one var per key
 })
 
 // awsSsm
 awsSsm({
-  path: string,               // required — parameter path
+  path: string,               // required — parameter name, or a "/" path when recursive
   recursive?: boolean,        // default false — fetch all under path
   region?: string,
   accessKeyId?: string,
   secretAccessKey?: string,
-  cache?: boolean | { ttl?, maxAge?, staleWhileRevalidate? },
+  sessionToken?: string,
+  profile?: string,
 })
 ```
+
+With `recursive: true`, each parameter fills the variable named after the last part of its name. Two parameters ending the same way fail the load. Wrap a resolver in `cached()` from `node-env-resolver/utils` for TTL caching.
 
 ## Common Agent Mistakes
 

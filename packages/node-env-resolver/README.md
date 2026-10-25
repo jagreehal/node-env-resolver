@@ -819,7 +819,7 @@ ner run --scan -- node server.js
 ```bash
 # .env
 DATABASE_URL=aws-sm://prod/database-credentials
-API_KEY=aws-ssm://prod/payments/api-key
+API_KEY=aws-ssm:///prod/payments/api-key
 ```
 
 ```bash
@@ -831,7 +831,7 @@ ner run -- node server.js
 Requires `node-env-resolver-aws` for `aws-sm://` and `aws-ssm://` support:
 
 ```bash
-npm install node-env-resolver-aws
+npm install node-env-resolver-aws @aws-sdk/client-secrets-manager @aws-sdk/client-ssm
 ```
 
 > `ner run` passes the resolved values and the parent environment to the child process. Launch your app with it, not a coding agent. See [Coding agents](#coding-agents).
@@ -1233,7 +1233,7 @@ This is useful when you want `OPENAI_API_KEY` to point at `API_KEY` without dupl
 Install the AWS package:
 
 ```bash
-npm install node-env-resolver-aws
+npm install node-env-resolver-aws @aws-sdk/client-secrets-manager @aws-sdk/client-ssm
 ```
 
 #### Reference URIs (recommended)
@@ -1244,7 +1244,7 @@ Store references in your `.env` and resolve at startup — no AWS SDK imports ne
 # .env
 DATABASE_URL=aws-sm://prod/database-credentials
 DB_PASSWORD=aws-sm://prod/database#password   # extract a JSON key
-API_KEY=aws-ssm://prod/payments/api-key
+API_KEY=aws-ssm:///prod/payments/api-key
 ```
 
 ```ts

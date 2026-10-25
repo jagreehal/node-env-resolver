@@ -1494,7 +1494,6 @@ export function secret<
       default?: Opts['default'];
     } {
   const validator = ((value: string) => {
-    // For now, just return the secret value
     return value;
   }) as unknown;
 

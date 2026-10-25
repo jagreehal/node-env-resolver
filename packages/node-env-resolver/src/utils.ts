@@ -4,7 +4,6 @@
 
 import type { Resolver } from './types';
 import { resolveAsync } from './index';
-// Enhanced caching wrapper with TTL support
 export interface CacheOptions {
   /** Time to live in milliseconds (default: 5 minutes) */
   ttl?: number;

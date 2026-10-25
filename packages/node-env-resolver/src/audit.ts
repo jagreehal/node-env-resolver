@@ -36,7 +36,6 @@ export interface AuditEvent {
 const auditLog: AuditEvent[] = [];
 const MAX_AUDIT_EVENTS = 1000; // Prevent memory leaks
 
-// WeakMap to track config objects to their audit session IDs
 // WeakMap allows garbage collection when config objects are no longer referenced
 const configToSessionId = new WeakMap<object, string>();
 

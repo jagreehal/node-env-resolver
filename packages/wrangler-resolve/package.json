@@ -107,11 +107,11 @@
     "access": "public"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.5",
     "node-env-resolver": "workspace:*",
-    "prettier": "^3.9.9",
-    "tsup": "^8.5.1",
+    "prettier": "^3.9.10",
+    "tsup": "^9.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.5"
   }
 }

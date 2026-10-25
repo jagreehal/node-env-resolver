@@ -5,8 +5,6 @@
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParametersByPathCommand, GetParameterCommand } from '@aws-sdk/client-ssm';
-import { fromIni } from '@aws-sdk/credential-providers';
-import { Buffer } from 'node:buffer';
 import type {
   Resolver,
   SimpleEnvSchema,
@@ -15,8 +13,13 @@ import type {
   SafeResolveResultType,
 } from 'node-env-resolver';
 import { resolveAsync, safeResolveAsync } from 'node-env-resolver';
+import {
+  buildClientConfig,
+  decodeSecretValue,
+  validateSsmParameterName,
+  type AwsClientOptions,
+} from './shared';
 
-// Re-export main functions for convenience (same as nextjs package pattern)
 export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
 
@@ -30,93 +33,51 @@ export {
   type AwsSsmHandlerOptions,
 } from './handlers';
 // AWS Secrets Manager
-export interface AwsSecretsOptions {
+export interface AwsSecretsOptions extends AwsClientOptions {
   secretId: string;
-  region?: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
-  profile?: string;
   parseJson?: boolean;
 }
 
-function buildCredentials(options: {
-  accessKeyId?: string;
-  secretAccessKey?: string;
-  profile?: string;
-}) {
-  if (options.accessKeyId && options.secretAccessKey) {
-    return {
-      accessKeyId: options.accessKeyId,
-      secretAccessKey: options.secretAccessKey,
-    };
+/**
+ * A JSON object secret becomes one variable per key, with non-string values as their JSON text.
+ * Anything else (plain text, or JSON that is not an object) is one variable named after the secret.
+ */
+function secretToEnv(secretId: string, secretValue: string, parseJson: boolean): Record<string, string> {
+  if (parseJson) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(secretValue);
+    } catch {
+      parsed = undefined;
+    }
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      return Object.fromEntries(
+        Object.entries(parsed).map(([key, value]) => [
+          key,
+          typeof value === 'string' ? value : JSON.stringify(value),
+        ]),
+      );
+    }
   }
-  if (options.profile) {
-    return fromIni({ profile: options.profile });
-  }
-  return undefined;
-}
-
-function validateSsmParameterName(name: string): void {
-  if (!name.startsWith('/')) {
-    throw new Error(
-      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names must start with "/"`,
-    );
-  }
-  if (/^\/ssm(\/|$)/i.test(name)) {
-    throw new Error(
-      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names cannot start with "/ssm"`,
-    );
-  }
-  if (!/^[a-zA-Z0-9/._-]+$/.test(name)) {
-    const invalidChars = [...new Set(name.match(/[^a-zA-Z0-9/._-]/g) || [])].join('');
-    throw new Error(
-      `Invalid AWS SSM parameter name: "${name}"\nInvalid character(s): ${invalidChars}`,
-    );
-  }
-}
-
-function decodeSecretValue(response: { SecretString?: string; SecretBinary?: Uint8Array }): string {
-  if (response.SecretString) return response.SecretString;
-  if (response.SecretBinary) return Buffer.from(response.SecretBinary).toString('utf-8');
-  throw new Error('Secret not found or empty');
+  return { [secretId]: secretValue };
 }
 
 export function awsSecrets(options: AwsSecretsOptions): Resolver {
+  // One client per resolver, made on first load, so `cached()` reloads reuse its connections.
+  let client: SecretsManagerClient | undefined;
   return {
     name: `aws-secrets(${options.secretId})`,
     async load() {
       try {
-        const client = new SecretsManagerClient({
-          ...(options.region || process.env.AWS_REGION
-            ? {
-                region: options.region ?? process.env.AWS_REGION,
-              }
-            : {}),
-          // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
-          // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
-          // 2. IAM roles (EC2, Lambda, ECS)
-          // 3. AWS credentials file (~/.aws/credentials)
-          credentials: buildCredentials(options),
-        });
-
-        const command = new GetSecretValueCommand({
-          SecretId: options.secretId,
-        });
-
-        const response = await client.send(command);
-
-        const secretValue = decodeSecretValue(response);
-
-        if (options.parseJson !== false) {
-          try {
-            return JSON.parse(secretValue);
-          } catch {
-            // If not valid JSON, return as single key-value
-            return { [options.secretId]: secretValue };
-          }
-        }
-
-        return { [options.secretId]: secretValue };
+        client ??= new SecretsManagerClient(buildClientConfig(options));
+        const response = await client.send(
+          new GetSecretValueCommand({ SecretId: options.secretId }),
+        );
+        return secretToEnv(
+          options.secretId,
+          decodeSecretValue(response),
+          options.parseJson !== false,
+        );
       } catch (error) {
         throw new Error(`AWS Secrets Manager: ${error instanceof Error ? error.message : error}`, {
           cause: error,
@@ -127,35 +88,23 @@ export function awsSecrets(options: AwsSecretsOptions): Resolver {
 }
 
 // AWS Systems Manager Parameter Store
-export interface AwsSsmOptions {
+export interface AwsSsmOptions extends AwsClientOptions {
   path: string;
   recursive?: boolean;
-  region?: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
-  profile?: string;
 }
 
 export function awsSsm(options: AwsSsmOptions): Resolver {
+  let client: SSMClient | undefined;
   return {
     name: `aws-ssm(${options.path})`,
     async load() {
       try {
-        const client = new SSMClient({
-          ...(options.region || process.env.AWS_REGION
-            ? {
-                region: options.region ?? process.env.AWS_REGION,
-              }
-            : {}),
-          // When credentials is undefined, AWS SDK automatically uses the default credential provider chain:
-          // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
-          // 2. IAM roles (EC2, Lambda, ECS)
-          // 3. AWS credentials file (~/.aws/credentials)
-          credentials: buildCredentials(options),
-        });
+        validateSsmParameterName(options.path, { requirePath: options.recursive });
+        client ??= new SSMClient(buildClientConfig(options));
 
-        const env: Record<string, string> = {};
-        validateSsmParameterName(options.path);
+        const env = new Map<string, string>();
+        // Which parameter each key came from, to report two that would share a key.
+        const sources = new Map<string, string>();
 
         if (options.recursive) {
           // Get all parameters under path
@@ -176,7 +125,15 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
                 if (param.Name && param.Value) {
                   // Convert /app/prod/DATABASE_URL to DATABASE_URL
                   const key = param.Name.split('/').pop()!;
-                  env[key] = param.Value;
+                  const existing = sources.get(key);
+                  if (existing) {
+                    throw new Error(
+                      `Parameters "${existing}" and "${param.Name}" both map to ${key}. ` +
+                        `Rename one, or load each subpath with its own awsSsm().`,
+                    );
+                  }
+                  sources.set(key, param.Name);
+                  env.set(key, param.Value);
                 }
               }
             }
@@ -194,11 +151,11 @@ export function awsSsm(options: AwsSsmOptions): Resolver {
 
           if (response.Parameter?.Value) {
             const key = options.path.split('/').pop()!;
-            env[key] = response.Parameter.Value;
+            env.set(key, response.Parameter.Value);
           }
         }
 
-        return env;
+        return Object.fromEntries(env);
       } catch (error) {
         throw new Error(`AWS SSM: ${error instanceof Error ? error.message : error}`, {
           cause: error,

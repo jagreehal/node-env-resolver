@@ -5,7 +5,6 @@ const mockSecretsManagerSend = vi.hoisted(() => vi.fn());
 const mockSsmSend = vi.hoisted(() => vi.fn());
 const mockResolveWith = vi.hoisted(() => vi.fn());
 const mockSafeResolveWith = vi.hoisted(() => vi.fn());
-const mockFromIni = vi.hoisted(() => vi.fn(() => 'profile-credentials'));
 const mockSecretsCtor = vi.hoisted(() => vi.fn());
 const mockSsmCtor = vi.hoisted(() => vi.fn());
 
@@ -49,10 +48,6 @@ vi.mock('@aws-sdk/client-ssm', () => ({
   },
 }));
 
-vi.mock('@aws-sdk/credential-providers', () => ({
-  fromIni: mockFromIni,
-}));
-
 // Mock node-env-resolver
 vi.mock('node-env-resolver', () => ({
   resolveAsync: mockResolveWith,
@@ -69,7 +64,6 @@ describe('node-env-resolver/aws', () => {
     mockSsmSend.mockReset();
     mockResolveWith.mockReset();
     mockSafeResolveWith.mockReset();
-    mockFromIni.mockClear();
     mockSecretsCtor.mockClear();
     mockSsmCtor.mockClear();
   });
@@ -141,10 +135,54 @@ describe('node-env-resolver/aws', () => {
       });
       await provider.load!();
 
-      expect(mockFromIni).toHaveBeenCalledWith({ profile: 'dev-profile' });
-      expect(mockSecretsCtor).toHaveBeenCalledWith(
-        expect.objectContaining({ credentials: 'profile-credentials' }),
-      );
+      expect(mockSecretsCtor).toHaveBeenCalledWith({ profile: 'dev-profile' });
+    });
+
+    it('should pass a session token with explicit keys', async () => {
+      mockSecretsManagerSend.mockResolvedValueOnce({ SecretString: 'value' });
+
+      await awsSecrets({
+        secretId: 's',
+        accessKeyId: 'AKIA',
+        secretAccessKey: 'secret',
+        sessionToken: 'token',
+      }).load!();
+
+      expect(mockSecretsCtor).toHaveBeenCalledWith({
+        credentials: { accessKeyId: 'AKIA', secretAccessKey: 'secret', sessionToken: 'token' },
+      });
+    });
+
+    it('should turn non-string JSON values into their JSON text', async () => {
+      mockSecretsManagerSend.mockResolvedValueOnce({
+        SecretString: JSON.stringify({ PORT: 3000, DEBUG: true, HOSTS: ['a', 'b'], NAME: 'x' }),
+      });
+
+      expect(await awsSecrets({ secretId: 's' }).load!()).toEqual({
+        PORT: '3000',
+        DEBUG: 'true',
+        HOSTS: '["a","b"]',
+        NAME: 'x',
+      });
+    });
+
+    it('should treat JSON that is not an object as the plain secret', async () => {
+      for (const secret of ['12345', '"quoted"', '[1,2]', 'null']) {
+        mockSecretsManagerSend.mockResolvedValueOnce({ SecretString: secret });
+        expect(await awsSecrets({ secretId: 'API_KEY' }).load!()).toEqual({ API_KEY: secret });
+      }
+    });
+
+    it('should reuse one SDK client across loads', async () => {
+      mockSecretsManagerSend.mockResolvedValue({ SecretString: '{"A":"1"}' });
+
+      const provider = awsSecrets({ secretId: 's' });
+      expect(mockSecretsCtor).not.toHaveBeenCalled();
+      await provider.load!();
+      await provider.load!();
+
+      expect(mockSecretsCtor).toHaveBeenCalledTimes(1);
+      expect(mockSecretsManagerSend).toHaveBeenCalledTimes(2);
     });
 
     it('should handle errors gracefully', async () => {
@@ -212,7 +250,50 @@ describe('node-env-resolver/aws', () => {
         path: 'app/INVALID_PARAM',
       });
 
-      await expect(provider.load!()).rejects.toThrow('SSM parameter names must start with "/"');
+      await expect(provider.load!()).rejects.toThrow(
+        'SSM parameter names with a path must start with "/"',
+      );
+    });
+
+    it('should require a leading slash on a recursive path', async () => {
+      const provider = awsSsm({ path: 'app', recursive: true });
+
+      await expect(provider.load!()).rejects.toThrow('SSM parameter paths must start with "/"');
+      expect(mockSsmSend).not.toHaveBeenCalled();
+    });
+
+    it('should load a flat parameter name, which SSM allows', async () => {
+      mockSsmSend.mockResolvedValueOnce({ Parameter: { Name: 'API_KEY', Value: 'k' } });
+
+      expect(await awsSsm({ path: 'API_KEY' }).load!()).toEqual({ API_KEY: 'k' });
+    });
+
+    it('should fail when two recursive parameters map to the same key', async () => {
+      mockSsmSend.mockResolvedValueOnce({
+        Parameters: [
+          { Name: '/app/a/KEY', Value: '1' },
+          { Name: '/app/b/KEY', Value: '2' },
+        ],
+      });
+
+      await expect(awsSsm({ path: '/app', recursive: true }).load!()).rejects.toThrow(
+        'Parameters "/app/a/KEY" and "/app/b/KEY" both map to KEY',
+      );
+    });
+
+    it('should load parameters named like Object.prototype properties', async () => {
+      mockSsmSend.mockResolvedValueOnce({
+        Parameters: [
+          { Name: '/app/constructor', Value: 'c' },
+          { Name: '/app/__proto__', Value: 'p' },
+        ],
+      });
+
+      const env = await awsSsm({ path: '/app', recursive: true }).load!();
+      expect(Object.entries(env)).toEqual([
+        ['constructor', 'c'],
+        ['__proto__', 'p'],
+      ]);
     });
   });
 

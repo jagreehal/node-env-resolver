@@ -30,17 +30,15 @@
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
-import { fromIni } from '@aws-sdk/credential-providers';
-import { Buffer } from 'node:buffer';
 import type { ReferenceHandler } from 'node-env-resolver';
+import {
+  buildClientConfig,
+  decodeSecretValue,
+  validateSsmParameterName,
+  type AwsClientOptions,
+} from './shared';
 
-export interface AwsHandlerOptions {
-  region?: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
-  sessionToken?: string;
-  profile?: string;
-}
+export type AwsHandlerOptions = AwsClientOptions;
 
 export interface AwsSecretHandlerOptions extends AwsHandlerOptions {
   parseJson?: boolean;
@@ -48,28 +46,6 @@ export interface AwsSecretHandlerOptions extends AwsHandlerOptions {
 
 export interface AwsSsmHandlerOptions extends AwsHandlerOptions {
   withDecryption?: boolean;
-}
-
-function buildCredentials(options: AwsHandlerOptions) {
-  if (options.accessKeyId && options.secretAccessKey) {
-    return {
-      accessKeyId: options.accessKeyId,
-      secretAccessKey: options.secretAccessKey,
-      ...(options.sessionToken && { sessionToken: options.sessionToken }),
-    };
-  }
-  if (options.profile) {
-    return fromIni({ profile: options.profile });
-  }
-  return undefined;
-}
-
-function buildClientConfig(options: AwsHandlerOptions) {
-  const region = options.region ?? process.env.AWS_REGION;
-  return {
-    ...(region ? { region } : {}),
-    credentials: buildCredentials(options),
-  };
 }
 
 function parseAwsSmReference(reference: string): { secretId: string; key?: string } {
@@ -106,36 +82,7 @@ function parseAwsSsmReference(reference: string): { parameterPath: string } {
   return { parameterPath: match[1]! };
 }
 
-function validateSsmParameterName(name: string): void {
-  if (!name.startsWith('/')) {
-    throw new Error(
-      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names must start with "/"`,
-    );
-  }
-  if (/^\/ssm(\/|$)/i.test(name)) {
-    throw new Error(
-      `Invalid AWS SSM parameter name: "${name}"\nSSM parameter names cannot start with "/ssm"`,
-    );
-  }
-  if (!/^[a-zA-Z0-9/._-]+$/.test(name)) {
-    const invalidChars = [...new Set(name.match(/[^a-zA-Z0-9/._-]/g) || [])].join('');
-    throw new Error(
-      `Invalid AWS SSM parameter name: "${name}"\nInvalid character(s): ${invalidChars}`,
-    );
-  }
-}
-
-function decodeSecretValue(response: { SecretString?: string; SecretBinary?: Uint8Array }): string {
-  if (response.SecretString) return response.SecretString;
-  if (response.SecretBinary) return Buffer.from(response.SecretBinary).toString('utf-8');
-  throw new Error('Secret has no SecretString or SecretBinary value.');
-}
-
-async function fetchSecretValue(
-  secretId: string,
-  key: string | undefined,
-  client: SecretsManagerClient,
-): Promise<string> {
+async function fetchSecretString(secretId: string, client: SecretsManagerClient): Promise<string> {
   let response;
   try {
     response = await client.send(new GetSecretValueCommand({ SecretId: secretId }));
@@ -147,9 +94,17 @@ async function fetchSecretValue(
       { cause: error },
     );
   }
+  return decodeSecretValue(response);
+}
 
-  const secretValue = decodeSecretValue(response);
+/**
+ * How long a fetched secret is reused. One resolve looks up each `aws-sm://secret#key` in turn, so
+ * this turns several keys from one secret into one call, while a rotated secret is picked up within
+ * a second. Longer-lived caching is `cached()`'s job.
+ */
+const SECRET_REUSE_MS = 1000;
 
+function extractSecretValue(secretValue: string, secretId: string, key: string | undefined): string {
   if (!key) {
     return secretValue;
   }
@@ -206,13 +161,32 @@ async function fetchParameter(
 }
 
 export function createAwsSecretHandler(options: AwsSecretHandlerOptions = {}): ReferenceHandler {
-  const client = new SecretsManagerClient(buildClientConfig(options));
+  // Created on first use, so importing the package (and its default handlers) makes no SDK client.
+  let client: SecretsManagerClient | undefined;
+  const recent = new Map<string, Promise<string>>();
+
+  const getSecretString = (secretId: string): Promise<string> => {
+    const hit = recent.get(secretId);
+    if (hit) return hit;
+    client ??= new SecretsManagerClient(buildClientConfig(options));
+    const secret = fetchSecretString(secretId, client);
+    recent.set(secretId, secret);
+    const forget = () => {
+      if (recent.get(secretId) === secret) recent.delete(secretId);
+    };
+    // The window starts once the fetch settles; a failure is dropped at once so the next lookup retries.
+    secret.then(
+      () => setTimeout(forget, SECRET_REUSE_MS).unref(),
+      forget,
+    );
+    return secret;
+  };
 
   return {
     name: 'aws-sm',
     async resolve(reference) {
       const { secretId, key } = parseAwsSmReference(reference);
-      const value = await fetchSecretValue(secretId, key, client);
+      const value = extractSecretValue(await getSecretString(secretId), secretId, key);
 
       return {
         value,
@@ -228,13 +202,14 @@ export function createAwsSecretHandler(options: AwsSecretHandlerOptions = {}): R
 }
 
 export function createAwsSsmHandler(options: AwsSsmHandlerOptions = {}): ReferenceHandler {
-  const client = new SSMClient(buildClientConfig(options));
+  let client: SSMClient | undefined;
   const withDecryption = options.withDecryption ?? true;
 
   return {
     name: 'aws-ssm',
     async resolve(reference) {
       const { parameterPath } = parseAwsSsmReference(reference);
+      client ??= new SSMClient(buildClientConfig(options));
       const value = await fetchParameter(parameterPath, withDecryption, client);
 
       return {

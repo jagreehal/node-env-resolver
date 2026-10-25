@@ -59,7 +59,6 @@ import {
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-// Re-export main functions for convenience
 export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
 
