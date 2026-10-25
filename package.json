@@ -14,6 +14,7 @@
     "example:express": "pnpm --filter express-app-example dev",
     "example:lambda": "pnpm --filter aws-lambda-example dev",
     "release": "pnpm changeset publish",
+    "version-packages": "changeset version && pnpm install --lockfile-only",
     "quality": "pnpm lint && turbo run build type-check test"
   },
   "devDependencies": {
