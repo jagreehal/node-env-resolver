@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockSecretsManagerSend = vi.hoisted(() => vi.fn());
 const mockSsmSend = vi.hoisted(() => vi.fn());
-const mockFromIni = vi.hoisted(() => vi.fn(() => 'profile-credentials'));
 const mockSecretsCtor = vi.hoisted(() => vi.fn());
 const mockSsmCtor = vi.hoisted(() => vi.fn());
 
@@ -38,10 +37,6 @@ vi.mock('@aws-sdk/client-ssm', () => ({
   },
 }));
 
-vi.mock('@aws-sdk/credential-providers', () => ({
-  fromIni: mockFromIni,
-}));
-
 import {
   createAwsSecretHandler,
   createAwsSsmHandler,
@@ -53,7 +48,6 @@ describe('AWS Secret Reference Handlers', () => {
   beforeEach(() => {
     mockSecretsManagerSend.mockReset();
     mockSsmSend.mockReset();
-    mockFromIni.mockClear();
     mockSecretsCtor.mockClear();
     mockSsmCtor.mockClear();
   });
@@ -143,10 +137,32 @@ describe('AWS Secret Reference Handlers', () => {
         reference: 'aws-sm://test',
       });
 
-      expect(mockFromIni).toHaveBeenCalledWith({ profile: 'work-profile' });
-      expect(mockSecretsCtor).toHaveBeenCalledWith(
-        expect.objectContaining({ credentials: 'profile-credentials' }),
-      );
+      expect(mockSecretsCtor).toHaveBeenCalledWith({ profile: 'work-profile' });
+    });
+
+    it('passes a session token with explicit keys', async () => {
+      mockSecretsManagerSend.mockResolvedValueOnce({ SecretString: 'value' });
+
+      const handler = createAwsSecretHandler({
+        accessKeyId: 'AKIA',
+        secretAccessKey: 'secret',
+        sessionToken: 'token',
+      });
+      await handler.resolve('aws-sm://test', { key: 'TEST', source: null, reference: 'aws-sm://test' });
+
+      expect(mockSecretsCtor).toHaveBeenCalledWith({
+        credentials: { accessKeyId: 'AKIA', secretAccessKey: 'secret', sessionToken: 'token' },
+      });
+    });
+
+    it('makes no SDK client until the first lookup', async () => {
+      mockSecretsManagerSend.mockResolvedValue({ SecretString: 'value' });
+
+      const handler = createAwsSecretHandler();
+      expect(mockSecretsCtor).not.toHaveBeenCalled();
+      await handler.resolve('aws-sm://a', { key: 'A', source: null, reference: 'aws-sm://a' });
+      await handler.resolve('aws-sm://b', { key: 'B', source: null, reference: 'aws-sm://b' });
+      expect(mockSecretsCtor).toHaveBeenCalledTimes(1);
     });
 
     it('should throw actionable error for invalid reference format', async () => {
@@ -201,6 +217,68 @@ describe('AWS Secret Reference Handlers', () => {
           reference: 'aws-sm://test',
         })
       ).rejects.toThrow(/Tip: ensure your AWS credentials/);
+    });
+
+    it('fetches a secret once for several of its keys in one resolve', async () => {
+      mockSecretsManagerSend.mockResolvedValue({
+        SecretString: JSON.stringify({ loginId: 'me', apiKey: 'k' }),
+      });
+
+      const handler = createAwsSecretHandler();
+      const ctx = (key: string, reference: string) => ({ key, source: null, reference });
+      const login = await handler.resolve('aws-sm://vendor#loginId', ctx('LOGIN', 'aws-sm://vendor#loginId'));
+      const apiKey = await handler.resolve('aws-sm://vendor#apiKey', ctx('KEY', 'aws-sm://vendor#apiKey'));
+
+      expect(login).toMatchObject({ value: 'me' });
+      expect(apiKey).toMatchObject({ value: 'k' });
+      expect(mockSecretsManagerSend).toHaveBeenCalledTimes(1);
+    });
+
+    it('fetches again once the reuse window has passed, so a rotated secret is picked up', async () => {
+      vi.useFakeTimers();
+      try {
+        mockSecretsManagerSend
+          .mockResolvedValueOnce({ SecretString: 'old' })
+          .mockResolvedValueOnce({ SecretString: 'rotated' });
+
+        const handler = createAwsSecretHandler();
+        const ctx = { key: 'T', source: null, reference: 'aws-sm://s' };
+        expect(await handler.resolve('aws-sm://s', ctx)).toMatchObject({ value: 'old' });
+        vi.advanceTimersByTime(1000);
+        expect(await handler.resolve('aws-sm://s', ctx)).toMatchObject({ value: 'rotated' });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('starts the reuse window when a slow fetch finishes', async () => {
+      vi.useFakeTimers();
+      try {
+        mockSecretsManagerSend.mockImplementationOnce(
+          () => new Promise((done) => setTimeout(() => done({ SecretString: 'v' }), 1500)),
+        );
+
+        const handler = createAwsSecretHandler();
+        const ctx = { key: 'T', source: null, reference: 'aws-sm://s' };
+        const first = handler.resolve('aws-sm://s', ctx);
+        await vi.advanceTimersByTimeAsync(1500);
+        expect(await first).toMatchObject({ value: 'v' });
+        expect(await handler.resolve('aws-sm://s', ctx)).toMatchObject({ value: 'v' });
+        expect(mockSecretsManagerSend).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not reuse a failed fetch', async () => {
+      mockSecretsManagerSend
+        .mockRejectedValueOnce(new Error('Throttling'))
+        .mockResolvedValueOnce({ SecretString: 'ok' });
+
+      const handler = createAwsSecretHandler();
+      const ctx = { key: 'T', source: null, reference: 'aws-sm://s' };
+      await expect(handler.resolve('aws-sm://s', ctx)).rejects.toThrow(/Throttling/);
+      expect(await handler.resolve('aws-sm://s', ctx)).toMatchObject({ value: 'ok' });
     });
 
     it('each factory instance has its own client — multi-region works correctly', async () => {
@@ -315,7 +393,7 @@ describe('AWS Secret Reference Handlers', () => {
       });
     });
 
-    it('should reject non-slash aws-ssm paths', async () => {
+    it('should reject a path without a leading slash, suggesting the fix', async () => {
       const handler = createAwsSsmHandler();
       await expect(
         handler.resolve('aws-ssm://myapp/secret', {
@@ -323,7 +401,22 @@ describe('AWS Secret Reference Handlers', () => {
           source: null,
           reference: 'aws-ssm://myapp/secret',
         }),
-      ).rejects.toThrow('SSM parameter names must start with "/"');
+      ).rejects.toThrow('Did you mean aws-ssm:///myapp/secret?');
+      expect(mockSsmSend).not.toHaveBeenCalled();
+    });
+
+    it('should resolve a flat parameter name, which SSM allows without a slash', async () => {
+      mockSsmSend.mockResolvedValueOnce({ Parameter: { Name: 'api-key', Value: 'flat-value' } });
+
+      const handler = createAwsSsmHandler();
+      const result = await handler.resolve('aws-ssm://api-key', {
+        key: 'API_KEY',
+        source: null,
+        reference: 'aws-ssm://api-key',
+      });
+
+      expect(result).toMatchObject({ value: 'flat-value' });
+      expect(mockSsmSend.mock.calls[0][0].input).toMatchObject({ Name: 'api-key' });
     });
   });
 

@@ -12,16 +12,18 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "node-env-resolver-aws": "workspace:*",
+    "@aws-sdk/client-secrets-manager": "^3.1155.0",
+    "@aws-sdk/client-ssm": "^3.1155.0",
     "node-env-resolver": "workspace:*",
-    "zod": "^4.6.5"
+    "node-env-resolver-aws": "workspace:*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "@vitest/ui": "^5.0.2",
+    "@types/node": "^26.6.5",
+    "@vitest/ui": "^5.0.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2",
+    "vitest": "^5.0.5",
     "vitest-mock-extended": "^5.1.1"
   }
 }

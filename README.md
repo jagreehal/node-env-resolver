@@ -899,7 +899,7 @@ const config = await resolveAsync({
 Install the AWS package:
 
 ```bash
-npm install node-env-resolver-aws
+npm install node-env-resolver-aws @aws-sdk/client-secrets-manager @aws-sdk/client-ssm
 ```
 
 Single source:

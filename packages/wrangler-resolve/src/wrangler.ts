@@ -531,7 +531,6 @@ export class WranglerFacade {
   }
 }
 
-// Re-export for direct usage
 export { createServingTempFile, type ServingHandle, type TempFileResult } from './fifo';
 export { chunkString, addSerializedEnvToRecord, addSerializedEnvToLines, reassembleEnvFromRecord, CF_SECRET_MAX_BYTES } from './chunking';
 export { formatEnvLine, formatEnvFileContent, splitConfigForDeploy, isSensitiveKey } from './format';

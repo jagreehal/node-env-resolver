@@ -14,8 +14,6 @@ import type {
   InferSimpleSchema,
   ReferenceOptions,
 } from './types';
-// Runtime detection helper
-// Type for globalThis with window property
 interface GlobalWithWindow {
   window?: Window;
 }

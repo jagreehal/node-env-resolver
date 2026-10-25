@@ -18,7 +18,6 @@ export interface DotenvOptions {
   expand?: boolean;
 }
 
-// Enhanced dotenv parser with escape sequences and edge case handling
 const parseDotenv = (content: string) => {
   const env: Record<string, string> = {};
   const lines = content.split('\n');

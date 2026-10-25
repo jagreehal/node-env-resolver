@@ -56,7 +56,6 @@ import {
 } from 'node-env-resolver/provider-kit';
 import { deriveKeyFromAccessToken, decryptAes256CbcHmac } from './crypto.js';
 
-// Re-export main functions for convenience
 export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
 export { deriveKeyFromAccessToken, decryptAes256CbcHmac, type CryptoKeyType } from './crypto.js';

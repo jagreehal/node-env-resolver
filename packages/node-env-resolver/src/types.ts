@@ -1,5 +1,3 @@
-// Simple, clean type system for node-env-resolver
-
 // Basic validator function type with optional metadata
 export type Validator<T> = ((value: string) => T) & {
   optional?: boolean;
@@ -34,8 +32,7 @@ export type InferSimpleSchema<T extends SimpleEnvSchema> = {
   [K in keyof T]: InferSimpleValue<T[K]>;
 };
 
-// For now, just use the simple schema type - the nested transformation happens at runtime
-// TODO: Implement proper nested type inference
+// Nested keys are built at runtime; the inferred type stays flat.
 export type InferNestedSchema<T extends SimpleEnvSchema> = InferSimpleSchema<T>;
 
 // Conditional return type based on whether nested delimiter is used
@@ -46,7 +43,6 @@ export type InferResolveResult<
   ? InferNestedSchema<T>
   : InferSimpleSchema<T>;
 
-// Resolver types - keeping the existing structure for now
 export interface SyncResolver {
   loadSync(): Record<string, string>;
   load?(): Promise<Record<string, string>>;
@@ -92,7 +88,6 @@ export interface ReferenceOptions {
   onUnresolved?: 'error' | 'ignore';
 }
 
-// Helper functions
 export const isSyncResolver = (
   resolver: Resolver,
 ): resolver is SyncResolver => {
@@ -105,7 +100,6 @@ export const isAsyncOnlyResolver = (
   return 'load' in resolver && !('loadSync' in resolver);
 };
 
-// Options - adding back missing properties
 export interface ResolveOptions {
   priority?: 'first' | 'last';
   nestedDelimiter?: string;
@@ -165,7 +159,6 @@ type InferMergedSchemaResult<T extends readonly [unknown, SimpleEnvSchema][]> =
     ? { [K in keyof MergedSchema<T>]: InferSimpleValue<MergedSchema<T>[K]> }
     : Record<string, unknown>;
 
-// Legacy type - kept for backward compatibility
 type InferMergedSchema<T extends readonly [unknown, SimpleEnvSchema][]> =
   T extends readonly [unknown, infer S1, ...infer Rest]
     ? Rest extends readonly [unknown, SimpleEnvSchema][]
@@ -175,7 +168,6 @@ type InferMergedSchema<T extends readonly [unknown, SimpleEnvSchema][]> =
       ? S
       : Record<string, never>;
 
-// Export the merge types for use in function overloads
 export type {
   InferMergedSchema,
   InferMergedSchemaResult,
@@ -184,7 +176,6 @@ export type {
   UnionToIntersection,
 };
 
-// New object-based API configuration types
 export interface ResolveConfig<T extends SimpleEnvSchema = SimpleEnvSchema> {
   schema?: T;
   resolvers?: readonly [SyncResolver, SimpleEnvSchema][];
@@ -201,7 +192,6 @@ export interface ResolveAsyncConfig<
   references?: ReferenceOptions;
 }
 
-// Specific config types for better type inference
 export interface ResolveConfigWithSchema<T extends SimpleEnvSchema> {
   schema: T;
   options?: Partial<ResolveOptions>;
@@ -230,7 +220,6 @@ export interface ResolveAsyncConfigWithResolvers<
   references?: ReferenceOptions;
 }
 
-// Additional types needed by existing code
 export type Provenance = {
   source: string;
   timestamp: number;
@@ -254,7 +243,6 @@ export type SimpleEnvValue =
   | boolean
   | readonly string[];
 
-// Legacy types for backward compatibility
 export type EnvSchema = Record<string, unknown>;
 export interface EnvDefinition {
   type?: string;
@@ -266,6 +254,5 @@ export interface EnvDefinition {
   sensitive?: boolean;
 }
 
-// Additional legacy types
 export type InferType = unknown;
 export type InferSchema = unknown;

@@ -36,7 +36,6 @@ export {
   timestamp,
 } from 'node-env-resolver/validators';
 
-// Safe resolve result types (Zod-like)
 export interface SafeResolveResult<T> {
   success: true;
   data: T;
@@ -49,7 +48,6 @@ export interface SafeResolveError {
 
 export type SafeResolveResultType<T> = SafeResolveResult<T> | SafeResolveError;
 
-// Type for globalThis with window property
 interface GlobalWithWindow {
   window?: Window;
 }
@@ -251,13 +249,11 @@ export function safeResolve<TServer extends SimpleEnvSchema, TClient extends Sim
   }
 }
 
-// Re-export useful types and utilities
 export type { SimpleEnvSchema, EnvDefinition } from 'node-env-resolver';
 
 // Note: Next.js handles .env files automatically via process.env
 // Custom resolvers are rarely needed in Next.js applications
 // If you need custom resolvers, import them directly from 'node-env-resolver/resolvers'
 
-// Utility for runtime environment detection
 export const isServer = typeof (globalThis as GlobalWithWindow).window === 'undefined';
 export const isClient = !isServer;

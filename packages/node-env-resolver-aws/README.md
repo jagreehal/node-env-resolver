@@ -1,14 +1,18 @@
-# node-env-resolver/aws
+# node-env-resolver-aws
 
 AWS integration for node-env-resolver with Secrets Manager and SSM Parameter Store support.
 
-[![npm version](https://img.shields.io/npm/v/node-env-resolver/aws)](https://www.npmjs.com/package/node-env-resolver/aws)
+[![npm version](https://img.shields.io/npm/v/node-env-resolver-aws)](https://www.npmjs.com/package/node-env-resolver-aws)
 
 ## Install
 
 ```bash
-npm install node-env-resolver/aws
+npm install node-env-resolver-aws node-env-resolver @aws-sdk/client-secrets-manager @aws-sdk/client-ssm
 ```
+
+The AWS SDK clients (3.714.0 or later) are peer dependencies, so your app and this package share one
+copy. On Lambda you can leave them out of the bundle when the runtime's built-in SDK is 3.714.0 or
+later.
 
 ## Quick start
 
@@ -114,8 +118,11 @@ aws-sm://secret-id#key                # Extract JSON key from secret
 **SSM Parameter Store:**
 
 ```
-aws-ssm:///path/to/parameter           # Parameter value
+aws-ssm:///path/to/parameter           # Parameter with a path (triple slash)
+aws-ssm://parameter-name               # Parameter with a flat name
 ```
+
+Several `aws-sm://secret-id#key` references to one secret share a single `GetSecretValue` call within a resolve.
 
 ### Pre-configured Handlers
 
@@ -186,7 +193,8 @@ export const handler = async (event) => {
 ### With caching (recommended)
 
 ```typescript
-import { resolveAsync, cached, TTL } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 // Cache AWS calls - call resolveAsync() every time, let cached() make it fast
@@ -218,7 +226,8 @@ export const handler = async (event) => {
 **AWS Lambda:**
 
 ```typescript
-import { resolveAsync, cached, TTL } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const getConfig = async () => {
@@ -411,6 +420,11 @@ awsSecrets({
 });
 ```
 
+A secret holding a JSON object becomes one variable per key; numbers, booleans and nested values
+become their JSON text (`3000`, `true`, `["a","b"]`). Any other secret, plain text or JSON that is
+not an object, becomes one variable named after the secret, so a secret named `API_KEY` fills
+`API_KEY`.
+
 ## SSM Parameter Store
 
 Load parameters from Parameter Store:
@@ -442,12 +456,18 @@ awsSsm({
 });
 ```
 
+Each parameter becomes a variable named after the last part of its name, so
+`/myapp/production/DATABASE_URL` fills `DATABASE_URL`. If two parameters under the path end the
+same way (`/myapp/production/a/KEY` and `/myapp/production/b/KEY`), loading fails rather than
+keeping one of them; load each subpath with its own `awsSsm()`.
+
 ## Caching
 
 Add TTL caching to reduce AWS API calls:
 
 ```ts
-import { resolveAsync, cached, TTL } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import { awsSecrets } from 'node-env-resolver-aws';
 
 const config = await resolveAsync({
@@ -508,6 +528,7 @@ interface AwsSecretsOptions {
   region?: string; // AWS region (overrides profile/env defaults)
   accessKeyId?: string; // AWS access key (optional)
   secretAccessKey?: string; // AWS secret key (optional)
+  sessionToken?: string; // With temporary keys (optional)
   profile?: string; // AWS shared credentials profile (optional)
   parseJson?: boolean; // Parse JSON secrets (default: true)
 }
@@ -517,10 +538,11 @@ interface AwsSecretsOptions {
 
 ```ts
 interface AwsSsmOptions {
-  path: string; // Parameter path
+  path: string; // Parameter name, or a path starting with "/" when recursive
   region?: string; // AWS region (overrides profile/env defaults)
   accessKeyId?: string; // AWS access key (optional)
   secretAccessKey?: string; // AWS secret key (optional)
+  sessionToken?: string; // With temporary keys (optional)
   profile?: string; // AWS shared credentials profile (optional)
   recursive?: boolean; // Get all parameters under path (default: false)
 }

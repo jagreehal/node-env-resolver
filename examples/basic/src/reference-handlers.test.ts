@@ -9,7 +9,7 @@
  * @example
  * .env file:
  * DATABASE_URL=aws-sm://prod/database/url
- * API_KEY=aws-ssm://prod/api-key
+ * API_KEY=aws-ssm:///prod/api-key
  */
 import { resolveAsync } from 'node-env-resolver';
 import { processEnv } from 'node-env-resolver/resolvers';

@@ -30,7 +30,6 @@ import type {
   InferMergedSchemaResult,
 } from './types';
 
-// Re-export all types
 export type {
   EnvDefinition,
   EnvSchema,
@@ -55,14 +54,11 @@ export type {
 } from './types';
 export { processEnvReferenceHandler } from './references';
 
-// Re-export type guards
 export { isSyncResolver, isAsyncOnlyResolver, AsyncResolver } from './types';
-// Re-export validation types for Zod/Valibot integrations
 export type {
   ValidationIssue,
   SafeResolveResult as SafeResolveResultWithIssues,
 } from './validation-types';
-// Re-export audit types and functions
 export {
   getAuditLog,
   clearAuditLog,
@@ -70,7 +66,6 @@ export {
   type AuditEventType,
 } from './audit';
 
-// Re-export debug view types and functions
 export {
   type DebugValueMode,
   type DebugOptions,
@@ -92,7 +87,6 @@ export {
   findSensitiveKeys,
 } from './sensitivity';
 
-// Import resolver functions
 import {
   normalizeSchema,
   resolveEnvInternal,
@@ -123,7 +117,6 @@ function buildDefaultResolvers(): SyncResolver[] {
   return [processEnv()];
 }
 
-// Safe resolve result types (Zod-like)
 export interface SafeResolveResult<T> {
   success: true;
   data: T;

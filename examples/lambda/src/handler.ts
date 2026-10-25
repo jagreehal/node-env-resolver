@@ -39,7 +39,7 @@ const envPromise = resolveAsync({
 
         // These would be resolved via reference handlers:
         // DATABASE_URL=aws-sm://prod/database/url
-        // API_KEY=aws-ssm://prod/api-key
+        // API_KEY=aws-ssm:///prod/api-key
         DATABASE_URL: url({ optional: true }),
         STRIPE_SECRET_KEY: string({ optional: true }),
         REDIS_URL: url({ optional: true }),

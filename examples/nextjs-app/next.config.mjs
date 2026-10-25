@@ -8,7 +8,6 @@ const nextConfig = {
   // at runtime in the application code instead.
 
   // Turbopack config (Next.js 16 uses Turbopack by default)
-  // For now, keep empty to acknowledge Turbopack usage
   turbopack: {},
 
   webpack: (config, { isServer }) => {

@@ -45,7 +45,6 @@ import {
   attachAuditSession as auditAttachSession,
 } from './audit';
 
-// Re-export for use in this module
 const logAuditEvent = auditLogEvent;
 const logAuditEventSync = auditLogEvent;
 const attachAuditSession = auditAttachSession;

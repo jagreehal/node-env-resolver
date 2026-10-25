@@ -3,7 +3,8 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts', 'src/handlers.ts'],
   outDir: './dist/',
-  clean: false,
+  // Clear dist first: `files: ["dist"]` publishes whatever is there, including chunks from older builds.
+  clean: true,
   format: ['esm', 'cjs'],
   splitting: true,
   sourcemap: process.env.NODE_ENV !== 'production',

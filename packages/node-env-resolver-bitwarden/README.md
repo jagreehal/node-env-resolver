@@ -127,7 +127,8 @@ Bitwarden API calls involve authentication and encryption overhead. The client a
 ### With caching wrapper (recommended for production)
 
 ```ts
-import { resolveAsync, cached, TTL } from 'node-env-resolver';
+import { resolveAsync } from 'node-env-resolver';
+import { cached, TTL } from 'node-env-resolver/utils';
 import { bitwarden } from 'node-env-resolver-bitwarden';
 
 const getConfig = async () => {
