@@ -1,6 +1,6 @@
 {
   "name": "wrangler-resolve",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cloudflare Workers integration for node-env-resolver (wrangler dev/deploy, FIFO secrets, hot reload)",
   "type": "module",
   "main": "./dist/index.js",
@@ -101,7 +101,7 @@
     "node": ">=18"
   },
   "peerDependencies": {
-    "node-env-resolver": "^6.5.0"
+    "node-env-resolver": "^6.7.0"
   },
   "publishConfig": {
     "access": "public"
