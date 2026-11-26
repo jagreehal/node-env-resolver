@@ -1,5 +1,13 @@
 # wrangler-resolve
 
+## 1.0.2
+
+### Patch Changes
+
+- 4a06454: Fix types resolving to `any` under `moduleResolution: NodeNext`/`node16`: relative imports in published `.d.ts` files now carry `.js` extensions (#63).
+- Updated dependencies [4a06454]
+  - node-env-resolver@6.7.1
+
 ## 1.0.1
 
 ### Patch Changes
