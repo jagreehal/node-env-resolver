@@ -3,8 +3,8 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts', 'src/handlers.ts'],
   outDir: './dist/',
-  clean: false,
-  format: ['esm', 'cjs'],
+  clean: true,
+  format: ['esm'],
   splitting: true,
   sourcemap: process.env.NODE_ENV !== 'production',
   bundle: true,

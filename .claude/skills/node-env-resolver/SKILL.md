@@ -258,6 +258,7 @@ npx ner scan [paths...]
 npx ner scan --staged          # scans staged blobs; use as a pre-commit hook
 npx ner scan --format json .
 # In JS/TS, secret-named properties count when the value is a string literal.
+# Reference URIs (aws-sm://, op://, process-env://, ...) and `ner describe` output pass.
 # Add // ner-scan-ignore to a line to allow it.
 
 # Run command with resolved .env (supports reference URIs)
