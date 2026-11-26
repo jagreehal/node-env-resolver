@@ -1,5 +1,18 @@
 # Changelog
 
+## 8.0.0
+
+### Major Changes
+
+- 325c573: Packages ship ES modules for Node.js 24 and later. CommonJS code on Node.js 24 loads them with `require()`. `file()`, `secretsDir`, sync `yaml()`/`toml()` and `watch()` read files from ESM.
+
+  `ner scan` flags secret-named properties in JS and TS files when the value is a string literal. Reference URIs such as `aws-sm://` pass, as does the `.env.example` from `ner describe`. Add `// ner-scan-ignore` to a line to allow it.
+
+### Patch Changes
+
+- Updated dependencies [325c573]
+  - node-env-resolver@7.0.0
+
 ## 7.5.1
 
 ### Patch Changes
