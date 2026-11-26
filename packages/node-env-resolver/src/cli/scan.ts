@@ -32,7 +32,10 @@ const SECRET_PATTERNS: Array<{ pattern: RegExp; type: string }> = [
 ];
 
 const KV_PATTERN =
-  /(password|secret|token|api[_-]?key)["']?\s*[:=]\s*["']?([^"'\s,}]{9,})/gi;
+  /(password|secret|token|api[_-]?key)["']?\s*[:=]\s*(["'`]?)([^"'`\s,}]{9,})/gi;
+// Unquoted values in JS/TS are expressions such as z.string(), so only string literals count there.
+const CODE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+const IGNORE_MARKER = 'ner-scan-ignore';
 
 const SCAN_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json', '.yaml', '.yml',
@@ -60,8 +63,10 @@ export interface ScanOptions {
 export function scanContent(content: string, file: string, showContext: boolean): Finding[] {
   if (content.includes('\0')) return []; // binary
   const findings: Finding[] = [];
+  const isCode = CODE_EXTENSIONS.has(extname(file));
 
   content.split('\n').forEach((line, i) => {
+    if (line.includes(IGNORE_MARKER)) return;
     const spans: Array<[number, number]> = [];
     const hits: Array<{ column: number; type: string }> = [];
 
@@ -72,7 +77,8 @@ export function scanContent(content: string, file: string, showContext: boolean)
       }
     }
     for (const m of line.matchAll(KV_PATTERN)) {
-      const value = m[2]!;
+      if (isCode && !m[2]) continue;
+      const value = m[3]!;
       if (value.includes('${') || value.startsWith('process.env')) continue;
       const start = m.index + m[0].lastIndexOf(value);
       if (spans.some(([s, e]) => start >= s && start < e)) continue;

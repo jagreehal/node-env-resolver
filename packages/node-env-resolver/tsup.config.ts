@@ -25,6 +25,7 @@ export default defineConfig({
   splitting: true,
   sourcemap: process.env.NODE_ENV !== 'production',
   bundle: true,
+  shims: true, // provides import.meta.url in the CJS build
   watch: false,
   treeshake: true,
   dts: false,

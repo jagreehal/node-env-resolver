@@ -179,6 +179,8 @@ Examples:
   ner scan --staged
   ner scan --format json .
 
+Allow a line by adding the comment: // ner-scan-ignore
+
 Pre-commit hook setup:
   echo 'ner scan --staged' >> .git/hooks/pre-commit
   chmod +x .git/hooks/pre-commit

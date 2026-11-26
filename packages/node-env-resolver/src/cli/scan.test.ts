@@ -18,6 +18,22 @@ describe('scanner', () => {
     expect(findings[0]!.context).toBe('const t = "[REDACTED]"; password = "[REDACTED]"');
   });
 
+  it('ignores code expressions, flags string literals and unquoted .env values', () => {
+    const code = [
+      'password: z.string().min(12),',
+      'secret: options.secretValue,',
+      'tokenUrl: "https://example.com/oauth/token",',
+      'apiKey: "abcdefghijkl",',
+    ].join('\n');
+    expect(scanContent(code, 'config.ts', false).map((f) => f.line)).toEqual([4]);
+    expect(scanContent('API_KEY=abcdefghijkl', '.env', false)).toHaveLength(1);
+  });
+
+  it('skips lines marked ner-scan-ignore', () => {
+    const findings = scanContent(`apiKey: "abcdefghijkl", // ner-scan-ignore\nt = "${GH}"`, 'x.ts', false);
+    expect(findings).toMatchObject([{ line: 2, type: 'github-token' }]);
+  });
+
   it('scans dotfiles like .env.local but skips .git', () => {
     const dir = mkdtempSync(join(tmpdir(), 'ner-scan-'));
     writeFileSync(join(dir, '.env.local'), `TOKEN=${GH}\n`);

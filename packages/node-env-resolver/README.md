@@ -772,6 +772,8 @@ The `ner` CLI ships with the package. Install globally or run via `npx ner`.
 
 Scans files for hardcoded secrets: Stripe keys, GitHub tokens, JWTs, DB connection strings, AWS keys, private keys and more. The scan includes dotfiles such as `.env.local` and `.npmrc`, because `.gitignore` does not stop an agent or a `git add -f` from reading them. Each finding reports file, line, column and type. Exit codes: `0` clean, `1` findings, `2` usage error.
 
+In JS and TS files, `ner scan` flags a `password`, `secret`, `token` or `apiKey` property when its value is a string literal. Add `// ner-scan-ignore` to a line to allow it.
+
 ```bash
 # Scan a directory
 ner scan src/
