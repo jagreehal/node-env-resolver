@@ -5,7 +5,7 @@ import {
   requireCredential,
   resolveCredential,
   resolveOptionalCredential,
-} from './provider-kit';
+} from './provider-kit.js';
 
 describe('requireCredential', () => {
   it('accepts a non-empty string', () => {

@@ -8,10 +8,10 @@ import {
   type PolicyOptions,
   type Provenance,
   type ReferenceOptions,
-} from './index';
-import { processEnv } from './resolvers';
-import { resolveReferences, resolveReferencesSync } from './references';
-import type { SafeResolveResult, ValidationIssue } from './validation-types';
+} from './index.js';
+import { processEnv } from './resolvers.js';
+import { resolveReferences, resolveReferencesSync } from './references.js';
+import type { SafeResolveResult, ValidationIssue } from './validation-types.js';
 
 type ResolveZodOptions = {
   resolvers?: Resolver[];

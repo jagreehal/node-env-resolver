@@ -7,16 +7,16 @@ import {
   safeResolve,
   type SimpleEnvSchema,
   resolveAsync,
-} from './index';
+} from './index.js';
 
-import { json, secrets, toml, processEnv } from './resolvers';
+import { json, secrets, toml, processEnv } from './resolvers.js';
 import {
   string,
   port,
   url,
   boolean,
   json as jsonValidator,
-} from './validators';
+} from './validators.js';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 

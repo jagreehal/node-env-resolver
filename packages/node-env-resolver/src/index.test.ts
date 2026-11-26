@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, resolveAsync } from './index';
+import { resolve, resolveAsync } from './index.js';
 import {
   string,
   url,
@@ -16,8 +16,8 @@ import {
   port,
   date,
   timestamp,
-} from './validators';
-import { resolveZod } from './zod';
+} from './validators.js';
+import { resolveZod } from './zod.js';
 // Helper to create mock provider
 const mockProvider = (env: Record<string, string>) => ({
   name: 'mock',

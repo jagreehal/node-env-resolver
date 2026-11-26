@@ -4,9 +4,9 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve as resolvePath } from 'path';
-import type { Resolver, SyncResolver } from './types';
+import type { Resolver, SyncResolver } from './types.js';
 
-export { processEnv, fromObject } from './process-env';
+export { processEnv, fromObject } from './process-env.js';
 
 /**
  * Options for the dotenv resolver

@@ -28,7 +28,7 @@ const MockSSMClient = vi.hoisted(() => {
   };
 });
 
-import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index';
+import { awsSecrets, awsSsm, resolveSsm, safeResolveSsm, resolveSecrets, safeResolveSecrets } from './index.js';
 import { string, url } from 'node-env-resolver/validators';
 
 vi.mock('@aws-sdk/client-secrets-manager', () => ({

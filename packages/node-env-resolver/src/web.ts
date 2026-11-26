@@ -3,8 +3,8 @@
  * Import from 'node-env-resolver/web' to use client-safe environment resolution
  */
 
-import { resolveAsync } from './index';
-import { processEnv, dotenv } from './resolvers';
+import { resolveAsync } from './index.js';
+import { processEnv, dotenv } from './resolvers.js';
 import type {
   Resolver,
   EnvDefinition,
@@ -13,7 +13,7 @@ import type {
   SimpleEnvSchema,
   InferSimpleSchema,
   ReferenceOptions,
-} from './types';
+} from './types.js';
 interface GlobalWithWindow {
   window?: Window;
 }

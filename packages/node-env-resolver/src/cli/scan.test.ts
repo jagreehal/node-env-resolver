@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { execFileSync } from 'child_process';
-import { scanContent, scanDirectory, scanStaged } from './scan';
+import { scanContent, scanDirectory, scanStaged } from './scan.js';
 
 const GH = `ghp_${'a'.repeat(36)}`;
 const opts = { ignorePatterns: [], showContext: true };

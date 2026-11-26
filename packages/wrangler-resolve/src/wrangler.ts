@@ -40,9 +40,9 @@ import type {
   ResolveOptions,
 } from 'node-env-resolver';
 import { safeResolveAsync } from 'node-env-resolver';
-import { createServingTempFile } from './fifo';
-import { addSerializedEnvToRecord } from './chunking';
-import { formatEnvFileContent, splitConfigForDeploy } from './format';
+import { createServingTempFile } from './fifo.js';
+import { addSerializedEnvToRecord } from './chunking.js';
+import { formatEnvFileContent, splitConfigForDeploy } from './format.js';
 
 const isWindows = process.platform === 'win32';
 
@@ -531,6 +531,6 @@ export class WranglerFacade {
   }
 }
 
-export { createServingTempFile, type ServingHandle, type TempFileResult } from './fifo';
-export { chunkString, addSerializedEnvToRecord, addSerializedEnvToLines, reassembleEnvFromRecord, CF_SECRET_MAX_BYTES } from './chunking';
-export { formatEnvLine, formatEnvFileContent, splitConfigForDeploy, isSensitiveKey } from './format';
+export { createServingTempFile, type ServingHandle, type TempFileResult } from './fifo.js';
+export { chunkString, addSerializedEnvToRecord, addSerializedEnvToLines, reassembleEnvFromRecord, CF_SECRET_MAX_BYTES } from './chunking.js';
+export { formatEnvLine, formatEnvFileContent, splitConfigForDeploy, isSensitiveKey } from './format.js';

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { cliArgs } from './cli';
-import { resolveAsync } from './index';
-import { postgres, string, number } from './validators';
-import { processEnv } from './resolvers';
+import { cliArgs } from './cli.js';
+import { resolveAsync } from './index.js';
+import { postgres, string, number } from './validators.js';
+import { processEnv } from './resolvers.js';
 
 describe('cliArgs resolver', () => {
   describe('basic functionality', () => {

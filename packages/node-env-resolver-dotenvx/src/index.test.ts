@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { string } from 'node-env-resolver/validators';
-import { dotenvx, dotenvxKeychain, resolveDotenvx, safeResolveDotenvx } from './index';
+import { dotenvx, dotenvxKeychain, resolveDotenvx, safeResolveDotenvx } from './index.js';
 
 type SpyFn<T extends (...args: never[]) => unknown> = ReturnType<typeof vi.fn<T>>;
 

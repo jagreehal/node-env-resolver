@@ -4,7 +4,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import type { Resolver } from './types';
+import type { Resolver } from './types.js';
 /**
  * Options for the dotenv resolver
  */

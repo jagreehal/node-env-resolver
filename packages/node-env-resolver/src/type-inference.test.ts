@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, resolveAsync } from './index';
+import { resolve, resolveAsync } from './index.js';
 import {
   stringArray,
   numberArray,
@@ -7,8 +7,8 @@ import {
   duration,
   file,
   boolean,
-} from './validators';
-import { processEnv } from './resolvers';
+} from './validators.js';
+import { processEnv } from './resolvers.js';
 
 describe('Type Inference for New Features', () => {
   it('should infer string array type correctly', () => {

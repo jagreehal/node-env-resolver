@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveAsync, safeResolveAsync } from './index';
-import { string, postgres, number, boolean } from './validators';
-import type { Resolver } from './types';
+import { resolveAsync, safeResolveAsync } from './index.js';
+import { string, postgres, number, boolean } from './validators.js';
+import type { Resolver } from './types.js';
 
 // Helper to create mock resolvers
 function createResolver(name: string, env: Record<string, string>): Resolver {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { withComputed } from './utils';
-import { resolve } from './index';
-import { oneOf, number, string } from './validators';
+import { withComputed } from './utils.js';
+import { resolve } from './index.js';
+import { oneOf, number, string } from './validators.js';
 
 describe('withComputed utility', () => {
   describe('basic functionality', () => {

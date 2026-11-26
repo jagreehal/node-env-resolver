@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAsync } from './index';
-import { string, number, oneOf, url, postgres } from './validators';
-import type { InferSimpleSchema } from './types';
+import { resolveAsync } from './index.js';
+import { string, number, oneOf, url, postgres } from './validators.js';
+import type { InferSimpleSchema } from './types.js';
 
 describe('Type override behavior with multiple resolvers', () => {
   it('last schema wins - type changes from string to number', async () => {

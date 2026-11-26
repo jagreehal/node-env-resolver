@@ -22,7 +22,7 @@ export {
   createKeychainHandler,
   keychainHandler,
   type KeychainHandlerOptions,
-} from './handlers';
+} from './handlers.js';
 
 /**
  * Options for the dotenvx resolver

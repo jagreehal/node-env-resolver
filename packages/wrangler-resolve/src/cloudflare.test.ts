@@ -7,10 +7,10 @@ import {
   addSerializedEnvToLines,
   reassembleEnvFromRecord,
   CF_SECRET_MAX_BYTES,
-} from './chunking';
-import { formatEnvLine, formatEnvFileContent, splitConfigForDeploy, isSensitiveKey } from './format';
-import { createCloudflareHandler } from './handlers';
-import { WranglerFacade } from './wrangler';
+} from './chunking.js';
+import { formatEnvLine, formatEnvFileContent, splitConfigForDeploy, isSensitiveKey } from './format.js';
+import { createCloudflareHandler } from './handlers.js';
+import { WranglerFacade } from './wrangler.js';
 
 describe('chunking', () => {
   describe('chunkString', () => {

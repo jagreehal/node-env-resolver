@@ -9,7 +9,7 @@ import type { Plugin } from 'vite';
 import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { dirname } from 'path';
 import { mkdirSync } from 'fs';
-import { resolve, resolveAsyncFn, type ViteEnvConfig, type ViteOptions } from './index';
+import { resolve, resolveAsyncFn, type ViteEnvConfig, type ViteOptions } from './index.js';
 import type { SimpleEnvSchema } from 'node-env-resolver';
 
 export interface PluginOptions<

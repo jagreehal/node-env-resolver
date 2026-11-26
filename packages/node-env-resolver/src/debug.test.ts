@@ -3,8 +3,8 @@ import {
   createDebugView,
   createRedactedObject,
   type DebugOptions,
-} from './debug';
-import type { Provenance } from './types';
+} from './debug.js';
+import type { Provenance } from './types.js';
 
 describe('debug helpers', () => {
   it('redacts sensitive values in createRedactedObject when valueMode is none', () => {

@@ -23,8 +23,8 @@
  * ```
  */
 
-export { WranglerFacade, type WranglerFacadeOptions } from './wrangler';
-export { createServingTempFile, type ServingHandle, type TempFileResult } from './fifo';
-export { chunkString, addSerializedEnvToRecord, addSerializedEnvToLines, reassembleEnvFromRecord, CF_SECRET_MAX_BYTES } from './chunking';
-export { formatEnvLine, formatEnvFileContent, splitConfigForDeploy, isSensitiveKey } from './format';
-export { createCloudflareHandler, cfHandler, type CloudflareHandlerOptions } from './handlers';
+export { WranglerFacade, type WranglerFacadeOptions } from './wrangler.js';
+export { createServingTempFile, type ServingHandle, type TempFileResult } from './fifo.js';
+export { chunkString, addSerializedEnvToRecord, addSerializedEnvToLines, reassembleEnvFromRecord, CF_SECRET_MAX_BYTES } from './chunking.js';
+export { formatEnvLine, formatEnvFileContent, splitConfigForDeploy, isSensitiveKey } from './format.js';
+export { createCloudflareHandler, cfHandler, type CloudflareHandlerOptions } from './handlers.js';

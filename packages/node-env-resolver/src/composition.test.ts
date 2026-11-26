@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, expectTypeOf } from 'vitest';
-import { env } from './builder';
-import type { Resolver } from './index';
-import { string, number, oneOf } from './validators';
+import { env } from './builder.js';
+import type { Resolver } from './index.js';
+import { string, number, oneOf } from './validators.js';
 // Mock custom resolver
 function createCustomResolver(values: Record<string, string>): Resolver {
   return {
