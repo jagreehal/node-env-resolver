@@ -9,24 +9,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
       "default": "./dist/index.js"
     },
     "./handlers": {
       "types": "./dist/handlers.d.ts",
       "import": "./dist/handlers.js",
-      "require": "./dist/handlers.cjs",
       "default": "./dist/handlers.js"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "./dist/index.d.ts"
-      ],
-      "handlers": [
-        "./dist/handlers.d.ts"
-      ]
     }
   },
   "files": [
@@ -65,7 +53,7 @@
   },
   "sideEffects": false,
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "peerDependencies": {
     "@aws-sdk/client-secrets-manager": "^3.714.0",

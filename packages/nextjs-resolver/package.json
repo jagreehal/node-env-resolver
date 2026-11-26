@@ -7,33 +7,9 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./client": {
-      "import": "./dist/client.js",
-      "types": "./dist/client.d.ts"
-    },
-    "./server": {
-      "import": "./dist/server.js",
-      "types": "./dist/server.d.ts"
-    },
-    "./config": {
-      "import": "./dist/config.js",
-      "types": "./dist/config.d.ts"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "client": [
-        "./dist/client.d.ts"
-      ],
-      "server": [
-        "./dist/server.d.ts"
-      ],
-      "config": [
-        "./dist/config.d.ts"
-      ]
+      "default": "./dist/index.js"
     }
   },
   "files": [
@@ -91,6 +67,6 @@
     "vitest": "^5.0.5"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   }
 }
