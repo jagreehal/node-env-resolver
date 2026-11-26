@@ -4,8 +4,8 @@ import {
   strictReferenceResolveOptions,
   resolveAsync,
   type AsyncResolver,
-} from './index';
-import { string } from './validators';
+} from './index.js';
+import { string } from './validators.js';
 
 describe('strictReferencePolicies', () => {
   it('creates source-lock policies for sensitive keys with secure defaults', () => {

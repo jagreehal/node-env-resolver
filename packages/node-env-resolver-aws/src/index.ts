@@ -18,7 +18,7 @@ import {
   decodeSecretValue,
   validateSsmParameterName,
   type AwsClientOptions,
-} from './shared';
+} from './shared.js';
 
 export { resolveAsync, safeResolveAsync };
 export { processEnv } from 'node-env-resolver/resolvers';
@@ -31,7 +31,7 @@ export {
   type AwsHandlerOptions,
   type AwsSecretHandlerOptions,
   type AwsSsmHandlerOptions,
-} from './handlers';
+} from './handlers.js';
 // AWS Secrets Manager
 export interface AwsSecretsOptions extends AwsClientOptions {
   secretId: string;

@@ -36,7 +36,7 @@ import {
   decodeSecretValue,
   validateSsmParameterName,
   type AwsClientOptions,
-} from './shared';
+} from './shared.js';
 
 export type AwsHandlerOptions = AwsClientOptions;
 

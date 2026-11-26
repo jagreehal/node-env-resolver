@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveAsync } from './index';
-import { string, url } from './validators';
-import type { Resolver } from './types';
+import { resolveAsync } from './index.js';
+import { string, url } from './validators.js';
+import type { Resolver } from './types.js';
 
 // Helper to create mock resolvers with load tracking
 function createTrackedResolver(

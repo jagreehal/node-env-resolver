@@ -8,9 +8,9 @@
  * Nothing here calls providers or resolves reference URIs.
  */
 
-import { normalizeSchema } from './resolver';
-import { isSensitiveKeyName, isSensitiveValidator } from './sensitivity';
-import type { EnvDefinition, SimpleEnvSchema } from './types';
+import { normalizeSchema } from './resolver.js';
+import { isSensitiveKeyName, isSensitiveValidator } from './sensitivity.js';
+import type { EnvDefinition, SimpleEnvSchema } from './types.js';
 
 export const REFERENCE_URI = /^([a-z][a-z0-9-]+):\/\//;
 

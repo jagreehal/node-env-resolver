@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolve, resolveAsync } from './index';
-import { postgres, string } from './validators';
+import { resolve, resolveAsync } from './index.js';
+import { postgres, string } from './validators.js';
 
 const originalEnv = { ...process.env };
 

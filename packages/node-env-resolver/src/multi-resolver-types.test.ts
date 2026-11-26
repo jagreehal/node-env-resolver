@@ -5,10 +5,10 @@
  * resolveAsync with multiple resolver tuples.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, resolveAsync } from './index';
-import { string, number, boolean, url } from './validators';
-import { processEnv } from './resolvers';
-import type { Resolver, SimpleEnvSchema, InferSimpleSchema } from './types';
+import { resolve, resolveAsync } from './index.js';
+import { string, number, boolean, url } from './validators.js';
+import { processEnv } from './resolvers.js';
+import type { Resolver, SimpleEnvSchema, InferSimpleSchema } from './types.js';
 
 // Test resolvers
 const createMockResolver = (

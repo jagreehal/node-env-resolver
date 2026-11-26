@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { boolean, email, number, port, postgres, resolve, safeResolve, string, url } from './index';
+import { boolean, email, number, port, postgres, resolve, safeResolve, string, url } from './index.js';
 import { secret } from 'node-env-resolver/validators';
 // Mock the globalThis.window for browser detection
 const originalGlobalThis = globalThis;

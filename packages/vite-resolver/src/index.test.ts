@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, safeResolve, isServer, isClient } from './index';
+import { resolve, safeResolve, isServer, isClient } from './index.js';
 import { string, url, postgres, port, number, boolean, secret } from 'node-env-resolver/validators';
 
 describe('node-env-resolver-vite', () => {

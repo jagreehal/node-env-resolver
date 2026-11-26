@@ -7,7 +7,7 @@ import {
   createRedactor,
   createResponseMiddleware,
   scanBodyForSecrets,
-} from './index';
+} from './index.js';
 
 // ─── extractSensitiveValues ───────────────────────────────────────────────────
 

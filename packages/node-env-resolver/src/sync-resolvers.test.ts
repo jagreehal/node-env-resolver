@@ -8,9 +8,9 @@ import {
   AsyncResolver,
   isSyncResolver,
   isAsyncOnlyResolver,
-} from './index';
-import { string, oneOf, number } from './validators';
-import { dotenv, processEnv, json } from './resolvers';
+} from './index.js';
+import { string, oneOf, number } from './validators.js';
+import { dotenv, processEnv, json } from './resolvers.js';
 
 describe('Sync Resolvers', () => {
   beforeEach(() => {

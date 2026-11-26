@@ -14,9 +14,9 @@ import { existsSync, readFileSync } from 'fs';
 import { resolve as resolvePath } from 'path';
 import { pathToFileURL } from 'url';
 import { spawn } from 'child_process';
-import { scanFile, scanPaths, scanStaged, type Finding } from './scan';
-import { checkEnv, describeSchema, toDotenvExample, KNOWN_REFERENCE_SCHEMES } from '../inspect';
-import type { SimpleEnvSchema } from '../types';
+import { scanFile, scanPaths, scanStaged, type Finding } from './scan.js';
+import { checkEnv, describeSchema, toDotenvExample, KNOWN_REFERENCE_SCHEMES } from '../inspect.js';
+import type { SimpleEnvSchema } from '../types.js';
 
 function fmt(finding: Finding, showContext: boolean): string {
   let out = `\x1b[31m${finding.file}:${finding.line}:${finding.column}\x1b[0m \x1b[33m[${finding.type}]\x1b[0m`;

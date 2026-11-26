@@ -6,8 +6,8 @@ import {
   clearAuditLog,
   SyncResolver,
   AsyncResolver,
-} from './index';
-import { string, url, port } from './validators';
+} from './index.js';
+import { string, url, port } from './validators.js';
 
 describe('Audit Logging', () => {
   beforeEach(() => {

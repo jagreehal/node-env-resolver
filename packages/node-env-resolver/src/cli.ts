@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { Resolver } from './types';
+import type { Resolver } from './types.js';
 
 export interface CliArgsOptions {
   /** Arguments to parse (default: process.argv.slice(2)) */

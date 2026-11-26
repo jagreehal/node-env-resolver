@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, resolveAsync, safeResolve } from './index';
-import { string, port, url, boolean } from './validators';
+import { resolve, resolveAsync, safeResolve } from './index.js';
+import { string, port, url, boolean } from './validators.js';
 
 /**
  * Tests for nested delimiter functionality

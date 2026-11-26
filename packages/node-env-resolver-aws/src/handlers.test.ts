@@ -42,7 +42,7 @@ import {
   createAwsSsmHandler,
   awsSecretHandler,
   awsSsmHandler,
-} from './handlers';
+} from './handlers.js';
 
 describe('AWS Secret Reference Handlers', () => {
   beforeEach(() => {

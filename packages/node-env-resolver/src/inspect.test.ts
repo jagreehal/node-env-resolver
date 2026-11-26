@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolve, resolveAsync } from './index';
-import { fromObject } from './process-env';
+import { resolve, resolveAsync } from './index.js';
+import { fromObject } from './process-env.js';
 import {
   secret,
   string,
@@ -14,15 +14,15 @@ import {
   file,
   json,
   withMeta,
-} from './validators';
-import { describeSchema, fakeEnv, checkEnv, toDotenvExample } from './inspect';
-import { createDebugView } from './debug';
-import { extractSensitiveValues, createRedactor } from './runtime/redactor';
+} from './validators.js';
+import { describeSchema, fakeEnv, checkEnv, toDotenvExample } from './inspect.js';
+import { createDebugView } from './debug.js';
+import { extractSensitiveValues, createRedactor } from './runtime/redactor.js';
 import { mkdtempSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { clearSensitiveValues, isSensitiveValue } from './sensitivity';
-import { withComputed } from './utils';
+import { clearSensitiveValues, isSensitiveValue } from './sensitivity.js';
+import { withComputed } from './utils.js';
 
 const schema = {
   SERVICE_CONFIG: secret(), // name heuristic would miss this

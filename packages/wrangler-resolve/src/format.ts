@@ -7,7 +7,7 @@
  * Values containing single quotes fall back to double-quoted with escaping.
  */
 
-import { addSerializedEnvToLines } from './chunking';
+import { addSerializedEnvToLines } from './chunking.js';
 
 /**
  * Format a single KEY=VALUE line in dotenv format.

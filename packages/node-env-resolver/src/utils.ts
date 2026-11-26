@@ -2,8 +2,8 @@
  * Core utility resolvers and wrappers
  */
 
-import type { Resolver } from './types';
-import { resolveAsync } from './index';
+import type { Resolver } from './types.js';
+import { resolveAsync } from './index.js';
 export interface CacheOptions {
   /** Time to live in milliseconds (default: 5 minutes) */
   ttl?: number;
@@ -730,7 +730,7 @@ export function withNamespace(resolver: Resolver, namespace: string): Resolver {
  * ```
  */
 export function watch<T>(
-  config: Parameters<typeof import('./index').resolveAsync>[0],
+  config: Parameters<typeof import('./index.js').resolveAsync>[0],
   options?: {
     /** Callback when config changes */
     onChange?: (config: T) => void;
@@ -752,7 +752,7 @@ export function watch<T>(
   // Initial load
   const loadConfig = async () => {
     try {
-      await import('./index');
+      await import('./index.js');
       currentConfig = (await resolveAsync(config)) as T;
       return currentConfig;
     } catch (error) {

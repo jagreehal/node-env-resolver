@@ -10,10 +10,10 @@ import type {
   ResolveOptions,
   PolicyOptions,
   Provenance,
-} from './types';
-import { createDebugEntry } from './debug';
-import { isSensitiveValidator, markSensitiveValue } from './sensitivity';
-import { resolveReferences, resolveReferencesSync } from './references';
+} from './types.js';
+import { createDebugEntry } from './debug.js';
+import { isSensitiveValidator, markSensitiveValue } from './sensitivity.js';
+import { resolveReferences, resolveReferencesSync } from './references.js';
 import { join, resolve } from 'path';
 import { readFileSync } from 'fs';
 
@@ -43,7 +43,7 @@ function file(
 import {
   logAuditEvent as auditLogEvent,
   attachAuditSession as auditAttachSession,
-} from './audit';
+} from './audit.js';
 
 const logAuditEvent = auditLogEvent;
 const logAuditEventSync = auditLogEvent;

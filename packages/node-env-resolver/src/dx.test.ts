@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, safeResolve, EnvValidationError } from './index';
-import { fromObject } from './resolvers';
-import { port, enumOf, string } from './validators';
+import { resolve, safeResolve, EnvValidationError } from './index.js';
+import { fromObject } from './resolvers.js';
+import { port, enumOf, string } from './validators.js';
 
 const schema = {
   PORT: port({ default: 8400 }),

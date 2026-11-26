@@ -28,7 +28,7 @@ import type {
   SimpleEnvSchema,
   InferSimpleValue,
   InferMergedSchemaResult,
-} from './types';
+} from './types.js';
 
 export type {
   EnvDefinition,
@@ -51,20 +51,20 @@ export type {
   InferSimpleSchema,
   InferResolveResult,
   Validator,
-} from './types';
-export { processEnvReferenceHandler } from './references';
+} from './types.js';
+export { processEnvReferenceHandler } from './references.js';
 
-export { isSyncResolver, isAsyncOnlyResolver, AsyncResolver } from './types';
+export { isSyncResolver, isAsyncOnlyResolver, AsyncResolver } from './types.js';
 export type {
   ValidationIssue,
   SafeResolveResult as SafeResolveResultWithIssues,
-} from './validation-types';
+} from './validation-types.js';
 export {
   getAuditLog,
   clearAuditLog,
   type AuditEvent,
   type AuditEventType,
-} from './audit';
+} from './audit.js';
 
 export {
   type DebugValueMode,
@@ -78,14 +78,14 @@ export {
   createRedactedObject,
   DEFAULT_DEBUG_OPTIONS,
   DEFAULT_SENSITIVE_PATTERNS,
-} from './debug';
+} from './debug.js';
 export {
   isSensitiveValidator,
   isSensitiveValue,
   isSensitiveKeyName,
   markSensitiveValue,
   findSensitiveKeys,
-} from './sensitivity';
+} from './sensitivity.js';
 
 import {
   normalizeSchema,
@@ -93,15 +93,15 @@ import {
   resolveEnvInternalSync,
   EnvValidationError,
   type EnvIssue,
-} from './resolver';
-export { EnvValidationError, type EnvIssue } from './resolver';
-import { processEnv } from './process-env';
+} from './resolver.js';
+export { EnvValidationError, type EnvIssue } from './resolver.js';
+import { processEnv } from './process-env.js';
 export {
   strictReferencePolicies,
   strictReferenceResolveOptions,
   type StrictReferencePoliciesOptions,
   type StrictReferenceResolveOptions,
-} from './security';
+} from './security.js';
 
 /**
  * Helper to build default resolvers (just processEnv)
@@ -681,4 +681,4 @@ export {
   type CheckResult,
   type CheckIssue,
   type CheckDeferred,
-} from './inspect';
+} from './inspect.js';

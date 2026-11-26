@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cached, retry, TTL, awsCache, withPrefix, withAliases, poll } from './utils';
-import type { Resolver } from './types';
+import { cached, retry, TTL, awsCache, withPrefix, withAliases, poll } from './utils.js';
+import type { Resolver } from './types.js';
 describe('resolvers', () => {
   describe('cached', () => {
     it('should cache provider results', async () => {

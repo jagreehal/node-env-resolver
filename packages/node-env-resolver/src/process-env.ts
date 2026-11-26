@@ -1,4 +1,4 @@
-import { SyncResolver } from './types';
+import { SyncResolver } from './types.js';
 
 /**
  * Resolver that reads from a plain object (Lambda/Workers env, tests, etc.)

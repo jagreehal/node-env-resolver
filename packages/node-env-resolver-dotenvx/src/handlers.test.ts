@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createKeychainHandler, keychainHandler } from './handlers';
+import { createKeychainHandler, keychainHandler } from './handlers.js';
 
 describe('Keychain Reference Handlers', () => {
   it('creates handlers with explicit platform names', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolve, resolveAsync } from './index';
-import { dotenv, json as jsonResolver } from './resolvers';
+import { resolve, resolveAsync } from './index.js';
+import { dotenv, json as jsonResolver } from './resolvers.js';
 import {
   string,
   stringArray,
@@ -9,7 +9,7 @@ import {
   duration,
   file,
   number,
-} from './validators';
+} from './validators.js';
 
 import * as fs from 'fs';
 import * as path from 'path';

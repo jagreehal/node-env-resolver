@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolve, resolveAsync } from './index';
+import { resolve, resolveAsync } from './index.js';
 import {
   http,
   json,
@@ -14,7 +14,7 @@ import {
   optional,
   stringArray,
   numberArray,
-} from './validators';
+} from './validators.js';
 
 describe('Builder Functions', () => {
   it('should handle literal default values without ambiguity', async () => {
@@ -399,7 +399,7 @@ describe('Builder Functions', () => {
 
   it('should export validators from validators subpath', async () => {
     // Import from validators subpath should work
-    const validatorsModule = await import('./validators');
+    const validatorsModule = await import('./validators.js');
     expect(validatorsModule.string).toBeDefined();
     expect(typeof validatorsModule.string).toBe('function');
     expect(validatorsModule.number).toBeDefined();

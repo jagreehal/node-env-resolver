@@ -6,7 +6,7 @@
  * 'postgres', 'mysql', 'mongodb', 'redis', 'http', 'https', 'url', 'email', 'port', 'json', 'date', 'timestamp'
  */
 
-import { Validator } from './types';
+import { Validator } from './types.js';
 
 /**
  * Result of a validation operation
