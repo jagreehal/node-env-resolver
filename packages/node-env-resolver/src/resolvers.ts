@@ -2,9 +2,13 @@
  * Built-in resolvers for environment variable resolution
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
+import { createRequire } from 'module';
 import { join, resolve as resolvePath } from 'path';
 import type { Resolver, SyncResolver } from './types.js';
+
+// Loads the optional js-yaml and smol-toml peers synchronously in both ESM and CJS builds.
+const requireOptional = createRequire(import.meta.url);
 
 export { processEnv, fromObject } from './process-env.js';
 
@@ -513,8 +517,6 @@ export function secrets(path: string = '/run/secrets'): Resolver {
       }
     },
     loadSync() {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { readdirSync, statSync } = require('fs');
       const fullPath = resolvePath(process.cwd(), path);
 
       if (!existsSync(fullPath)) return {};
@@ -634,9 +636,7 @@ export function yaml(options?: string | YamlOptions): Resolver {
       if (!existsSync(fullPath)) return {};
 
       try {
-        // Require for sync context
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { load } = require('js-yaml');
+        const { load } = requireOptional('js-yaml');
         const content = readFileSync(fullPath, 'utf8');
         const parsed = load(content);
 
@@ -765,9 +765,7 @@ export function toml(options?: string | TomlOptions): Resolver {
       if (!existsSync(fullPath)) return {};
 
       try {
-        // Require for sync context
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { parse } = require('smol-toml');
+        const { parse } = requireOptional('smol-toml');
         const content = readFileSync(fullPath, 'utf8');
         const parsed = parse(content);
 

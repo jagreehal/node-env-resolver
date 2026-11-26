@@ -5,7 +5,7 @@ export default defineConfig({
   outDir: './dist/',
   // Clear dist first: `files: ["dist"]` publishes whatever is there, including chunks from older builds.
   clean: true,
-  format: ['esm', 'cjs'],
+  format: ['esm'],
   splitting: true,
   sourcemap: process.env.NODE_ENV !== 'production',
   bundle: true,

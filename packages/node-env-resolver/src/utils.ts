@@ -2,6 +2,8 @@
  * Core utility resolvers and wrappers
  */
 
+import { watch as fsWatch } from 'fs';
+import { join } from 'path';
 import type { Resolver } from './types.js';
 import { resolveAsync } from './index.js';
 export interface CacheOptions {
@@ -774,12 +776,6 @@ export function watch<T>(
       }
     }, debounce);
   };
-
-  // Watch files
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { watch: fsWatch } = require('fs');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { join } = require('path');
 
   for (const file of files) {
     try {

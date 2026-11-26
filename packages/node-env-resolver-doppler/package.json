@@ -9,15 +9,7 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
       "default": "./dist/index.js"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "./dist/index.d.ts"
-      ]
     }
   },
   "files": [
@@ -54,7 +46,7 @@
   },
   "sideEffects": false,
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "dependencies": {},
   "peerDependencies": {

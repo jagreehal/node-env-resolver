@@ -14,39 +14,18 @@ npm install node-env-resolver
 
 ### TypeScript Configuration
 
-This package uses modern [package.json `exports`](https://nodejs.org/api/packages.html#exports) for subpath imports (like `node-env-resolver/resolvers`). Your `tsconfig.json` must use a modern module resolution strategy.
-
-**What to change:**
-
-If your `tsconfig.json` has:
+The package ships ES modules for Node.js 24 and later, with subpath `exports` such as `node-env-resolver/resolvers`. Set `moduleResolution` to `nodenext` or `bundler`:
 
 ```json
 {
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "node"
+    "module": "nodenext",
+    "moduleResolution": "nodenext"
   }
 }
 ```
 
-**Change it to:**
-
-```json
-{
-  "compilerOptions": {
-    "module": "NodeNext", // Changed from "CommonJS"
-    "moduleResolution": "NodeNext" // Changed from "node"
-  }
-}
-```
-
-**Alternative options:**
-
-- For bundler projects (Vite, Webpack, etc.): Use `"moduleResolution": "bundler"` (you can keep `"module": "CommonJS"` or use `"ESNext"`)
-- For Node.js projects: Use `"moduleResolution": "node16"` with `"module": "node16"`
-
-**Required values:** `"node16"`, `"nodenext"`, or `"bundler"`  
-**Not supported:** `"node"` (legacy resolution doesn't understand exports)
+Bundled apps (Vite, Next.js, webpack) can use `"module": "esnext"` with `"moduleResolution": "bundler"`. CommonJS code on Node.js 24 can `require('node-env-resolver')` directly, and TypeScript accepts it under `"module": "nodenext"`.
 
 If you see module resolution errors, see the [Troubleshooting](#troubleshooting) section below.
 
@@ -772,6 +751,8 @@ The `ner` CLI ships with the package. Install globally or run via `npx ner`.
 
 Scans files for hardcoded secrets: Stripe keys, GitHub tokens, JWTs, DB connection strings, AWS keys, private keys and more. The scan includes dotfiles such as `.env.local` and `.npmrc`, because `.gitignore` does not stop an agent or a `git add -f` from reading them. Each finding reports file, line, column and type. Exit codes: `0` clean, `1` findings, `2` usage error.
 
+In JS and TS files, `ner scan` flags a `password`, `secret`, `token` or `apiKey` property when its value is a string literal. Values that are reference URIs such as `aws-sm://api/jwt-secret`, `op://vault/item/field` or `process-env://OTHER_KEY` pass, and so does the `.env.example` that `ner describe` writes. Known token formats are still checked inside `.env` comments. Add `// ner-scan-ignore` to a line to allow it.
+
 ```bash
 # Scan a directory
 ner scan src/
@@ -857,7 +838,7 @@ ner describe --format json > env.manifest.json
 ner describe --format dotenv > .env.example
 ```
 
-The CLI loads `env.schema.{ts,mts,js,mjs}` or `--schema <file>`, using the `schema` export or the default export. `.ts` files need Node 22.18+ or a loader such as `tsx`.
+The CLI loads `env.schema.{ts,mts,js,mjs}` or `--schema <file>`, using the `schema` export or the default export. Node.js 24 loads `.ts` schema files directly.
 
 In code, use `describeSchema(schema)`, `toDotenvExample(schema)` and `fakeEnv(schema)`. `fakeEnv` returns fake values for tests that run without cloud credentials. It validates each value and throws if a constraint such as `number({ min: 10 })` rejects the generated one. Supply your own with `withMeta(validator, { example })`.
 
@@ -2233,61 +2214,7 @@ but this result could not be resolved under your current 'moduleResolution' sett
 Consider updating to 'node16', 'nodenext', or 'bundler'.
 ```
 
-**Solution:** Update your `tsconfig.json` to use a modern module resolution strategy.
-
-**Example - if your config currently has:**
-
-```json
-{
-  "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "node"
-  }
-}
-```
-
-**Change to one of these options:**
-
-1. **`moduleResolution: "NodeNext"`** (recommended for most Node.js projects):
-
-```json
-{
-  "compilerOptions": {
-    "module": "NodeNext", // Changed from "CommonJS"
-    "moduleResolution": "NodeNext" // Changed from "node"
-  }
-}
-```
-
-2. **`moduleResolution: "bundler"`** (for bundler-based projects like Vite, Webpack, etc.):
-
-```json
-{
-  "compilerOptions": {
-    "module": "CommonJS", // Can keep this or use "ESNext"
-    "moduleResolution": "bundler" // Changed from "node"
-  }
-}
-```
-
-3. **`moduleResolution: "node16"`** (alternative to NodeNext):
-
-```json
-{
-  "compilerOptions": {
-    "module": "node16", // Changed from "CommonJS"
-    "moduleResolution": "node16" // Changed from "node"
-  }
-}
-```
-
-**Why this is required:**
-
-- The legacy `moduleResolution: "node"` strategy doesn't understand package.json `exports` field
-- Modern resolution strategies (`node16`, `nodenext`, `bundler`) properly support subpath exports
-- This is a TypeScript configuration requirement, not a runtime issue - your code will run correctly regardless
-
-**Note:** The runtime will work correctly regardless of TypeScript's resolution mode. This is purely a TypeScript type-checking issue.
+**Solution:** set `moduleResolution` to `nodenext` or `bundler`, as shown in [TypeScript Configuration](#typescript-configuration). The legacy `node` setting ignores package.json `exports`.
 
 ## Testing
 
