@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.7.1
+
+### Patch Changes
+
+- 4a06454: Fix types resolving to `any` under `moduleResolution: NodeNext`/`node16`: relative imports in published `.d.ts` files now carry `.js` extensions (#63).
+
 ## 6.7.0
 
 ### Minor Changes

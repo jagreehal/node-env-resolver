@@ -58,7 +58,7 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "node-env-resolver": "^6.7.0"
+    "node-env-resolver": "^6.7.1"
   },
   "publishConfig": {
     "access": "public"
